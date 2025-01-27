@@ -3,6 +3,7 @@ package nip44
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"fiatjaf.com/nostr"
@@ -1052,4 +1053,26 @@ func TestMessageKeyGeneration033(t *testing.T) {
 func hexDecode32Array(hexString string) (res [32]byte, err error) {
 	_, err = hex.Decode(res[:], []byte(hexString))
 	return res, err
+}
+
+func TestEncryptDecryptLargePayload(t *testing.T) {
+	sk1, err := nostr.SecretKeyFromHex("0000000000000000000000000000000000000000000000000000000000000001")
+	require.NoError(t, err)
+	pub1 := nostr.GetPublicKey(sk1)
+
+	sk2, err := nostr.SecretKeyFromHex("0000000000000000000000000000000000000000000000000000000000000002")
+	require.NoError(t, err)
+
+	convKey, err := GenerateConversationKey(pub1, sk2)
+	require.NoError(t, err)
+
+	plaintext := strings.Repeat("a", 10_000_000)
+
+	ciphertext, err := Encrypt(plaintext, convKey)
+	require.NoError(t, err)
+
+	decrypted, err := Decrypt(ciphertext, convKey)
+	require.NoError(t, err)
+
+	require.Equal(t, plaintext, decrypted)
 }

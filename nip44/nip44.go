@@ -21,10 +21,6 @@ import (
 
 const version byte = 2
 
-const (
-	MaxPlaintextSize = 0xffff // 65535 (64kb-1) => padded to 64kb
-)
-
 var zeroes = [32]byte{}
 
 type encryptOptions struct {
@@ -65,14 +61,22 @@ func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(op
 
 	plain := []byte(plaintext)
 	size := len(plain)
-	if size == 0 || size > MaxPlaintextSize {
-		return "", fmt.Errorf("plaintext should be between 1b and 64kB")
+	if size == 0 {
+		return "", fmt.Errorf("plaintext can't be empty")
 	}
 
 	padding := calcPadding(size)
-	padded := make([]byte, 2+padding)
-	binary.BigEndian.PutUint16(padded, uint16(size))
-	copy(padded[2:], plain)
+	var padded []byte
+
+	if size < (1 << 16) {
+		padded = make([]byte, 2+padding)
+		binary.BigEndian.PutUint16(padded[0:2], uint16(size))
+		copy(padded[2:], plain)
+	} else {
+		padded = make([]byte, 6+padding)
+		binary.BigEndian.PutUint32(padded[2:6], uint32(size))
+		copy(padded[6:], plain)
+	}
 
 	ciphertext, err := chacha(cc20key, cc20nonce, []byte(padded))
 	if err != nil {
@@ -95,7 +99,7 @@ func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(op
 
 func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, error) {
 	cLen := len(b64ciphertextWrapped)
-	if cLen < 132 || cLen > 87472 {
+	if cLen < 132 {
 		return "", fmt.Errorf("invalid payload length: %d", cLen)
 	}
 	if b64ciphertextWrapped[0:1] == "#" {
@@ -112,7 +116,7 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 	}
 
 	dLen := len(decoded)
-	if dLen < 99 || dLen > 65603 {
+	if dLen < 99 {
 		return "", fmt.Errorf("invalid data length: %d", dLen)
 	}
 
@@ -139,13 +143,19 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 		return "", err
 	}
 
-	unpaddedLen := binary.BigEndian.Uint16(padded[0:2])
-	if unpaddedLen == 0 || unpaddedLen > MaxPlaintextSize || len(padded) != 2+calcPadding(int(unpaddedLen)) {
+	unpaddedLen := int(binary.BigEndian.Uint16(padded[0:2]))
+	offset := 2
+	if unpaddedLen == 0 {
+		unpaddedLen = int(binary.BigEndian.Uint32(padded[2:6]))
+		offset = 6
+	}
+
+	if unpaddedLen < 1 || len(padded) != offset+calcPadding(unpaddedLen) {
 		return "", fmt.Errorf("invalid padding")
 	}
 
-	unpadded := padded[2:][:unpaddedLen]
-	if len(unpadded) == 0 || len(unpadded) != int(unpaddedLen) {
+	unpadded := padded[offset : offset+unpaddedLen]
+	if len(unpadded) == 0 || len(unpadded) != unpaddedLen {
 		return "", fmt.Errorf("invalid padding")
 	}
 
