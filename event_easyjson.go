@@ -25,7 +25,6 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		return
 	}
 	in.Delim('{')
-	var reusableBuffer [64]byte
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(true)
 		in.WantColon()
@@ -36,11 +35,9 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		}
 		switch key {
 		case "id":
-			hex.Decode(reusableBuffer[:], []byte(in.String()))
-			copy(out.ID[:], reusableBuffer[0:32])
+			hex.Decode(out.ID[:], []byte(in.String()))
 		case "pubkey":
-			hex.Decode(reusableBuffer[:], []byte(in.String()))
-			copy(out.PubKey[:], reusableBuffer[0:32])
+			hex.Decode(out.PubKey[:], []byte(in.String()))
 		case "created_at":
 			out.CreatedAt = Timestamp(in.Int64())
 		case "kind":
@@ -88,8 +85,7 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		case "content":
 			out.Content = in.String()
 		case "sig":
-			hex.Decode(reusableBuffer[:], []byte(in.String()))
-			copy(out.Sig[:], reusableBuffer[0:64])
+			hex.Decode(out.Sig[:], []byte(in.String()))
 		}
 		in.WantComma()
 	}
