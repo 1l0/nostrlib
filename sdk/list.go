@@ -3,23 +3,22 @@ package sdk
 import (
 	"context"
 	"slices"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/sdk/cache"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/cache"
 )
 
 type GenericList[I TagItemWithValue] struct {
-	PubKey string       `json:"-"` // must always be set otherwise things will break
+	PubKey nostr.PubKey `json:"-"` // must always be set otherwise things will break
 	Event  *nostr.Event `json:"-"` // may be empty if a contact list event wasn't found
 
 	Items []I
 }
 
 type TagItemWithValue interface {
-	Value() string
+	Value() any
 }
 
 var (
@@ -30,8 +29,8 @@ var (
 func fetchGenericList[I TagItemWithValue](
 	sys *System,
 	ctx context.Context,
-	pubkey string,
-	actualKind int,
+	pubkey nostr.PubKey,
+	actualKind uint16,
 	replaceableIndex replaceableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 	cache cache.Cache32[GenericList[I]],
@@ -39,8 +38,8 @@ func fetchGenericList[I TagItemWithValue](
 	// we have 60 mutexes, so we can load up to 60 lists at the same time, but if we do the same exact
 	// call that will do it only once, the subsequent ones will wait for a result to be cached
 	// and then return it from cache -- 13 is an arbitrary index for the pubkey
-	n, _ := strconv.ParseUint(pubkey[14:16], 16, 8)
-	lockIdx := (n + uint64(actualKind)) % 60
+	n := pubkey[7]
+	lockIdx := (uint16(n) + actualKind) % 60
 	genericListMutexes[lockIdx].Lock()
 
 	if valueWasJustCached[lockIdx] {
@@ -58,7 +57,7 @@ func fetchGenericList[I TagItemWithValue](
 
 	v := GenericList[I]{PubKey: pubkey}
 
-	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{actualKind}, Authors: []string{pubkey}})
+	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []uint16{actualKind}, Authors: []nostr.PubKey{pubkey}})
 	if len(events) != 0 {
 		// ok, we found something locally
 		items := parseItemsFromEventTags(events[0], parseTag)
@@ -104,7 +103,7 @@ func fetchGenericList[I TagItemWithValue](
 func tryFetchListFromNetwork[I TagItemWithValue](
 	ctx context.Context,
 	sys *System,
-	pubkey string,
+	pubkey nostr.PubKey,
 	replaceableIndex replaceableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 ) *GenericList[I] {
@@ -140,7 +139,7 @@ func parseItemsFromEventTags[I TagItemWithValue](
 	return result
 }
 
-func getLocalStoreRefreshDaysForKind(kind int) nostr.Timestamp {
+func getLocalStoreRefreshDaysForKind(kind uint16) nostr.Timestamp {
 	switch kind {
 	case 0:
 		return 7

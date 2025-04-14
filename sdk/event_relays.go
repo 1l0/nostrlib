@@ -1,22 +1,21 @@
 package sdk
 
 import (
-	"encoding/hex"
-	"fmt"
 	"slices"
 
-	"github.com/nbd-wtf/go-nostr/sdk/kvstore"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/kvstore"
 )
 
 const eventRelayPrefix = byte('r')
 
 // makeEventRelayKey creates a key for storing event relay information.
 // It uses the first 8 bytes of the event ID to create a compact key.
-func makeEventRelayKey(eventID []byte) []byte {
+func makeEventRelayKey(id nostr.ID) []byte {
 	// format: 'r' + first 8 bytes of event ID
 	key := make([]byte, 9)
 	key[0] = eventRelayPrefix
-	copy(key[1:], eventID[:8])
+	copy(key[1:], id[:8])
 	return key
 }
 
@@ -75,15 +74,9 @@ func decodeRelayList(data []byte) []string {
 
 // trackEventRelay records that an event was seen on a particular relay.
 // If onlyIfItExists is true, it will only update existing records and not create new ones.
-func (sys *System) trackEventRelay(eventID string, relay string, onlyIfItExists bool) {
-	// decode the event ID hex into bytes
-	idBytes, err := hex.DecodeString(eventID)
-	if err != nil || len(idBytes) < 8 {
-		return
-	}
-
+func (sys *System) trackEventRelay(id nostr.ID, relay string, onlyIfItExists bool) {
 	// get the key for this event
-	key := makeEventRelayKey(idBytes)
+	key := makeEventRelayKey(id)
 
 	// update the relay list atomically
 	sys.KVStore.Update(key, func(data []byte) ([]byte, error) {
@@ -111,15 +104,9 @@ func (sys *System) trackEventRelay(eventID string, relay string, onlyIfItExists 
 
 // GetEventRelays returns all known relay URLs an event is known to be available on.
 // It is based on information kept on KVStore.
-func (sys *System) GetEventRelays(eventID string) ([]string, error) {
-	// decode the event ID hex into bytes
-	idBytes, err := hex.DecodeString(eventID)
-	if err != nil || len(idBytes) < 8 {
-		return nil, fmt.Errorf("invalid event id")
-	}
-
+func (sys *System) GetEventRelays(id nostr.ID) ([]string, error) {
 	// get the key for this event
-	key := makeEventRelayKey(idBytes)
+	key := makeEventRelayKey(id)
 
 	// get stored relay list
 	data, err := sys.KVStore.Get(key)

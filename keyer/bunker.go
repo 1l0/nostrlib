@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip46"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/nip46"
 )
 
 var _ nostr.Keyer = (*BunkerSigner)(nil)

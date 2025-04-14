@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	nostr "github.com/nbd-wtf/go-nostr"
+	nostr "fiatjaf.com/nostrlib"
 	"github.com/stretchr/testify/require"
 )
 

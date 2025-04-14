@@ -3,17 +3,16 @@ package sdk
 import (
 	"context"
 	"slices"
-	"strconv"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/sdk/cache"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/cache"
 )
 
 // this is similar to list.go and inherits code from that.
 
 type GenericSets[I TagItemWithValue] struct {
-	PubKey string         `json:"-"`
+	PubKey nostr.PubKey   `json:"-"`
 	Events []*nostr.Event `json:"-"`
 
 	Sets map[string][]I
@@ -22,14 +21,14 @@ type GenericSets[I TagItemWithValue] struct {
 func fetchGenericSets[I TagItemWithValue](
 	sys *System,
 	ctx context.Context,
-	pubkey string,
-	actualKind int,
+	pubkey nostr.PubKey,
+	actualKind uint16,
 	addressableIndex addressableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 	cache cache.Cache32[GenericSets[I]],
 ) (fl GenericSets[I], fromInternal bool) {
-	n, _ := strconv.ParseUint(pubkey[14:16], 16, 8)
-	lockIdx := (n + uint64(actualKind)) % 60
+	n := pubkey[7]
+	lockIdx := (uint16(n) + actualKind) % 60
 	genericListMutexes[lockIdx].Lock()
 
 	if valueWasJustCached[lockIdx] {
@@ -47,7 +46,7 @@ func fetchGenericSets[I TagItemWithValue](
 
 	v := GenericSets[I]{PubKey: pubkey}
 
-	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{actualKind}, Authors: []string{pubkey}})
+	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []uint16{actualKind}, Authors: []nostr.PubKey{pubkey}})
 	if len(events) != 0 {
 		// ok, we found something locally
 		sets := parseSetsFromEvents(events, parseTag)
@@ -93,7 +92,7 @@ func fetchGenericSets[I TagItemWithValue](
 func tryFetchSetsFromNetwork[I TagItemWithValue](
 	ctx context.Context,
 	sys *System,
-	pubkey string,
+	pubkey nostr.PubKey,
 	addressableIndex addressableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 ) *GenericSets[I] {

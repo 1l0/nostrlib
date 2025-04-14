@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip77/negentropy"
-	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage/vector"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/nip77/negentropy"
+	"fiatjaf.com/nostrlib/nip77/negentropy/storage/vector"
 )
 
 type direction struct {

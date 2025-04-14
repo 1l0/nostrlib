@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/sdk/hints"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/sdk/hints"
 	"github.com/stretchr/testify/require"
 )
 

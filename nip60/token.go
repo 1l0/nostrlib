@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/elnosh/gonuts/cashu"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 type Token struct {

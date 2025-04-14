@@ -36,7 +36,7 @@ type Relay struct {
 	challenge                     string       // NIP-42 challenge, we only keep the last
 	noticeHandler                 func(string) // NIP-01 NOTICEs
 	customHandler                 func(string) // nonstandard unparseable messages
-	okCallbacks                   *xsync.MapOf[string, func(bool, string)]
+	okCallbacks                   *xsync.MapOf[ID, func(bool, string)]
 	writeQueue                    chan writeRequest
 	subscriptionChannelCloseQueue chan *Subscription
 
@@ -58,7 +58,7 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 		connectionContext:             ctx,
 		connectionContextCancel:       cancel,
 		Subscriptions:                 xsync.NewMapOf[int64, *Subscription](),
-		okCallbacks:                   xsync.NewMapOf[string, func(bool, string)](),
+		okCallbacks:                   xsync.NewMapOf[ID, func(bool, string)](),
 		writeQueue:                    make(chan writeRequest),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
 		requestHeader:                 nil,
@@ -351,7 +351,8 @@ func (r *Relay) Auth(ctx context.Context, sign func(event *Event) error) error {
 	return r.publish(ctx, authEvent.ID, &AuthEnvelope{Event: authEvent})
 }
 
-func (r *Relay) publish(ctx context.Context, id string, env Envelope) error {
+// publish can be used both for EVENT and for AUTH
+func (r *Relay) publish(ctx context.Context, id ID, env Envelope) error {
 	var err error
 	var cancel context.CancelFunc
 

@@ -1,6 +1,8 @@
 package nostr
 
 import (
+	"encoding/hex"
+
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
@@ -41,17 +43,17 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 				in.Delim('[')
 				if out.IDs == nil {
 					if !in.IsDelim(']') {
-						out.IDs = make([]string, 0, 20)
+						out.IDs = make([]ID, 0, 20)
 					} else {
-						out.IDs = []string{}
+						out.IDs = []ID{}
 					}
 				} else {
 					out.IDs = (out.IDs)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v1 string
-					v1 = string(in.String())
-					out.IDs = append(out.IDs, v1)
+					id := [32]byte{}
+					hex.Decode(id[:], []byte(in.String()))
+					out.IDs = append(out.IDs, id)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -64,17 +66,15 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 				in.Delim('[')
 				if out.Kinds == nil {
 					if !in.IsDelim(']') {
-						out.Kinds = make([]int, 0, 8)
+						out.Kinds = make([]uint16, 0, 8)
 					} else {
-						out.Kinds = []int{}
+						out.Kinds = []uint16{}
 					}
 				} else {
 					out.Kinds = (out.Kinds)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v2 int
-					v2 = int(in.Int())
-					out.Kinds = append(out.Kinds, v2)
+					out.Kinds = append(out.Kinds, uint16(in.Int()))
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -87,17 +87,17 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 				in.Delim('[')
 				if out.Authors == nil {
 					if !in.IsDelim(']') {
-						out.Authors = make([]string, 0, 40)
+						out.Authors = make([]PubKey, 0, 40)
 					} else {
-						out.Authors = []string{}
+						out.Authors = []PubKey{}
 					}
 				} else {
 					out.Authors = (out.Authors)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v3 string
-					v3 = string(in.String())
-					out.Authors = append(out.Authors, v3)
+					pk := [32]byte{}
+					hex.Decode(pk[:], []byte(in.String()))
+					out.Authors = append(out.Authors, pk)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -178,7 +178,7 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 				if v4 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v5))
+				out.String(hex.EncodeToString(v5[:]))
 			}
 			out.RawByte(']')
 		}
@@ -216,7 +216,7 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 				if v8 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v9))
+				out.String(hex.EncodeToString(v9[:]))
 			}
 			out.RawByte(']')
 		}

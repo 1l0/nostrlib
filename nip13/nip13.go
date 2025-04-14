@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strconv"
 
-	nostr "github.com/nbd-wtf/go-nostr"
+	nostr "fiatjaf.com/nostrlib"
 )
 
 var (

@@ -10,13 +10,13 @@ import (
 
 // Event represents a Nostr event.
 type Event struct {
-	ID        string
-	PubKey    string
+	ID        ID
+	PubKey    PubKey
 	CreatedAt Timestamp
-	Kind      int
+	Kind      uint16
 	Tags      Tags
 	Content   string
-	Sig       string
+	Sig       [64]byte
 }
 
 func (evt Event) String() string {
@@ -24,37 +24,14 @@ func (evt Event) String() string {
 	return string(j)
 }
 
-// GetID computes the event ID and returns it as a hex string.
-func (evt *Event) GetID() string {
-	h := sha256.Sum256(evt.Serialize())
-	return hex.EncodeToString(h[:])
+// GetID serializes and returns the event ID as a string.
+func (evt *Event) GetID() ID {
+	return sha256.Sum256(evt.Serialize())
 }
 
 // CheckID checks if the implied ID matches the given ID more efficiently.
 func (evt *Event) CheckID() bool {
-	if len(evt.ID) != 64 {
-		return false
-	}
-
-	ser := make([]byte, 0, 100+len(evt.Content)+len(evt.Tags)*80)
-	ser = serializeEventInto(evt, ser)
-	h := sha256.Sum256(ser)
-
-	const hextable = "0123456789abcdef"
-
-	for i := 0; i < 32; i++ {
-		b := hextable[h[i]>>4]
-		if b != evt.ID[i*2] {
-			return false
-		}
-
-		b = hextable[h[i]&0x0f]
-		if b != evt.ID[i*2+1] {
-			return false
-		}
-	}
-
-	return true
+	return evt.GetID() == evt.ID
 }
 
 // Serialize outputs a byte array that can be hashed to produce the canonical event "id".
@@ -68,13 +45,13 @@ func (evt *Event) Serialize() []byte {
 func serializeEventInto(evt *Event, dst []byte) []byte {
 	// the header portion is easy to serialize
 	// [0,"pubkey",created_at,kind,[
-	dst = append(dst, "[0,\""...)
-	dst = append(dst, evt.PubKey...)
-	dst = append(dst, "\","...)
+	dst = append(dst, `[0,"`...)
+	dst = hex.AppendEncode(dst, evt.PubKey[:])
+	dst = append(dst, `",`...)
 	dst = append(dst, strconv.FormatInt(int64(evt.CreatedAt), 10)...)
-	dst = append(dst, ',')
-	dst = append(dst, strconv.Itoa(evt.Kind)...)
-	dst = append(dst, ',')
+	dst = append(dst, `,`...)
+	dst = append(dst, strconv.FormatUint(uint64(evt.Kind), 10)...)
+	dst = append(dst, `,`...)
 
 	// tags
 	dst = append(dst, '[')

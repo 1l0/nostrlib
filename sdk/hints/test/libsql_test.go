@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nbd-wtf/go-nostr/sdk/hints/sqlh"
+	"fiatjaf.com/nostrlib/sdk/hints/sqlh"
 	"github.com/stretchr/testify/require"
 	_ "github.com/tursodatabase/go-libsql"
 )

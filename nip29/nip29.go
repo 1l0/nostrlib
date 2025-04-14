@@ -3,7 +3,7 @@ package nip29
 import (
 	"slices"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 type Role struct {

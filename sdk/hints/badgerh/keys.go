@@ -2,20 +2,19 @@ package badgerh
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
-func encodeKey(pubhintkey, relay string) []byte {
+func encodeKey(pubhintkey nostr.PubKey, relay string) []byte {
 	k := make([]byte, 32+len(relay))
-	hex.Decode(k[0:32], []byte(pubhintkey))
+	copy(k[0:32], pubhintkey[:])
 	copy(k[32:], relay)
 	return k
 }
 
-func parseKey(k []byte) (pubkey string, relay string) {
-	pubkey = hex.EncodeToString(k[0:32])
+func parseKey(k []byte) (pubkey nostr.PubKey, relay string) {
+	pubkey = [32]byte(k[0:32])
 	relay = string(k[32:])
 	return
 }

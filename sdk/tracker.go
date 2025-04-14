@@ -3,12 +3,12 @@ package sdk
 import (
 	"net/url"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostrlib/sdk/hints"
 	"github.com/nbd-wtf/go-nostr/nip27"
-	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
-func (sys *System) TrackQueryAttempts(relay string, author string, kind int) {
+func (sys *System) TrackQueryAttempts(relay string, author nostr.PubKey, kind uint16) {
 	if IsVirtualRelay(relay) {
 		return
 	}
@@ -83,8 +83,10 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 			if p, err := url.Parse(tag[2]); err != nil || (p.Scheme != "wss" && p.Scheme != "ws") {
 				continue
 			}
-			if tag[0] == "p" && nostr.IsValidPublicKey(tag[1]) {
-				sys.Hints.Save(tag[1], nostr.NormalizeURL(tag[2]), hints.LastInHint, ie.CreatedAt)
+			if tag[0] == "p" {
+				if pk, err := nostr.PubKeyFromHex(tag[1]); err == nil {
+					sys.Hints.Save(pk, nostr.NormalizeURL(tag[2]), hints.LastInHint, ie.CreatedAt)
+				}
 			}
 		}
 	default:
@@ -101,8 +103,10 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 			if p, err := url.Parse(tag[2]); err != nil || (p.Scheme != "wss" && p.Scheme != "ws") {
 				continue
 			}
-			if tag[0] == "p" && nostr.IsValidPublicKey(tag[1]) {
-				sys.Hints.Save(tag[1], nostr.NormalizeURL(tag[2]), hints.LastInHint, ie.CreatedAt)
+			if tag[0] == "p" {
+				if pk, err := nostr.PubKeyFromHex(tag[1]); err == nil {
+					sys.Hints.Save(pk, nostr.NormalizeURL(tag[2]), hints.LastInHint, ie.CreatedAt)
+				}
 			}
 		}
 
@@ -144,7 +148,7 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 }
 
 // TrackEventRelaysD is a companion to TrackEventRelays meant to be used with WithDuplicateMiddleware()
-func (sys *System) TrackEventRelaysD(relay, id string) {
+func (sys *System) TrackEventRelaysD(relay string, id nostr.ID) {
 	if IsVirtualRelay(relay) {
 		return
 	}

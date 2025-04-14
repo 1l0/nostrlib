@@ -6,12 +6,10 @@ import (
 	"github.com/mailru/easyjson"
 )
 
-type Filters []Filter
-
 type Filter struct {
-	IDs     []string
-	Kinds   []int
-	Authors []string
+	IDs     []ID
+	Kinds   []uint16
+	Authors []PubKey
 	Tags    TagMap
 	Since   *Timestamp
 	Until   *Timestamp
@@ -23,29 +21,6 @@ type Filter struct {
 }
 
 type TagMap map[string][]string
-
-func (eff Filters) String() string {
-	j, _ := json.Marshal(eff)
-	return string(j)
-}
-
-func (eff Filters) Match(event *Event) bool {
-	for _, filter := range eff {
-		if filter.Matches(event) {
-			return true
-		}
-	}
-	return false
-}
-
-func (eff Filters) MatchIgnoringTimestampConstraints(event *Event) bool {
-	for _, filter := range eff {
-		if filter.MatchesIgnoringTimestampConstraints(event) {
-			return true
-		}
-	}
-	return false
-}
 
 func (ef Filter) String() string {
 	j, _ := easyjson.Marshal(ef)
@@ -99,11 +74,11 @@ func FilterEqual(a Filter, b Filter) bool {
 		return false
 	}
 
-	if !similar(a.IDs, b.IDs) {
+	if !similarID(a.IDs, b.IDs) {
 		return false
 	}
 
-	if !similar(a.Authors, b.Authors) {
+	if !similarPublicKey(a.Authors, b.Authors) {
 		return false
 	}
 
@@ -142,12 +117,24 @@ func FilterEqual(a Filter, b Filter) bool {
 
 func (ef Filter) Clone() Filter {
 	clone := Filter{
-		IDs:       slices.Clone(ef.IDs),
-		Authors:   slices.Clone(ef.Authors),
 		Kinds:     slices.Clone(ef.Kinds),
 		Limit:     ef.Limit,
 		Search:    ef.Search,
 		LimitZero: ef.LimitZero,
+	}
+
+	if ef.IDs != nil {
+		clone.IDs = make([]ID, len(ef.IDs))
+		for i, src := range ef.IDs {
+			copy(clone.IDs[i][:], src[:])
+		}
+	}
+
+	if ef.Authors != nil {
+		clone.Authors = make([]PubKey, len(ef.Authors))
+		for i, src := range ef.Authors {
+			copy(clone.Authors[i][:], src[:])
+		}
 	}
 
 	if ef.Tags != nil {

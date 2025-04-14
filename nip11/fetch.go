@@ -7,7 +7,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 // Fetch fetches the NIP-11 metadata for a relay.

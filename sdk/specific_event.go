@@ -6,9 +6,9 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip19"
-	"github.com/nbd-wtf/go-nostr/sdk/hints"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/nip19"
+	"fiatjaf.com/nostrlib/sdk/hints"
 )
 
 // FetchSpecificEventParameters contains options for fetching specific events.

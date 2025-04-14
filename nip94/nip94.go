@@ -3,7 +3,7 @@ package nip94
 import (
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 func ParseFileMetadata(event nostr.Event) FileMetadata {

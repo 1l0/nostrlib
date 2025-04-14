@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 
 	"github.com/mailru/easyjson"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip04"
-	"github.com/nbd-wtf/go-nostr/nip44"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/nip04"
+	"fiatjaf.com/nostrlib/nip44"
 	"github.com/puzpuzpuz/xsync/v3"
 )
 

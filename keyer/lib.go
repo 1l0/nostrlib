@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip05"
-	"github.com/nbd-wtf/go-nostr/nip19"
-	"github.com/nbd-wtf/go-nostr/nip46"
-	"github.com/nbd-wtf/go-nostr/nip49"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/nip05"
+	"fiatjaf.com/nostrlib/nip19"
+	"fiatjaf.com/nostrlib/nip46"
+	"fiatjaf.com/nostrlib/nip49"
 	"github.com/puzpuzpuz/xsync/v3"
 )
 

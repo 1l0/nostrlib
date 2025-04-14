@@ -3,7 +3,7 @@ package keyer
 import (
 	"context"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 var _ nostr.Keyer = (*ManualSigner)(nil)

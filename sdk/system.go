@@ -4,16 +4,16 @@ import (
 	"context"
 	"math/rand/v2"
 
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/cache"
+	cache_memory "fiatjaf.com/nostr/sdk/cache/memory"
+	"fiatjaf.com/nostr/sdk/dataloader"
+	"fiatjaf.com/nostr/sdk/hints"
+	"fiatjaf.com/nostr/sdk/hints/memoryh"
+	"fiatjaf.com/nostr/sdk/kvstore"
+	kvstore_memory "fiatjaf.com/nostr/sdk/kvstore/memory"
 	"github.com/fiatjaf/eventstore"
 	"github.com/fiatjaf/eventstore/nullstore"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/sdk/cache"
-	cache_memory "github.com/nbd-wtf/go-nostr/sdk/cache/memory"
-	"github.com/nbd-wtf/go-nostr/sdk/dataloader"
-	"github.com/nbd-wtf/go-nostr/sdk/hints"
-	"github.com/nbd-wtf/go-nostr/sdk/hints/memoryh"
-	"github.com/nbd-wtf/go-nostr/sdk/kvstore"
-	kvstore_memory "github.com/nbd-wtf/go-nostr/sdk/kvstore/memory"
 )
 
 // System represents the core functionality of the SDK, providing access to
@@ -53,8 +53,8 @@ type System struct {
 
 	StoreRelay nostr.RelayStore
 
-	replaceableLoaders []*dataloader.Loader[string, *nostr.Event]
-	addressableLoaders []*dataloader.Loader[string, []*nostr.Event]
+	replaceableLoaders []*dataloader.Loader[nostr.PubKey, *nostr.Event]
+	addressableLoaders []*dataloader.Loader[nostr.PubKey, []*nostr.Event]
 }
 
 // SystemModifier is a function that modifies a System instance.
@@ -130,10 +130,10 @@ func NewSystem(mods ...SystemModifier) *System {
 	}
 
 	if sys.MetadataCache == nil {
-		sys.MetadataCache = cache_memory.New32[ProfileMetadata](8000)
+		sys.MetadataCache = cache_memory.New[ProfileMetadata](8000)
 	}
 	if sys.RelayListCache == nil {
-		sys.RelayListCache = cache_memory.New32[GenericList[Relay]](8000)
+		sys.RelayListCache = cache_memory.New[GenericList[Relay]](8000)
 	}
 
 	if sys.Store == nil {

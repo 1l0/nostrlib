@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 type LiveEvent struct {

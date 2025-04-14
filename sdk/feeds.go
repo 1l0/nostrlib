@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 const (
@@ -29,7 +29,7 @@ func makePubkeyStreamKey(prefix byte, pubkey string) []byte {
 // each pubkey (stored in KVStore) onwards.
 func (sys *System) StreamLiveFeed(
 	ctx context.Context,
-	pubkeys []string,
+	pubkeys []nostr.PubKey,
 	kinds []int,
 ) (<-chan *nostr.Event, error) {
 	events := make(chan *nostr.Event)

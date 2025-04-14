@@ -1,6 +1,6 @@
 package nip14
 
-import "github.com/nbd-wtf/go-nostr"
+import "fiatjaf.com/nostrlib"
 
 func GetSubject(tags nostr.Tags) string {
 	for _, tag := range tags {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcutil/bech32"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 func Decode(bech32string string) (prefix string, value any, err error) {

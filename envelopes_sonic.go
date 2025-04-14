@@ -165,7 +165,6 @@ func (sv *sonicVisitor) OnArrayEnd() error {
 		sv.mainEnvelope = sv.event
 	case inReq:
 		sv.mainEnvelope = sv.req
-		sv.smp.doneWithFilterSlice(sv.req.Filters)
 	case inOk:
 		sv.mainEnvelope = sv.ok
 	case inEose:
@@ -184,13 +183,13 @@ func (sv *sonicVisitor) OnArrayEnd() error {
 		// filter object properties
 	case inIds:
 		sv.whereWeAre = inFilterObject
-		sv.smp.doneWithStringSlice(sv.currentFilter.IDs)
+		sv.smp.doneWithIDSlice(sv.currentFilter.IDs)
 	case inAuthors:
 		sv.whereWeAre = inFilterObject
-		sv.smp.doneWithStringSlice(sv.currentFilter.Authors)
+		sv.smp.doneWithPubKeySlice(sv.currentFilter.Authors)
 	case inKinds:
 		sv.whereWeAre = inFilterObject
-		sv.smp.doneWithIntSlice(sv.currentFilter.Kinds)
+		sv.smp.doneWithUint16Slice(sv.currentFilter.Kinds)
 	case inAFilterTag:
 		sv.currentFilter.Tags[sv.currentFilterTagName] = sv.currentFilterTagList
 		sv.whereWeAre = inFilterObject
@@ -268,13 +267,13 @@ func (sv *sonicVisitor) OnObjectKey(key string) error {
 			sv.whereWeAre = inUntil
 		case "ids":
 			sv.whereWeAre = inIds
-			sv.currentFilter.IDs = sv.smp.reusableStringArray
+			sv.currentFilter.IDs = sv.smp.reusableIDArray
 		case "authors":
 			sv.whereWeAre = inAuthors
-			sv.currentFilter.Authors = sv.smp.reusableStringArray
+			sv.currentFilter.Authors = sv.smp.reusablePubKeyArray
 		case "kinds":
 			sv.whereWeAre = inKinds
-			sv.currentFilter.Kinds = sv.smp.reusableIntArray
+			sv.currentFilter.Kinds = sv.smp.reusableUint16Array
 		case "search":
 			sv.whereWeAre = inSearch
 		case "count", "hll":
@@ -316,7 +315,7 @@ func (sv *sonicVisitor) OnObjectEnd() error {
 		sv.currentEvent = nil
 	case inFilterObject:
 		if sv.req != nil {
-			sv.req.Filters = append(sv.req.Filters, *sv.currentFilter)
+			sv.req.Filter = *sv.currentFilter
 			sv.whereWeAre = inReq
 		} else {
 			sv.count.Filter = *sv.currentFilter
@@ -335,6 +334,7 @@ func (sv *sonicVisitor) OnObjectEnd() error {
 func (sv *sonicVisitor) OnString(v string) error {
 	// fmt.Println("***", "OnString", v, "==", sv.whereWeAre)
 
+	var err error
 	switch sv.whereWeAre {
 	case inEnvelope:
 		switch v {
@@ -342,7 +342,7 @@ func (sv *sonicVisitor) OnString(v string) error {
 			sv.event = &EventEnvelope{}
 			sv.whereWeAre = inEvent
 		case "REQ":
-			sv.req = &ReqEnvelope{Filters: sv.smp.reusableFilterArray}
+			sv.req = &ReqEnvelope{}
 			sv.whereWeAre = inReq
 		case "OK":
 			sv.ok = &OKEnvelope{}
@@ -372,8 +372,11 @@ func (sv *sonicVisitor) OnString(v string) error {
 	case inReq:
 		sv.req.SubscriptionID = v
 	case inOk:
-		if sv.ok.EventID == "" {
-			sv.ok.EventID = v
+		if sv.ok.EventID == [32]byte{} {
+			sv.ok.EventID, err = IDFromHex(v)
+			if err != nil {
+				return err
+			}
 		} else {
 			sv.ok.Reason = v
 		}
@@ -396,9 +399,17 @@ func (sv *sonicVisitor) OnString(v string) error {
 
 		// filter object properties
 	case inIds:
-		sv.currentFilter.IDs = append(sv.currentFilter.IDs, v)
+		id, err := IDFromHex(v)
+		if err != nil {
+			return err
+		}
+		sv.currentFilter.IDs = append(sv.currentFilter.IDs, id)
 	case inAuthors:
-		sv.currentFilter.Authors = append(sv.currentFilter.Authors, v)
+		pk, err := PubKeyFromHex(v)
+		if err != nil {
+			return err
+		}
+		sv.currentFilter.Authors = append(sv.currentFilter.Authors, pk)
 	case inSearch:
 		sv.currentFilter.Search = v
 		sv.whereWeAre = inFilterObject
@@ -484,35 +495,26 @@ func (_ sonicVisitor) OnFloat64(v float64, n stdlibjson.Number) error {
 }
 
 type sonicMessageParser struct {
-	reusableFilterArray []Filter
 	reusableTagArray    []Tag
+	reusableIDArray     []ID
+	reusablePubKeyArray []PubKey
 	reusableStringArray []string
-	reusableIntArray    []int
+	reusableUint16Array []uint16
 }
 
 // NewMessageParser returns a sonicMessageParser object that is intended to be reused many times.
 // It is not goroutine-safe.
 func NewMessageParser() sonicMessageParser {
 	return sonicMessageParser{
-		reusableFilterArray: make([]Filter, 0, 1000),
 		reusableTagArray:    make([]Tag, 0, 10000),
 		reusableStringArray: make([]string, 0, 10000),
-		reusableIntArray:    make([]int, 0, 10000),
+		reusableIDArray:     make([]ID, 0, 10000),
+		reusablePubKeyArray: make([]PubKey, 0, 10000),
+		reusableUint16Array: make([]uint16, 0, 10000),
 	}
 }
 
 var NewSonicMessageParser = NewMessageParser
-
-func (smp *sonicMessageParser) doneWithFilterSlice(slice []Filter) {
-	if unsafe.SliceData(smp.reusableFilterArray) == unsafe.SliceData(slice) {
-		smp.reusableFilterArray = slice[len(slice):]
-	}
-
-	if cap(smp.reusableFilterArray) < 7 {
-		// create a new one
-		smp.reusableFilterArray = make([]Filter, 0, 1000)
-	}
-}
 
 func (smp *sonicMessageParser) doneWithTagSlice(slice []Tag) {
 	if unsafe.SliceData(smp.reusableTagArray) == unsafe.SliceData(slice) {
@@ -525,7 +527,7 @@ func (smp *sonicMessageParser) doneWithTagSlice(slice []Tag) {
 	}
 }
 
-func (smp *sonicMessageParser) doneWithStringSlice(slice []string) {
+func (smp *sonicMessageParser) doneWithIDSlice(slice []string) {
 	if unsafe.SliceData(smp.reusableStringArray) == unsafe.SliceData(slice) {
 		smp.reusableStringArray = slice[len(slice):]
 	}
@@ -536,14 +538,14 @@ func (smp *sonicMessageParser) doneWithStringSlice(slice []string) {
 	}
 }
 
-func (smp *sonicMessageParser) doneWithIntSlice(slice []int) {
-	if unsafe.SliceData(smp.reusableIntArray) == unsafe.SliceData(slice) {
-		smp.reusableIntArray = slice[len(slice):]
+func (smp *sonicMessageParser) doneWithUint16Slice(slice []uint16) {
+	if unsafe.SliceData(smp.reusableUint16Array) == unsafe.SliceData(slice) {
+		smp.reusableUint16Array = slice[len(slice):]
 	}
 
-	if cap(smp.reusableIntArray) < 8 {
+	if cap(smp.reusableUint16Array) < 8 {
 		// create a new one
-		smp.reusableIntArray = make([]int, 0, 10000)
+		smp.reusableUint16Array = make([]uint16, 0, 10000)
 	}
 }
 

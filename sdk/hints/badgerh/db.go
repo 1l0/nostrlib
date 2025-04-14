@@ -1,14 +1,13 @@
 package badgerh
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math"
 	"slices"
 
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/hints"
 	"github.com/dgraph-io/badger/v4"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
 var _ hints.HintsDB = (*BadgerHints)(nil)
@@ -30,7 +29,7 @@ func (bh *BadgerHints) Close() {
 	bh.db.Close()
 }
 
-func (bh *BadgerHints) Save(pubkey string, relay string, hintkey hints.HintKey, ts nostr.Timestamp) {
+func (bh *BadgerHints) Save(pubkey nostr.PubKey, relay string, hintkey hints.HintKey, ts nostr.Timestamp) {
 	if now := nostr.Now(); ts > now {
 		ts = now
 	}
@@ -64,7 +63,7 @@ func (bh *BadgerHints) Save(pubkey string, relay string, hintkey hints.HintKey, 
 	}
 }
 
-func (bh *BadgerHints) TopN(pubkey string, n int) []string {
+func (bh *BadgerHints) TopN(pubkey nostr.PubKey, n int) []string {
 	type relayScore struct {
 		relay string
 		score int64
@@ -73,7 +72,7 @@ func (bh *BadgerHints) TopN(pubkey string, n int) []string {
 	scores := make([]relayScore, 0, n)
 	err := bh.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
-		opts.Prefix, _ = hex.DecodeString(pubkey)
+		opts.Prefix = pubkey[:]
 		it := txn.NewIterator(opts)
 		defer it.Close()
 
@@ -112,7 +111,7 @@ func (bh *BadgerHints) TopN(pubkey string, n int) []string {
 	return result
 }
 
-func (bh *BadgerHints) GetDetailedScores(pubkey string, n int) []hints.RelayScores {
+func (bh *BadgerHints) GetDetailedScores(pubkey nostr.PubKey, n int) []hints.RelayScores {
 	type relayScore struct {
 		relay string
 		tss   timestamps
@@ -121,11 +120,10 @@ func (bh *BadgerHints) GetDetailedScores(pubkey string, n int) []hints.RelayScor
 
 	scores := make([]relayScore, 0, n)
 	err := bh.db.View(func(txn *badger.Txn) error {
-		prefix, _ := hex.DecodeString(pubkey)
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
 
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+		for it.Seek(pubkey[:]); it.ValidForPrefix(pubkey[:]); it.Next() {
 			item := it.Item()
 			k := item.Key()
 			relay := string(k[32:])
@@ -172,7 +170,7 @@ func (bh *BadgerHints) PrintScores() {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
 
-		var lastPubkey string
+		var lastPubkey nostr.PubKey
 		i := 0
 
 		for it.Seek(nil); it.Valid(); it.Next() {

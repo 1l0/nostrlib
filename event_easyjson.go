@@ -1,6 +1,8 @@
 package nostr
 
 import (
+	"encoding/hex"
+
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
@@ -23,6 +25,7 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		return
 	}
 	in.Delim('{')
+	var reusableBuffer [64]byte
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(true)
 		in.WantColon()
@@ -33,13 +36,15 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		}
 		switch key {
 		case "id":
-			out.ID = in.String()
+			hex.Decode(reusableBuffer[:], []byte(in.String()))
+			copy(out.ID[:], reusableBuffer[0:32])
 		case "pubkey":
-			out.PubKey = in.String()
+			hex.Decode(reusableBuffer[:], []byte(in.String()))
+			copy(out.PubKey[:], reusableBuffer[0:32])
 		case "created_at":
 			out.CreatedAt = Timestamp(in.Int64())
 		case "kind":
-			out.Kind = in.Int()
+			out.Kind = uint16(in.Int())
 		case "tags":
 			if in.IsNull() {
 				in.Skip()
@@ -83,7 +88,8 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		case "content":
 			out.Content = in.String()
 		case "sig":
-			out.Sig = in.String()
+			hex.Decode(reusableBuffer[:], []byte(in.String()))
+			copy(out.Sig[:], reusableBuffer[0:64])
 		}
 		in.WantComma()
 	}
@@ -100,20 +106,20 @@ func easyjsonF642ad3eEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Event)
 	{
 		const prefix string = "\"kind\":"
 		out.RawString(prefix)
-		out.Int(in.Kind)
+		out.Int(int(in.Kind))
 	}
 	{
-		if in.ID != "" {
+		if in.ID != [32]byte{} {
 			const prefix string = ",\"id\":"
 			out.RawString(prefix)
-			out.String(in.ID)
+			out.String(hex.EncodeToString(in.ID[:]))
 		}
 	}
 	{
-		if in.PubKey != "" {
+		if in.PubKey != [32]byte{} {
 			const prefix string = ",\"pubkey\":"
 			out.RawString(prefix)
-			out.String(in.PubKey)
+			out.String(hex.EncodeToString(in.PubKey[:]))
 		}
 	}
 	{
@@ -146,10 +152,10 @@ func easyjsonF642ad3eEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Event)
 		out.String(in.Content)
 	}
 	{
-		if in.Sig != "" {
+		if in.Sig != [64]byte{} {
 			const prefix string = ",\"sig\":"
 			out.RawString(prefix)
-			out.String(in.Sig)
+			out.String(hex.EncodeToString(in.Sig[:]))
 		}
 	}
 	out.RawByte('}')

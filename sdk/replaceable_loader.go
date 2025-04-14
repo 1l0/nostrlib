@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/sdk/dataloader"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/dataloader"
 )
 
 type replaceableIndex int
@@ -33,7 +33,7 @@ const (
 type EventResult dataloader.Result[*nostr.Event]
 
 func (sys *System) initializeReplaceableDataloaders() {
-	sys.replaceableLoaders = make([]*dataloader.Loader[string, *nostr.Event], 12)
+	sys.replaceableLoaders = make([]*dataloader.Loader[nostr.PubKey, *nostr.Event], 12)
 	sys.replaceableLoaders[kind_0] = sys.createReplaceableDataloader(0)
 	sys.replaceableLoaders[kind_3] = sys.createReplaceableDataloader(3)
 	sys.replaceableLoaders[kind_10000] = sys.createReplaceableDataloader(10000)
@@ -48,9 +48,9 @@ func (sys *System) initializeReplaceableDataloaders() {
 	sys.replaceableLoaders[kind_10030] = sys.createReplaceableDataloader(10030)
 }
 
-func (sys *System) createReplaceableDataloader(kind int) *dataloader.Loader[string, *nostr.Event] {
+func (sys *System) createReplaceableDataloader(kind uint16) *dataloader.Loader[nostr.PubKey, *nostr.Event] {
 	return dataloader.NewBatchedLoader(
-		func(ctxs []context.Context, pubkeys []string) map[string]dataloader.Result[*nostr.Event] {
+		func(ctxs []context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]dataloader.Result[*nostr.Event] {
 			return sys.batchLoadReplaceableEvents(ctxs, kind, pubkeys)
 		},
 		dataloader.Options{
@@ -62,11 +62,11 @@ func (sys *System) createReplaceableDataloader(kind int) *dataloader.Loader[stri
 
 func (sys *System) batchLoadReplaceableEvents(
 	ctxs []context.Context,
-	kind int,
-	pubkeys []string,
-) map[string]dataloader.Result[*nostr.Event] {
+	kind uint16,
+	pubkeys []nostr.PubKey,
+) map[nostr.PubKey]dataloader.Result[*nostr.Event] {
 	batchSize := len(pubkeys)
-	results := make(map[string]dataloader.Result[*nostr.Event], batchSize)
+	results := make(map[nostr.PubKey]dataloader.Result[*nostr.Event], batchSize)
 	relayFilter := make([]nostr.DirectedFilter, 0, max(3, batchSize*2))
 	relayFilterIndex := make(map[string]int, max(3, batchSize*2))
 
@@ -83,7 +83,7 @@ func (sys *System) batchLoadReplaceableEvents(
 		defer cancel()
 
 		// build batched queries for the external relays
-		go func(i int, pubkey string) {
+		go func(i int, pubkey nostr.PubKey) {
 			// gather relays we'll use for this pubkey
 			relays := sys.determineRelaysToQuery(ctx, pubkey, kind)
 
@@ -98,8 +98,8 @@ func (sys *System) batchLoadReplaceableEvents(
 					dfilter = nostr.DirectedFilter{
 						Relay: relay,
 						Filter: nostr.Filter{
-							Kinds:   []int{kind},
-							Authors: make([]string, 0, batchSize-i /* this and all pubkeys after this can be added */),
+							Kinds:   []uint16{kind},
+							Authors: make([]nostr.PubKey, 0, batchSize-i /* this and all pubkeys after this can be added */),
 						},
 					}
 					idx = len(relayFilter)
@@ -122,7 +122,7 @@ func (sys *System) batchLoadReplaceableEvents(
 	// query all relays with the prepared filters
 	wg.Wait()
 	multiSubs := sys.Pool.BatchedSubManyEose(aggregatedContext, relayFilter,
-		nostr.WithLabel("repl~"+strconv.Itoa(kind)),
+		nostr.WithLabel("repl~"+strconv.Itoa(int(kind))),
 	)
 	for {
 		select {
@@ -141,7 +141,7 @@ func (sys *System) batchLoadReplaceableEvents(
 	}
 }
 
-func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey string, kind int) []string {
+func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey nostr.PubKey, kind uint16) []string {
 	var relays []string
 
 	// search in specific relays for user

@@ -124,7 +124,7 @@ func (v EventEnvelope) MarshalJSON() ([]byte, error) {
 // ReqEnvelope represents a REQ message.
 type ReqEnvelope struct {
 	SubscriptionID string
-	Filters
+	Filter
 }
 
 func (_ ReqEnvelope) Label() string { return "REQ" }
@@ -136,13 +136,8 @@ func (v *ReqEnvelope) FromJSON(data string) error {
 		return fmt.Errorf("failed to decode REQ envelope: missing filters")
 	}
 	v.SubscriptionID = string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str)))
-	v.Filters = make(Filters, len(arr)-2)
-	f := 0
-	for i := 2; i < len(arr); i++ {
-		if err := easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[i].Raw), len(arr[i].Raw)), &v.Filters[f]); err != nil {
-			return fmt.Errorf("%w -- on filter %d", err, f)
-		}
-		f++
+	if err := easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw)), &v.Filter); err != nil {
+		return fmt.Errorf("on filter: %w", err)
 	}
 
 	return nil
@@ -152,11 +147,8 @@ func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["REQ","`)
 	w.RawString(v.SubscriptionID)
-	w.RawString(`"`)
-	for _, filter := range v.Filters {
-		w.RawString(`,`)
-		filter.MarshalEasyJSON(&w)
-	}
+	w.RawString(`",`)
+	v.Filter.MarshalEasyJSON(&w)
 	w.RawString(`]`)
 	return w.BuildBytes()
 }
@@ -198,15 +190,9 @@ func (v *CountEnvelope) FromJSON(data string) error {
 		return nil
 	}
 
-	f := 0
-	for i := 2; i < len(arr); i++ {
-		item := unsafe.Slice(unsafe.StringData(arr[i].Raw), len(arr[i].Raw))
-
-		if err := easyjson.Unmarshal(item, &v.Filter); err != nil {
-			return fmt.Errorf("%w -- on filter %d", err, f)
-		}
-
-		f++
+	item := unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw))
+	if err := easyjson.Unmarshal(item, &v.Filter); err != nil {
+		return fmt.Errorf("on filter: %w", err)
 	}
 
 	return nil
@@ -216,7 +202,7 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["COUNT","`)
 	w.RawString(v.SubscriptionID)
-	w.RawString(`",`)
+	w.RawString(`"`)
 	if v.Count != nil {
 		w.RawString(`{"count":`)
 		w.RawString(strconv.FormatInt(*v.Count, 10))
@@ -357,7 +343,7 @@ func (v ClosedEnvelope) MarshalJSON() ([]byte, error) {
 
 // OKEnvelope represents an OK message.
 type OKEnvelope struct {
-	EventID string
+	EventID ID
 	OK      bool
 	Reason  string
 }
@@ -374,7 +360,9 @@ func (v *OKEnvelope) FromJSON(data string) error {
 	if len(arr) < 4 {
 		return fmt.Errorf("failed to decode OK envelope: missing fields")
 	}
-	v.EventID = string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str)))
+	if _, err := hex.Decode(v.EventID[:], []byte(arr[1].Str)); err != nil {
+		return err
+	}
 	v.OK = arr[2].Raw == "true"
 	v.Reason = string(unsafe.Slice(unsafe.StringData(arr[3].Str), len(arr[3].Str)))
 
@@ -384,7 +372,7 @@ func (v *OKEnvelope) FromJSON(data string) error {
 func (v OKEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["OK","`)
-	w.RawString(v.EventID)
+	w.RawString(hex.EncodeToString(v.EventID[:]))
 	w.RawString(`",`)
 	ok := "false"
 	if v.OK {

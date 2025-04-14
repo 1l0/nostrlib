@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 type IMeta []IMetaEntry

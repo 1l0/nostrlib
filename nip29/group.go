@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 type GroupAddress struct {

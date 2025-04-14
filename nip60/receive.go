@@ -7,8 +7,8 @@ import (
 
 	"github.com/elnosh/gonuts/cashu"
 	"github.com/elnosh/gonuts/cashu/nuts/nut10"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip60/client"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/nip60/client"
 )
 
 type receiveSettings struct {

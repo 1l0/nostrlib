@@ -1,6 +1,6 @@
-[![Run Tests](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml/badge.svg)](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/nbd-wtf/go-nostr.svg)](https://pkg.go.dev/github.com/nbd-wtf/go-nostr)
-[![Go Report Card](https://goreportcard.com/badge/github.com/nbd-wtf/go-nostr)](https://goreportcard.com/report/github.com/nbd-wtf/go-nostr)
+[![Run Tests](https://fiatjaf.com/nostrlib/actions/workflows/test.yml/badge.svg)](https://fiatjaf.com/nostrlib/actions/workflows/test.yml)
+[![Go Reference](https://pkg.go.dev/badge/fiatjaf.com/nostrlib.svg)](https://pkg.go.dev/fiatjaf.com/nostrlib)
+[![Go Report Card](https://goreportcard.com/badge/fiatjaf.com/nostrlib)](https://goreportcard.com/report/fiatjaf.com/nostrlib)
 
 <a href="https://nbd.wtf"><img align="right" height="196" src="https://user-images.githubusercontent.com/1653275/194609043-0add674b-dd40-41ed-986c-ab4a2e053092.png" /></a>
 
@@ -10,7 +10,7 @@ go-nostr
 A set of useful things for [Nostr](https://github.com/nostr-protocol/nostr)-related software.
 
 ```bash
-go get github.com/nbd-wtf/go-nostr
+go get fiatjaf.com/nostrlib
 ```
 
 ### Generating a key
@@ -21,8 +21,8 @@ package main
 import (
     "fmt"
 
-    "github.com/nbd-wtf/go-nostr"
-    "github.com/nbd-wtf/go-nostr/nip19"
+    "fiatjaf.com/nostrlib"
+    "fiatjaf.com/nostrlib/nip19"
 )
 
 func main() {

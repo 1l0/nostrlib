@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/sdk/dataloader"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/dataloader"
 )
 
 // this is similar to replaceable_loader and reuses logic from that.
@@ -21,16 +21,16 @@ const (
 )
 
 func (sys *System) initializeAddressableDataloaders() {
-	sys.addressableLoaders = make([]*dataloader.Loader[string, []*nostr.Event], 4)
+	sys.addressableLoaders = make([]*dataloader.Loader[nostr.PubKey, []*nostr.Event], 4)
 	sys.addressableLoaders[kind_30000] = sys.createAddressableDataloader(30000)
 	sys.addressableLoaders[kind_30002] = sys.createAddressableDataloader(30002)
 	sys.addressableLoaders[kind_30015] = sys.createAddressableDataloader(30015)
 	sys.addressableLoaders[kind_30030] = sys.createAddressableDataloader(30030)
 }
 
-func (sys *System) createAddressableDataloader(kind int) *dataloader.Loader[string, []*nostr.Event] {
+func (sys *System) createAddressableDataloader(kind uint16) *dataloader.Loader[nostr.PubKey, []*nostr.Event] {
 	return dataloader.NewBatchedLoader(
-		func(ctxs []context.Context, pubkeys []string) map[string]dataloader.Result[[]*nostr.Event] {
+		func(ctxs []context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]dataloader.Result[[]*nostr.Event] {
 			return sys.batchLoadAddressableEvents(ctxs, kind, pubkeys)
 		},
 		dataloader.Options{
@@ -42,11 +42,11 @@ func (sys *System) createAddressableDataloader(kind int) *dataloader.Loader[stri
 
 func (sys *System) batchLoadAddressableEvents(
 	ctxs []context.Context,
-	kind int,
-	pubkeys []string,
-) map[string]dataloader.Result[[]*nostr.Event] {
+	kind uint16,
+	pubkeys []nostr.PubKey,
+) map[nostr.PubKey]dataloader.Result[[]*nostr.Event] {
 	batchSize := len(pubkeys)
-	results := make(map[string]dataloader.Result[[]*nostr.Event], batchSize)
+	results := make(map[nostr.PubKey]dataloader.Result[[]*nostr.Event], batchSize)
 	relayFilter := make([]nostr.DirectedFilter, 0, max(3, batchSize*2))
 	relayFilterIndex := make(map[string]int, max(3, batchSize*2))
 
@@ -62,7 +62,7 @@ func (sys *System) batchLoadAddressableEvents(
 		defer cancel()
 
 		// build batched queries for the external relays
-		go func(i int, pubkey string) {
+		go func(i int, pubkey nostr.PubKey) {
 			// gather relays we'll use for this pubkey
 			relays := sys.determineRelaysToQuery(ctx, pubkey, kind)
 
@@ -77,8 +77,8 @@ func (sys *System) batchLoadAddressableEvents(
 					dfilter = nostr.DirectedFilter{
 						Relay: relay,
 						Filter: nostr.Filter{
-							Kinds:   []int{kind},
-							Authors: make([]string, 0, batchSize-i /* this and all pubkeys after this can be added */),
+							Kinds:   []uint16{kind},
+							Authors: make([]nostr.PubKey, 0, batchSize-i /* this and all pubkeys after this can be added */),
 						},
 					}
 					idx = len(relayFilter)

@@ -57,12 +57,11 @@ func TestPublish(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func makeKeyPair(t *testing.T) (priv, pub string) {
+func makeKeyPair(t *testing.T) (priv, pub [32]byte) {
 	t.Helper()
 
 	privkey := GeneratePrivateKey()
-	pubkey, err := GetPublicKey(privkey)
-	assert.NoError(t, err)
+	pubkey := GetPublicKey(privkey)
 
 	return privkey, pubkey
 }

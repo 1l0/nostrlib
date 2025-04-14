@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"encoding/hex"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,6 +30,48 @@ func namedLock(name string) (unlock func()) {
 }
 
 func similar[E constraints.Ordered](as, bs []E) bool {
+	if len(as) != len(bs) {
+		return false
+	}
+
+	for _, a := range as {
+		for _, b := range bs {
+			if b == a {
+				goto next
+			}
+		}
+		// didn't find a B that corresponded to the current A
+		return false
+
+	next:
+		continue
+	}
+
+	return true
+}
+
+func similarID(as, bs []ID) bool {
+	if len(as) != len(bs) {
+		return false
+	}
+
+	for _, a := range as {
+		for _, b := range bs {
+			if b == a {
+				goto next
+			}
+		}
+		// didn't find a B that corresponded to the current A
+		return false
+
+	next:
+		continue
+	}
+
+	return true
+}
+
+func similarPublicKey(as, bs []PubKey) bool {
 	if len(as) != len(bs) {
 		return false
 	}
@@ -140,11 +183,11 @@ func extractSubID(jsonStr string) string {
 	return jsonStr[start : start+end]
 }
 
-func extractEventID(jsonStr string) string {
+func extractEventID(jsonStr string) ID {
 	// look for "id" pattern
 	start := strings.Index(jsonStr, `"id"`)
 	if start == -1 {
-		return ""
+		return [32]byte{}
 	}
 
 	// move to the next quote
@@ -152,14 +195,16 @@ func extractEventID(jsonStr string) string {
 	start += 4 + offset + 1
 
 	// get 64 characters of the id
-	return jsonStr[start : start+64]
+	var id [32]byte
+	hex.Decode(id[:], unsafe.Slice(unsafe.StringData(jsonStr[start:start+64]), 64))
+	return id
 }
 
-func extractEventPubKey(jsonStr string) string {
+func extractEventPubKey(jsonStr string) PubKey {
 	// look for "pubkey" pattern
 	start := strings.Index(jsonStr, `"pubkey"`)
 	if start == -1 {
-		return ""
+		return PubKey{}
 	}
 
 	// move to the next quote
@@ -167,7 +212,9 @@ func extractEventPubKey(jsonStr string) string {
 	start += 8 + offset + 1
 
 	// get 64 characters of the pubkey
-	return jsonStr[start : start+64]
+	var pk [32]byte
+	hex.Decode(pk[:], unsafe.Slice(unsafe.StringData(jsonStr[start:start+64]), 64))
+	return pk
 }
 
 func extractDTag(jsonStr string) string {

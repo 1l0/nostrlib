@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 // UploadRequest is a NIP96 upload request.

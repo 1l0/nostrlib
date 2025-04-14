@@ -1,10 +1,10 @@
 package nostr
 
 import (
+	"bytes"
 	"cmp"
 	"encoding/hex"
 	"net/url"
-	"strings"
 )
 
 // IsValidRelayURL checks if a URL is a valid relay URL (ws:// or wss://).
@@ -34,7 +34,7 @@ func IsValid32ByteHex(thing string) bool {
 // CompareEvent is meant to to be used with slices.Sort
 func CompareEvent(a, b Event) int {
 	if a.CreatedAt == b.CreatedAt {
-		return strings.Compare(a.ID, b.ID)
+		return bytes.Compare(a.ID[:], b.ID[:])
 	}
 	return cmp.Compare(a.CreatedAt, b.CreatedAt)
 }
@@ -42,7 +42,7 @@ func CompareEvent(a, b Event) int {
 // CompareEventReverse is meant to to be used with slices.Sort
 func CompareEventReverse(b, a Event) int {
 	if a.CreatedAt == b.CreatedAt {
-		return strings.Compare(a.ID, b.ID)
+		return bytes.Compare(a.ID[:], b.ID[:])
 	}
 	return cmp.Compare(a.CreatedAt, b.CreatedAt)
 }
@@ -60,7 +60,7 @@ func CompareEventPtr(a, b *Event) int {
 	}
 
 	if a.CreatedAt == b.CreatedAt {
-		return strings.Compare(a.ID, b.ID)
+		return bytes.Compare(a.ID[:], b.ID[:])
 	}
 	return cmp.Compare(a.CreatedAt, b.CreatedAt)
 }
@@ -78,7 +78,7 @@ func CompareEventPtrReverse(b, a *Event) int {
 	}
 
 	if a.CreatedAt == b.CreatedAt {
-		return strings.Compare(a.ID, b.ID)
+		return bytes.Compare(a.ID[:], b.ID[:])
 	}
 	return cmp.Compare(a.CreatedAt, b.CreatedAt)
 }

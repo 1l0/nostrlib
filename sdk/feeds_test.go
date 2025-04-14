@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"fiatjaf.com/nostr"
 	"github.com/fiatjaf/eventstore/slicestore"
 	"github.com/fiatjaf/khatru"
-	"github.com/nbd-wtf/go-nostr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,9 +56,9 @@ func TestStreamLiveFeed(t *testing.T) {
 
 	// generate two random keypairs for testing
 	sk1 := nostr.GeneratePrivateKey()
-	pk1, _ := nostr.GetPublicKey(sk1)
+	pk1 := nostr.GetPublicKey(sk1)
 	sk2 := nostr.GeneratePrivateKey()
-	pk2, _ := nostr.GetPublicKey(sk2)
+	pk2 := nostr.GetPublicKey(sk2)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -131,7 +131,7 @@ func TestStreamLiveFeed(t *testing.T) {
 	go sys.Pool.PublishMany(ctx, []string{"ws://localhost:48482", "ws://localhost:48483"}, evt2)
 
 	// start streaming events for both pubkeys
-	events, err := sys.StreamLiveFeed(ctx, []string{pk1, pk2}, []int{1})
+	events, err := sys.StreamLiveFeed(ctx, []nostr.PubKey{pk1, pk2}, []int{1})
 	if err != nil {
 		t.Fatalf("failed to start streaming: %v", err)
 	}

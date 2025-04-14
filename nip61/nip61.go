@@ -9,8 +9,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip60"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/nip60"
 )
 
 var NutzapsNotAccepted = errors.New("user doesn't accept nutzaps")

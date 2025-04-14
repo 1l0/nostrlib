@@ -3,8 +3,8 @@ package keyer
 import (
 	"context"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip44"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/nip44"
 	"github.com/puzpuzpuz/xsync/v3"
 )
 

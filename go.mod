@@ -1,4 +1,4 @@
-module github.com/nbd-wtf/go-nostr
+module fiatjaf.com/nostr
 
 go 1.24.1
 

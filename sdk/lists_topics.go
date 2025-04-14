@@ -3,26 +3,26 @@ package sdk
 import (
 	"context"
 
-	"github.com/nbd-wtf/go-nostr"
-	cache_memory "github.com/nbd-wtf/go-nostr/sdk/cache/memory"
+	"fiatjaf.com/nostr"
+	cache_memory "fiatjaf.com/nostr/sdk/cache/memory"
 )
 
 type Topic string
 
 func (r Topic) Value() string { return string(r) }
 
-func (sys *System) FetchTopicList(ctx context.Context, pubkey string) GenericList[Topic] {
+func (sys *System) FetchTopicList(ctx context.Context, pubkey nostr.PubKey) GenericList[Topic] {
 	if sys.TopicListCache == nil {
-		sys.TopicListCache = cache_memory.New32[GenericList[Topic]](1000)
+		sys.TopicListCache = cache_memory.New[GenericList[Topic]](1000)
 	}
 
 	ml, _ := fetchGenericList(sys, ctx, pubkey, 10015, kind_10015, parseTopicString, sys.TopicListCache)
 	return ml
 }
 
-func (sys *System) FetchTopicSets(ctx context.Context, pubkey string) GenericSets[Topic] {
+func (sys *System) FetchTopicSets(ctx context.Context, pubkey nostr.PubKey) GenericSets[Topic] {
 	if sys.TopicSetsCache == nil {
-		sys.TopicSetsCache = cache_memory.New32[GenericSets[Topic]](1000)
+		sys.TopicSetsCache = cache_memory.New[GenericSets[Topic]](1000)
 	}
 
 	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30015, kind_30015, parseTopicString, sys.TopicSetsCache)
@@ -30,8 +30,12 @@ func (sys *System) FetchTopicSets(ctx context.Context, pubkey string) GenericSet
 }
 
 func parseTopicString(tag nostr.Tag) (t Topic, ok bool) {
-	if t := tag.Value(); t != "" && tag[0] == "t" {
+	if len(tag) < 2 {
+		return t, false
+	}
+	if t := tag[1]; t != "" && tag[0] == "t" {
 		return Topic(t), true
 	}
+
 	return t, false
 }

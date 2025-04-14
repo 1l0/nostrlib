@@ -2,14 +2,15 @@ package sdk
 
 import (
 	"context"
-	"strconv"
 	"time"
+
+	"fiatjaf.com/nostr"
 )
 
 var outboxShortTermCache = [256]ostcEntry{}
 
 type ostcEntry struct {
-	pubkey string
+	pubkey nostr.PubKey
 	relays []string
 	when   time.Time
 }
@@ -18,8 +19,8 @@ type ostcEntry struct {
 // NIP-05, past attempts at fetching data from a user from a given relay, including successes and failures, and
 // the "write" relays of kind:10002, in order to determine the best possible list of relays where a user might be
 // currently publishing their events to.
-func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey string, n int) []string {
-	ostcIndex, _ := strconv.ParseUint(pubkey[12:14], 16, 8)
+func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey nostr.PubKey, n int) []string {
+	ostcIndex := pubkey[7]
 	now := time.Now()
 	if entry := outboxShortTermCache[ostcIndex]; entry.pubkey == pubkey && entry.when.Add(time.Minute*2).After(now) {
 		return entry.relays

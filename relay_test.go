@@ -74,7 +74,7 @@ func TestPublishBlocked(t *testing.T) {
 		assert.NoError(t, err)
 
 		// send back a not ok nip-20 command result
-		res := []any{"OK", textNote.ID, false, "blocked"}
+		res := []any{"OK", textNote.ID.String(), false, "blocked"}
 		websocket.JSON.Send(conn, res)
 	})
 	defer ws.Close()
@@ -175,12 +175,11 @@ var anyOriginHandshake = func(conf *websocket.Config, r *http.Request) error {
 	return nil
 }
 
-func makeKeyPair(t *testing.T) (priv, pub string) {
+func makeKeyPair(t *testing.T) (priv, pub [32]byte) {
 	t.Helper()
 
 	privkey := GeneratePrivateKey()
-	pubkey, err := GetPublicKey(privkey)
-	assert.NoError(t, err)
+	pubkey := GetPublicKey(privkey)
 
 	return privkey, pubkey
 }

@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -30,15 +31,15 @@ var (
 
 // ProfilePointer represents a pointer to a Nostr profile.
 type ProfilePointer struct {
-	PublicKey string   `json:"pubkey"`
+	PublicKey PubKey   `json:"pubkey"`
 	Relays    []string `json:"relays,omitempty"`
 }
 
 // ProfilePointerFromTag creates a ProfilePointer from a "p" tag (but it doesn't have to be necessarily a "p" tag, could be something else).
 func ProfilePointerFromTag(refTag Tag) (ProfilePointer, error) {
-	pk := refTag[1]
-	if !IsValidPublicKey(pk) {
-		return ProfilePointer{}, fmt.Errorf("invalid pubkey '%s'", pk)
+	pk, err := PubKeyFromHex(refTag[1])
+	if err != nil {
+		return ProfilePointer{}, err
 	}
 
 	pointer := ProfilePointer{
@@ -54,29 +55,29 @@ func ProfilePointerFromTag(refTag Tag) (ProfilePointer, error) {
 
 // MatchesEvent checks if the pointer matches an event.
 func (ep ProfilePointer) MatchesEvent(_ Event) bool { return false }
-func (ep ProfilePointer) AsTagReference() string    { return ep.PublicKey }
-func (ep ProfilePointer) AsFilter() Filter          { return Filter{Authors: []string{ep.PublicKey}} }
+func (ep ProfilePointer) AsFilter() Filter          { return Filter{Authors: []PubKey{ep.PublicKey}} }
+func (ep ProfilePointer) AsTagReference() string    { return hex.EncodeToString(ep.PublicKey[:]) }
 
 func (ep ProfilePointer) AsTag() Tag {
 	if len(ep.Relays) > 0 {
-		return Tag{"p", ep.PublicKey, ep.Relays[0]}
+		return Tag{"p", hex.EncodeToString(ep.PublicKey[:]), ep.Relays[0]}
 	}
-	return Tag{"p", ep.PublicKey}
+	return Tag{"p", hex.EncodeToString(ep.PublicKey[:])}
 }
 
 // EventPointer represents a pointer to a nostr event.
 type EventPointer struct {
-	ID     string   `json:"id"`
+	ID     ID       `json:"id"`
 	Relays []string `json:"relays,omitempty"`
-	Author string   `json:"author,omitempty"`
-	Kind   int      `json:"kind,omitempty"`
+	Author PubKey   `json:"author,omitempty"`
+	Kind   uint16   `json:"kind,omitempty"`
 }
 
 // EventPointerFromTag creates an EventPointer from an "e" tag (but it could be other tag name, it isn't checked).
 func EventPointerFromTag(refTag Tag) (EventPointer, error) {
-	id := refTag[1]
-	if !IsValid32ByteHex(id) {
-		return EventPointer{}, fmt.Errorf("invalid id '%s'", id)
+	id, err := IDFromHex(refTag[1])
+	if err != nil {
+		return EventPointer{}, err
 	}
 
 	pointer := EventPointer{
@@ -86,35 +87,35 @@ func EventPointerFromTag(refTag Tag) (EventPointer, error) {
 		if relay := (refTag)[2]; IsValidRelayURL(relay) {
 			pointer.Relays = []string{relay}
 		}
-		if len(refTag) > 3 && IsValidPublicKey(refTag[3]) {
-			pointer.Author = (refTag)[3]
-		} else if len(refTag) > 4 && IsValidPublicKey(refTag[4]) {
-			pointer.Author = (refTag)[4]
+		if len(refTag) > 3 {
+			if pk, err := PubKeyFromHex(refTag[3]); err == nil {
+				pointer.Author = pk
+			}
 		}
 	}
 	return pointer, nil
 }
 
 func (ep EventPointer) MatchesEvent(evt Event) bool { return evt.ID == ep.ID }
-func (ep EventPointer) AsTagReference() string      { return ep.ID }
-func (ep EventPointer) AsFilter() Filter            { return Filter{IDs: []string{ep.ID}} }
+func (ep EventPointer) AsFilter() Filter            { return Filter{IDs: []ID{ep.ID}} }
+func (ep EventPointer) AsTagReference() string      { return hex.EncodeToString(ep.ID[:]) }
 
 // AsTag converts the pointer to a Tag.
 func (ep EventPointer) AsTag() Tag {
 	if len(ep.Relays) > 0 {
-		if ep.Author != "" {
-			return Tag{"e", ep.ID, ep.Relays[0], ep.Author}
+		if ep.Author != [32]byte{} {
+			return Tag{"e", hex.EncodeToString(ep.ID[:]), ep.Relays[0], hex.EncodeToString(ep.Author[:])}
 		} else {
-			return Tag{"e", ep.ID, ep.Relays[0]}
+			return Tag{"e", hex.EncodeToString(ep.ID[:]), ep.Relays[0]}
 		}
 	}
-	return Tag{"e", ep.ID}
+	return Tag{"e", hex.EncodeToString(ep.ID[:])}
 }
 
 // EntityPointer represents a pointer to a nostr entity (addressable event).
 type EntityPointer struct {
-	PublicKey  string   `json:"pubkey"`
-	Kind       int      `json:"kind,omitempty"`
+	PublicKey  PubKey   `json:"pubkey"`
+	Kind       uint16   `json:"kind,omitempty"`
 	Identifier string   `json:"identifier,omitempty"`
 	Relays     []string `json:"relays,omitempty"`
 }
@@ -125,8 +126,10 @@ func EntityPointerFromTag(refTag Tag) (EntityPointer, error) {
 	if len(spl) != 3 {
 		return EntityPointer{}, fmt.Errorf("invalid addr ref '%s'", refTag[1])
 	}
-	if !IsValidPublicKey(spl[1]) {
-		return EntityPointer{}, fmt.Errorf("invalid addr pubkey '%s'", spl[1])
+
+	pk, err := PubKeyFromHex(spl[1])
+	if err != nil {
+		return EntityPointer{}, err
 	}
 
 	kind, err := strconv.Atoi(spl[0])
@@ -135,8 +138,8 @@ func EntityPointerFromTag(refTag Tag) (EntityPointer, error) {
 	}
 
 	pointer := EntityPointer{
-		Kind:       kind,
-		PublicKey:  spl[1],
+		Kind:       uint16(kind),
+		PublicKey:  pk,
 		Identifier: spl[2],
 	}
 	if len(refTag) > 2 {
@@ -161,8 +164,8 @@ func (ep EntityPointer) AsTagReference() string {
 
 func (ep EntityPointer) AsFilter() Filter {
 	return Filter{
-		Kinds:   []int{ep.Kind},
-		Authors: []string{ep.PublicKey},
+		Kinds:   []uint16{ep.Kind},
+		Authors: []PubKey{ep.PublicKey},
 		Tags:    TagMap{"d": []string{ep.Identifier}},
 	}
 }

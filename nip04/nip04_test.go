@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 	"github.com/stretchr/testify/require"
 )
 

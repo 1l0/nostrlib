@@ -13,8 +13,8 @@ type Subscription struct {
 	counter int64
 	id      string
 
-	Relay   *Relay
-	Filters Filters
+	Relay  *Relay
+	Filter Filter
 
 	// for this to be treated as a COUNT and not a REQ this must be set
 	countResult chan CountEnvelope
@@ -35,7 +35,7 @@ type Subscription struct {
 
 	// if it is not nil, checkDuplicate will be called for every event received
 	// if it returns true that event will not be processed further.
-	checkDuplicate func(id string, relay string) bool
+	checkDuplicate func(id ID, relay string) bool
 
 	// if it is not nil, checkDuplicateReplaceable will be called for every event received
 	// if it returns true that event will not be processed further.
@@ -63,7 +63,7 @@ type WithLabel string
 func (_ WithLabel) IsSubscriptionOption() {}
 
 // WithCheckDuplicate sets checkDuplicate on the subscription
-type WithCheckDuplicate func(id, relay string) bool
+type WithCheckDuplicate func(id ID, relay string) bool
 
 func (_ WithCheckDuplicate) IsSubscriptionOption() {}
 
@@ -119,7 +119,7 @@ func (sub *Subscription) dispatchEvent(evt *Event) {
 
 func (sub *Subscription) dispatchEose() {
 	if sub.eosed.CompareAndSwap(false, true) {
-		sub.match = sub.Filters.MatchIgnoringTimestampConstraints
+		sub.match = sub.Filter.MatchesIgnoringTimestampConstraints
 		go func() {
 			sub.storedwg.Wait()
 			sub.EndOfStoredEvents <- struct{}{}
@@ -167,8 +167,8 @@ func (sub *Subscription) Close() {
 
 // Sub sets sub.Filters and then calls sub.Fire(ctx).
 // The subscription will be closed if the context expires.
-func (sub *Subscription) Sub(_ context.Context, filters Filters) {
-	sub.Filters = filters
+func (sub *Subscription) Sub(_ context.Context, filter Filter) {
+	sub.Filter = filter
 	sub.Fire()
 }
 
@@ -176,11 +176,9 @@ func (sub *Subscription) Sub(_ context.Context, filters Filters) {
 func (sub *Subscription) Fire() error {
 	var reqb []byte
 	if sub.countResult == nil {
-		reqb, _ = ReqEnvelope{sub.id, sub.Filters}.MarshalJSON()
-	} else if len(sub.Filters) == 1 {
-		reqb, _ = CountEnvelope{sub.id, sub.Filters[0], nil, nil}.MarshalJSON()
+		reqb, _ = ReqEnvelope{sub.id, sub.Filter}.MarshalJSON()
 	} else {
-		return fmt.Errorf("unexpected sub configuration")
+		reqb, _ = CountEnvelope{sub.id, sub.Filter, nil, nil}.MarshalJSON()
 	}
 
 	sub.live.Store(true)

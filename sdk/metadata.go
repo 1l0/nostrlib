@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip05"
-	"github.com/nbd-wtf/go-nostr/nip19"
-	"github.com/nbd-wtf/go-nostr/sdk/hints"
+	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostrlib/nip05"
+	"fiatjaf.com/nostrlib/nip19"
+	"fiatjaf.com/nostrlib/sdk/hints"
 )
 
 // ProfileMetadata represents user profile information from kind 0 events.

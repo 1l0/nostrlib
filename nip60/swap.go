@@ -10,7 +10,7 @@ import (
 	"github.com/elnosh/gonuts/cashu/nuts/nut02"
 	"github.com/elnosh/gonuts/cashu/nuts/nut03"
 	"github.com/elnosh/gonuts/cashu/nuts/nut10"
-	"github.com/nbd-wtf/go-nostr/nip60/client"
+	"fiatjaf.com/nostrlib/nip60/client"
 )
 
 type swapSettings struct {

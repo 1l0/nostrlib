@@ -3,7 +3,7 @@ package nip34
 import (
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostrlib"
 )
 
 type RepositoryState struct {
