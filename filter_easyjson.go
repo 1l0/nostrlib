@@ -52,7 +52,7 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 				}
 				for !in.IsDelim(']') {
 					id := [32]byte{}
-					hex.Decode(id[:], []byte(in.String()))
+					hex.Decode(id[:], in.UnsafeBytes())
 					out.IDs = append(out.IDs, id)
 					in.WantComma()
 				}
@@ -96,7 +96,7 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 				}
 				for !in.IsDelim(']') {
 					pk := [32]byte{}
-					hex.Decode(pk[:], []byte(in.String()))
+					hex.Decode(pk[:], in.UnsafeBytes())
 					out.Authors = append(out.Authors, pk)
 					in.WantComma()
 				}
@@ -128,7 +128,7 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 				out.LimitZero = true
 			}
 		case "search":
-			out.Search = string(in.String())
+			out.Search = in.String()
 		default:
 			if len(key) > 1 && key[0] == '#' {
 				tagValues := make([]string, 0, 40)
@@ -144,9 +144,7 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 						tagValues = (tagValues)[:0]
 					}
 					for !in.IsDelim(']') {
-						var v3 string
-						v3 = string(in.String())
-						tagValues = append(tagValues, v3)
+						tagValues = append(tagValues, in.String())
 						in.WantComma()
 					}
 					in.Delim(']')
@@ -259,7 +257,7 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 		} else {
 			out.RawString(prefix)
 		}
-		out.String(string(in.Search))
+		out.String(in.Search)
 	}
 	for tag, values := range in.Tags {
 		const prefix string = ",\"authors\":"
@@ -275,7 +273,7 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 				if i > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v))
+				out.String(v)
 			}
 			out.RawByte(']')
 		}

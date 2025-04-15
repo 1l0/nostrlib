@@ -35,9 +35,9 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		}
 		switch key {
 		case "id":
-			hex.Decode(out.ID[:], []byte(in.String()))
+			hex.Decode(out.ID[:], in.UnsafeBytes())
 		case "pubkey":
-			hex.Decode(out.PubKey[:], []byte(in.String()))
+			hex.Decode(out.PubKey[:], in.UnsafeBytes())
 		case "created_at":
 			out.CreatedAt = Timestamp(in.Int64())
 		case "kind":
@@ -58,26 +58,24 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 					out.Tags = (out.Tags)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v1 Tag
+					var v Tag
 					if in.IsNull() {
 						in.Skip()
-						v1 = nil
+						v = nil
 					} else {
 						in.Delim('[')
 						if !in.IsDelim(']') {
-							v1 = make(Tag, 0, 5)
+							v = make(Tag, 0, 5)
 						} else {
-							v1 = Tag{}
+							v = Tag{}
 						}
 						for !in.IsDelim(']') {
-							var v2 string
-							v2 = in.String()
-							v1 = append(v1, v2)
+							v = append(v, in.String())
 							in.WantComma()
 						}
 						in.Delim(']')
 					}
-					out.Tags = append(out.Tags, v1)
+					out.Tags = append(out.Tags, v)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -85,7 +83,7 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		case "content":
 			out.Content = in.String()
 		case "sig":
-			hex.Decode(out.Sig[:], []byte(in.String()))
+			hex.Decode(out.Sig[:], in.UnsafeBytes())
 		}
 		in.WantComma()
 	}
