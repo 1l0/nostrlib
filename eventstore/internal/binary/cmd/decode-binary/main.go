@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/fiatjaf/eventstore/internal/binary"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/internal/binary"
+	"fiatjaf.com/nostr"
 )
 
 func main() {

@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 var serialDelete uint32 = 0

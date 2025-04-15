@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 // this iterator always goes backwards

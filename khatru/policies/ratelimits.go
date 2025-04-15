@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fiatjaf/khatru"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/khatru"
+	"fiatjaf.com/nostr"
 )
 
 func EventIPRateLimiter(tokensPerInterval int, interval time.Duration, maxTokens int) func(ctx context.Context, _ *nostr.Event) (reject bool, msg string) {

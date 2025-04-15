@@ -10,9 +10,9 @@ import (
 	"slices"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/fiatjaf/eventstore/internal"
-	"github.com/fiatjaf/eventstore/mmm/betterbinary"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"fiatjaf.com/nostr/eventstore/mmm/betterbinary"
+	"fiatjaf.com/nostr"
 )
 
 // GetByID returns the event -- if found in this mmm -- and all the IndexingLayers it belongs to.

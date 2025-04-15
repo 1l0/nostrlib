@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/fiatjaf/eventstore/lmdb"
-	"github.com/fiatjaf/khatru"
-	"github.com/fiatjaf/khatru/policies"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/lmdb"
+	"fiatjaf.com/nostr/khatru"
+	"fiatjaf.com/nostr/khatru/policies"
+	"fiatjaf.com/nostr"
 )
 
 func main() {

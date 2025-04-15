@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/fiatjaf/eventstore/lmdb"
-	"github.com/fiatjaf/khatru"
+	"fiatjaf.com/nostr/eventstore/lmdb"
+	"fiatjaf.com/nostr/khatru"
 )
 
 func main() {

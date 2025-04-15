@@ -5,7 +5,7 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 var ErrSubscriptionClosedByClient = errors.New("subscription closed by client")

@@ -6,7 +6,7 @@ import (
 
 	"github.com/blugelabs/bluge"
 	"github.com/blugelabs/bluge/analysis/token"
-	"github.com/fiatjaf/eventstore"
+	"fiatjaf.com/nostr/eventstore"
 	"golang.org/x/text/unicode/norm"
 )
 

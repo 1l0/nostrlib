@@ -3,7 +3,7 @@ package bluge
 import (
 	"context"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func (b *BlugeBackend) DeleteEvent(ctx context.Context, evt *nostr.Event) error {

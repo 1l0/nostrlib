@@ -3,7 +3,7 @@ package policies
 import (
 	"time"
 
-	"github.com/fiatjaf/khatru"
+	"fiatjaf.com/nostr/khatru"
 )
 
 func ApplySaneDefaults(relay *khatru.Relay) {

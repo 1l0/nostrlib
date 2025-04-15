@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/fiatjaf/eventstore/badger"
-	"github.com/fiatjaf/khatru"
-	"github.com/fiatjaf/khatru/blossom"
+	"fiatjaf.com/nostr/eventstore/badger"
+	"fiatjaf.com/nostr/khatru"
+	"fiatjaf.com/nostr/khatru/blossom"
 )
 
 func main() {

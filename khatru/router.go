@@ -1,7 +1,7 @@
 package khatru
 
 import (
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 type Router struct{ *Relay }

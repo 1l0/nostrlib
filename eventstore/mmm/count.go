@@ -7,8 +7,8 @@ import (
 	"slices"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/fiatjaf/eventstore/mmm/betterbinary"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/mmm/betterbinary"
+	"fiatjaf.com/nostr"
 )
 
 func (il *IndexingLayer) CountEvents(ctx context.Context, filter nostr.Filter) (int64, error) {

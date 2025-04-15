@@ -7,7 +7,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 	"github.com/mailru/easyjson"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 var save = &cli.Command{

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/mailru/easyjson"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func TestTagFiltering(t *testing.T) {

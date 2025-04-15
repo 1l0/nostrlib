@@ -7,12 +7,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fiatjaf/eventstore"
-	"github.com/fiatjaf/eventstore/badger"
-	"github.com/fiatjaf/eventstore/lmdb"
-	"github.com/fiatjaf/eventstore/slicestore"
-	"github.com/fiatjaf/eventstore/sqlite3"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr/eventstore/badger"
+	"fiatjaf.com/nostr/eventstore/lmdb"
+	"fiatjaf.com/nostr/eventstore/slicestore"
+	"fiatjaf.com/nostr/eventstore/sqlite3"
+	"fiatjaf.com/nostr"
 )
 
 func BenchmarkSliceStore(b *testing.B) {

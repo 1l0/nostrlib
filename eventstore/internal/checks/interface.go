@@ -1,16 +1,16 @@
 package checks
 
 import (
-	"github.com/fiatjaf/eventstore"
-	"github.com/fiatjaf/eventstore/badger"
-	"github.com/fiatjaf/eventstore/bluge"
-	"github.com/fiatjaf/eventstore/edgedb"
-	"github.com/fiatjaf/eventstore/lmdb"
-	"github.com/fiatjaf/eventstore/mongo"
-	"github.com/fiatjaf/eventstore/mysql"
-	"github.com/fiatjaf/eventstore/postgresql"
-	"github.com/fiatjaf/eventstore/sqlite3"
-	"github.com/fiatjaf/eventstore/strfry"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr/eventstore/badger"
+	"fiatjaf.com/nostr/eventstore/bluge"
+	"fiatjaf.com/nostr/eventstore/edgedb"
+	"fiatjaf.com/nostr/eventstore/lmdb"
+	"fiatjaf.com/nostr/eventstore/mongo"
+	"fiatjaf.com/nostr/eventstore/mysql"
+	"fiatjaf.com/nostr/eventstore/postgresql"
+	"fiatjaf.com/nostr/eventstore/sqlite3"
+	"fiatjaf.com/nostr/eventstore/strfry"
 )
 
 // compile-time checks to ensure all backends implement Store

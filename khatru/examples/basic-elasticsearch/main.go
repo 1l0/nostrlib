@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fiatjaf/eventstore/elasticsearch"
-	"github.com/fiatjaf/khatru"
+	"fiatjaf.com/nostr/eventstore/elasticsearch"
+	"fiatjaf.com/nostr/khatru"
 )
 
 func main() {

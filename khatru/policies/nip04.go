@@ -4,8 +4,8 @@ import (
 	"context"
 	"slices"
 
-	"github.com/fiatjaf/khatru"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/khatru"
+	"fiatjaf.com/nostr"
 )
 
 // RejectKind04Snoopers prevents reading NIP-04 messages from people not involved in the conversation.

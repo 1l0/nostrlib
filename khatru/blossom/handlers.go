@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/liamg/magic"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func (bs BlossomServer) handleUploadCheck(w http.ResponseWriter, r *http.Request) {

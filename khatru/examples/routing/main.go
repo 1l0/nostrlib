@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/fiatjaf/eventstore/slicestore"
-	"github.com/fiatjaf/eventstore/sqlite3"
-	"github.com/fiatjaf/khatru"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/slicestore"
+	"fiatjaf.com/nostr/eventstore/sqlite3"
+	"fiatjaf.com/nostr/khatru"
+	"fiatjaf.com/nostr"
 )
 
 func main() {

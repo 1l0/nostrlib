@@ -8,7 +8,7 @@ import (
 
 	"github.com/blugelabs/bluge"
 	"github.com/blugelabs/bluge/search"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func (b *BlugeBackend) QueryEvents(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {

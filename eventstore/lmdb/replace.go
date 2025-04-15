@@ -6,8 +6,8 @@ import (
 	"math"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/fiatjaf/eventstore/internal"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"fiatjaf.com/nostr"
 )
 
 func (b *LMDBBackend) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {

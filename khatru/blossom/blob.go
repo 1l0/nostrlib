@@ -3,7 +3,7 @@ package blossom
 import (
 	"context"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 type BlobDescriptor struct {

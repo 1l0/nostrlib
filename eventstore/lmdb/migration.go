@@ -6,8 +6,8 @@ import (
 	"log"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	bin "github.com/fiatjaf/eventstore/internal/binary"
-	"github.com/nbd-wtf/go-nostr"
+	bin "fiatjaf.com/nostr/eventstore/internal/binary"
+	"fiatjaf.com/nostr"
 )
 
 const (

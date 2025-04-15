@@ -12,8 +12,8 @@ import (
 	"unsafe"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/fiatjaf/eventstore/mmm/betterbinary"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/mmm/betterbinary"
+	"fiatjaf.com/nostr"
 )
 
 func (b *MultiMmapManager) StoreGlobal(ctx context.Context, evt *nostr.Event) (stored bool, err error) {

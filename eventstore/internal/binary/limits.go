@@ -3,7 +3,7 @@ package binary
 import (
 	"math"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 const (

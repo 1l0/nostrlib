@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/fiatjaf/eventstore"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr"
 )
 
 const (

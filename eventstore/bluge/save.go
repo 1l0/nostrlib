@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/blugelabs/bluge"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func (b *BlugeBackend) SaveEvent(ctx context.Context, evt *nostr.Event) error {

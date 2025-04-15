@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/urfave/cli/v3"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 var delete_ = &cli.Command{

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func (rl *Relay) handleEphemeral(ctx context.Context, evt *nostr.Event) error {

@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/fiatjaf/eventstore/internal"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"fiatjaf.com/nostr"
 )
 
 type query struct {

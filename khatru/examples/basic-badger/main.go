@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fiatjaf/eventstore/badger"
-	"github.com/fiatjaf/khatru"
+	"fiatjaf.com/nostr/eventstore/badger"
+	"fiatjaf.com/nostr/khatru"
 )
 
 func main() {

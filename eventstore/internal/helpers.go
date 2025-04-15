@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	mergesortedslices "fiatjaf.com/lib/merge-sorted-slices"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func IsOlder(previous, next *nostr.Event) bool {

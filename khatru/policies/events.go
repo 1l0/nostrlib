@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip70"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip70"
 )
 
 // PreventTooManyIndexableTags returns a function that can be used as a RejectFilter that will reject

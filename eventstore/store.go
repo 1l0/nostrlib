@@ -3,7 +3,7 @@ package eventstore
 import (
 	"context"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 // Store is a persistence layer for nostr events handled by a relay.

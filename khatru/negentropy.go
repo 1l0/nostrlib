@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fiatjaf/eventstore"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip77/negentropy"
-	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage/vector"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip77/negentropy"
+	"fiatjaf.com/nostr/nip77/negentropy/storage/vector"
 )
 
 type NegentropySession struct {

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fiatjaf/eventstore"
-	"github.com/fiatjaf/eventstore/slicestore"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr/eventstore/slicestore"
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,8 +6,8 @@ import (
 	"math"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/fiatjaf/eventstore/internal"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"fiatjaf.com/nostr"
 )
 
 func (b *BadgerBackend) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {

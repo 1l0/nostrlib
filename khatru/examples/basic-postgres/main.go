@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fiatjaf/eventstore/postgresql"
-	"github.com/fiatjaf/khatru"
+	"fiatjaf.com/nostr/eventstore/postgresql"
+	"fiatjaf.com/nostr/khatru"
 )
 
 func main() {

@@ -6,9 +6,9 @@ import (
 	"log"
 
 	"github.com/dgraph-io/badger/v4"
-	bin "github.com/fiatjaf/eventstore/internal/binary"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip45/hyperloglog"
+	bin "fiatjaf.com/nostr/eventstore/internal/binary"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip45/hyperloglog"
 )
 
 func (b *BadgerBackend) CountEvents(ctx context.Context, filter nostr.Filter) (int64, error) {

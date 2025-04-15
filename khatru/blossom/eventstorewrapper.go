@@ -4,8 +4,8 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/fiatjaf/eventstore"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr"
 )
 
 // EventStoreBlobIndexWrapper uses fake events to keep track of what blobs we have stored and who owns them

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/fiatjaf/khatru"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/khatru"
+	"fiatjaf.com/nostr"
 )
 
 type BlossomServer struct {

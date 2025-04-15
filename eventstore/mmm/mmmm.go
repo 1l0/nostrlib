@@ -11,8 +11,8 @@ import (
 	"unsafe"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/fiatjaf/eventstore/mmm/betterbinary"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/mmm/betterbinary"
+	"fiatjaf.com/nostr"
 	"github.com/rs/zerolog"
 )
 

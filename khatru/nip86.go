@@ -13,8 +13,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip86"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip86"
 )
 
 type RelayManagementAPI struct {

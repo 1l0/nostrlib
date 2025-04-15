@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func getTimestamps(events []*nostr.Event) []nostr.Timestamp {

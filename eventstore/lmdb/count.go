@@ -7,10 +7,10 @@ import (
 	"encoding/hex"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	bin "github.com/fiatjaf/eventstore/internal/binary"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip45"
-	"github.com/nbd-wtf/go-nostr/nip45/hyperloglog"
+	bin "fiatjaf.com/nostr/eventstore/internal/binary"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip45"
+	"fiatjaf.com/nostr/nip45/hyperloglog"
 	"golang.org/x/exp/slices"
 )
 

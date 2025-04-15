@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/mailru/easyjson"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 	"github.com/urfave/cli/v3"
 )
 

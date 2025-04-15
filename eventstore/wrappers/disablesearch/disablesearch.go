@@ -3,8 +3,8 @@ package disablesearch
 import (
 	"context"
 
-	"github.com/fiatjaf/eventstore"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr"
 )
 
 type Wrapper struct {

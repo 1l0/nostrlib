@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func (rl *Relay) handleDeleteRequest(ctx context.Context, evt *nostr.Event) error {

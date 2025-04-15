@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fiatjaf/eventstore"
+	"fiatjaf.com/nostr/eventstore"
 	"github.com/mailru/easyjson"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 var _ eventstore.Store = (*StrfryBackend)(nil)

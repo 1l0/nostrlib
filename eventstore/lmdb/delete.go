@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func (b *LMDBBackend) DeleteEvent(ctx context.Context, evt *nostr.Event) error {

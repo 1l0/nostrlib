@@ -8,7 +8,7 @@ import (
 	"slices"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func (il *IndexingLayer) DeleteEvent(ctx context.Context, evt *nostr.Event) error {

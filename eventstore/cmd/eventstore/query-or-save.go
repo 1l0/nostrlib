@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/urfave/cli/v3"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 // this is the default command when no subcommands are given, we will just try everything

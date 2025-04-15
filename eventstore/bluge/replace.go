@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fiatjaf/eventstore"
-	"github.com/fiatjaf/eventstore/internal"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"fiatjaf.com/nostr"
 )
 
 func (b *BlugeBackend) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {

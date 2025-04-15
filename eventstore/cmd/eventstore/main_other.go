@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/fiatjaf/eventstore"
+	"fiatjaf.com/nostr/eventstore"
 )
 
 func doMmmInit(path string) (eventstore.Store, error) {

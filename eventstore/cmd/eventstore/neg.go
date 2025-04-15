@@ -10,9 +10,9 @@ import (
 
 	"github.com/urfave/cli/v3"
 	"github.com/mailru/easyjson"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip77/negentropy"
-	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage/vector"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip77/negentropy"
+	"fiatjaf.com/nostr/nip77/negentropy/storage/vector"
 )
 
 var neg = &cli.Command{

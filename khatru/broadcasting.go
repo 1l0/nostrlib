@@ -1,7 +1,7 @@
 package khatru
 
 import (
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 // BroadcastEvent emits an event to all listeners whose filters' match, skipping all filters and actions

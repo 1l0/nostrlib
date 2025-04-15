@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )

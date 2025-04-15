@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 	"golang.org/x/exp/slices"
 )
 

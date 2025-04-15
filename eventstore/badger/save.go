@@ -7,9 +7,9 @@ import (
 	"math"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/fiatjaf/eventstore"
-	bin "github.com/fiatjaf/eventstore/internal/binary"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore"
+	bin "fiatjaf.com/nostr/eventstore/internal/binary"
+	"fiatjaf.com/nostr"
 )
 
 func (b *BadgerBackend) SaveEvent(ctx context.Context, evt *nostr.Event) error {

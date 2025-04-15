@@ -7,7 +7,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/mailru/easyjson"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func TestBaseCase(t *testing.T) {

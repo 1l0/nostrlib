@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fiatjaf/eventstore/slicestore"
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr/eventstore/slicestore"
+	"fiatjaf.com/nostr"
 )
 
 func TestBasicRelayFunctionality(t *testing.T) {
