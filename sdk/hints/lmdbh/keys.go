@@ -4,12 +4,12 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
-func encodeKey(pubhintkey, relay string) []byte {
+func encodeKey(pubhintkey nostr.PubKey, relay string) []byte {
 	k := make([]byte, 32+len(relay))
-	hex.Decode(k[0:32], []byte(pubhintkey))
+	copy(k[0:32], pubhintkey[:])
 	copy(k[32:], relay)
 	return k
 }

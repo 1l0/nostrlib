@@ -2,17 +2,17 @@ package sdk
 
 import (
 	"context"
-	"strconv"
+	"encoding/binary"
 	"sync"
 	"time"
 
+	"fiatjaf.com/nostr"
 	"github.com/FastFilter/xorfilter"
 	"golang.org/x/sync/errgroup"
 )
 
-func PubKeyToShid(pubkey string) uint64 {
-	shid, _ := strconv.ParseUint(pubkey[32:48], 16, 64)
-	return shid
+func PubKeyToShid(pubkey nostr.PubKey) uint64 {
+	return binary.BigEndian.Uint64(pubkey[16:24])
 }
 
 type wotCall struct {
@@ -30,7 +30,7 @@ var (
 	wotCallsInPlace [wotCallsSize]*wotCall
 )
 
-func (sys *System) LoadWoTFilter(ctx context.Context, pubkey string) (WotXorFilter, error) {
+func (sys *System) LoadWoTFilter(ctx context.Context, pubkey nostr.PubKey) (WotXorFilter, error) {
 	id := PubKeyToShid(pubkey)
 	pos := int(id % wotCallsSize)
 
@@ -99,11 +99,11 @@ actualcall:
 	return res, err
 }
 
-func (sys *System) loadWoT(ctx context.Context, pubkey string) (chan string, error) {
+func (sys *System) loadWoT(ctx context.Context, pubkey nostr.PubKey) (chan nostr.PubKey, error) {
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(45)
 
-	res := make(chan string)
+	res := make(chan nostr.PubKey)
 
 	// process follow lists
 	wg := sync.WaitGroup{}
@@ -139,7 +139,7 @@ func (sys *System) loadWoT(ctx context.Context, pubkey string) (chan string, err
 	return res, nil
 }
 
-func makeWoTFilter(m chan string) WotXorFilter {
+func makeWoTFilter(m chan nostr.PubKey) WotXorFilter {
 	shids := make([]uint64, 0, 60000)
 	shidMap := make(map[uint64]struct{}, 60000)
 	for pk := range m {
@@ -159,7 +159,7 @@ type WotXorFilter struct {
 	xorfilter.Xor8
 }
 
-func (wxf WotXorFilter) Contains(pubkey string) bool {
+func (wxf WotXorFilter) Contains(pubkey nostr.PubKey) bool {
 	if wxf.Items == 0 {
 		return false
 	}

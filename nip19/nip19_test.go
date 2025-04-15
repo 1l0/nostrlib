@@ -1,21 +1,24 @@
 package nip19
 
 import (
+	"encoding/hex"
 	"testing"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEncodeNpub(t *testing.T) {
-	npub, err := EncodePublicKey("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")
-	assert.NoError(t, err)
+	npub := EncodeNpub(nostr.MustPubKeyFromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"))
 	assert.Equal(t, "npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6", npub, "produced an unexpected npub string")
 }
 
 func TestEncodeNsec(t *testing.T) {
-	nsec, err := EncodePrivateKey("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")
+	skh := "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"
+	var sk [32]byte
+	hex.Decode(sk[:], []byte(skh))
+	nsec, err := EncodeNsec(sk)
 	assert.NoError(t, err)
 	assert.Equal(t, "nsec180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsgyumg0", nsec, "produced an unexpected nsec string")
 }
@@ -63,20 +66,22 @@ func TestDecodeNprofile(t *testing.T) {
 }
 
 func TestEncodeNprofile(t *testing.T) {
-	nprofile, err := EncodeProfile("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d", []string{
-		"wss://r.x.com",
-		"wss://djbas.sadkb.com",
-	})
+	nprofile := EncodeNprofile(
+		nostr.MustPubKeyFromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"),
+		[]string{
+			"wss://r.x.com",
+			"wss://djbas.sadkb.com",
+		},
+	)
 
-	assert.NoError(t, err)
 	assert.Equal(t,
 		"nprofile1qqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8gpp4mhxue69uhhytnc9e3k7mgpz4mhxue69uhkg6nzv9ejuumpv34kytnrdaksjlyr9p",
 		nprofile, "produced an unexpected nprofile string: %s", nprofile)
 }
 
 func TestEncodeDecodeNaddr(t *testing.T) {
-	naddr, err := EncodeEntity(
-		"3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
+	naddr := EncodeNaddr(
+		nostr.MustPubKeyFromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"),
 		nostr.KindArticle,
 		"banana",
 		[]string{
@@ -84,7 +89,6 @@ func TestEncodeDecodeNaddr(t *testing.T) {
 			"wss://nostr.banana.com",
 		})
 
-	assert.NoError(t, err)
 	assert.Equal(t,
 		"naddr1qqrxyctwv9hxzqfwwaehxw309aex2mrp0yhxummnw3ezuetcv9khqmr99ekhjer0d4skjm3wv4uxzmtsd3jjucm0d5q3vamnwvaz7tmwdaehgu3wvfskuctwvyhxxmmdqgsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8grqsqqqa28a3lkds",
 		naddr, "produced an unexpected naddr string: %s", naddr)
@@ -116,13 +120,11 @@ func TestDecodeNaddrWithoutRelays(t *testing.T) {
 }
 
 func TestEncodeDecodeNEvent(t *testing.T) {
-	nevent, err := EncodeEvent(
-		"45326f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194",
+	nevent := EncodeNevent(
+		nostr.MustIDFromHex("45326f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194"),
 		[]string{"wss://banana.com"},
-		"7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751abb88",
+		nostr.MustPubKeyFromHex("7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751abb88"),
 	)
-
-	assert.NoError(t, err)
 
 	expectedNEvent := "nevent1qqsy2vn0t45k92c78n2zfe6ccvqzhpn977cd3h8wnl579zxhw5dvr9qpzpmhxue69uhkyctwv9hxztnrdaksygrl54h466tz4v0re4pyuavvxqptsejl0vxcmnhfl60z3rth2x4m3q04ndyp"
 	assert.Equal(t, expectedNEvent, nevent)

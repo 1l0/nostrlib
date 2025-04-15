@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nbd-wtf/go-nostr/sdk/hints/badgerh"
+	"fiatjaf.com/nostr/sdk/hints/badgerh"
 )
 
 func TestBadgerHints(t *testing.T) {

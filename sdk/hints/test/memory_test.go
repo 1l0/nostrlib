@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	"fiatjaf.com/nostrlib/sdk/hints/memoryh"
+	"fiatjaf.com/nostr/sdk/hints/memoryh"
 )
 
 func TestMemoryHints(t *testing.T) {

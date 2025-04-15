@@ -3,7 +3,7 @@ package negentropy
 import (
 	"fmt"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 func (n *Negentropy) readTimestamp(reader *StringHexReader) (nostr.Timestamp, error) {
@@ -42,12 +42,12 @@ func (n *Negentropy) readBound(reader *StringHexReader) (Bound, error) {
 		return Bound{}, fmt.Errorf("failed to decode bound length: %w", err)
 	}
 
-	id, err := reader.ReadString(length * 2)
-	if err != nil {
+	pfb := make([]byte, length)
+	if err := reader.ReadHexBytes(pfb); err != nil {
 		return Bound{}, fmt.Errorf("failed to read bound id: %w", err)
 	}
 
-	return Bound{Item{timestamp, id}}, nil
+	return Bound{timestamp, pfb}, nil
 }
 
 func (n *Negentropy) writeTimestamp(w *StringHexWriter, timestamp nostr.Timestamp) {
@@ -71,26 +71,25 @@ func (n *Negentropy) writeTimestamp(w *StringHexWriter, timestamp nostr.Timestam
 
 func (n *Negentropy) writeBound(w *StringHexWriter, bound Bound) {
 	n.writeTimestamp(w, bound.Timestamp)
-	writeVarInt(w, len(bound.ID)/2)
-	w.WriteHex(bound.Item.ID)
+	writeVarInt(w, len(bound.IDPrefix))
+	w.WriteBytes(bound.IDPrefix)
 }
 
 func getMinimalBound(prev, curr Item) Bound {
 	if curr.Timestamp != prev.Timestamp {
-		return Bound{Item{curr.Timestamp, ""}}
+		return Bound{curr.Timestamp, nil}
 	}
 
 	sharedPrefixBytes := 0
-
-	for i := 0; i < 32; i += 2 {
-		if curr.ID[i:i+2] != prev.ID[i:i+2] {
+	for i := 0; i < 31; i++ {
+		if curr.ID[i] != prev.ID[i] {
 			break
 		}
 		sharedPrefixBytes++
 	}
 
 	// sharedPrefixBytes + 1 to include the first differing byte, or the entire ID if identical.
-	return Bound{Item{curr.Timestamp, curr.ID[:(sharedPrefixBytes+1)*2]}}
+	return Bound{curr.Timestamp, curr.ID[:(sharedPrefixBytes + 1)]}
 }
 
 func readVarInt(reader *StringHexReader) (int, error) {

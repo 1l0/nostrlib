@@ -5,8 +5,8 @@ import (
 	"math/rand"
 
 	"github.com/mailru/easyjson"
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip44"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip44"
 )
 
 // GiftWrap takes a 'rumor', encrypts it with our own key, making a 'seal', then encrypts that with a nonce key and

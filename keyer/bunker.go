@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip46"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip46"
 )
 
 var _ nostr.Keyer = (*BunkerSigner)(nil)

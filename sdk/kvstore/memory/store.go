@@ -3,7 +3,7 @@ package memory
 import (
 	"sync"
 
-	"fiatjaf.com/nostrlib/sdk/kvstore"
+	"fiatjaf.com/nostr/sdk/kvstore"
 )
 
 var _ kvstore.KVStore = (*Store)(nil)

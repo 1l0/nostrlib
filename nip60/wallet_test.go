@@ -10,8 +10,8 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elnosh/gonuts/cashu"
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/keyer"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/keyer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/rand"
 )

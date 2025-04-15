@@ -7,8 +7,8 @@ import (
 
 	"github.com/fiatjaf/eventstore"
 	"github.com/fiatjaf/eventstore/slicestore"
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip77"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip77"
 )
 
 func main() {

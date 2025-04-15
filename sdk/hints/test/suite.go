@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/sdk/hints"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/hints"
 	"github.com/stretchr/testify/require"
 )
 

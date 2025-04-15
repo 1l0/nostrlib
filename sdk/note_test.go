@@ -3,7 +3,7 @@ package sdk
 import (
 	"testing"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/require"
 )
 

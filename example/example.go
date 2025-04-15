@@ -9,8 +9,8 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip19"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
 )
 
 func main() {

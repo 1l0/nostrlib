@@ -13,7 +13,7 @@ import (
 var defaultConnectionOptions = &ws.DialOptions{
 	CompressionMode: ws.CompressionContextTakeover,
 	HTTPHeader: http.Header{
-		textproto.CanonicalMIMEHeaderKey("User-Agent"): {"fiatjaf.com/nostrlib"},
+		textproto.CanonicalMIMEHeaderKey("User-Agent"): {"fiatjaf.com/nostr"},
 	},
 }
 

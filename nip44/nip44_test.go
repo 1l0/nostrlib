@@ -8,14 +8,22 @@ import (
 	"strings"
 	"testing"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/require"
 )
 
-func assertCryptPriv(t *testing.T, sk1 string, sk2 string, conversationKey string, salt string, plaintext string, expected string) {
+func assertCryptPriv(t *testing.T, skh1 string, skh2 string, conversationKey string, salt string, plaintext string, expected string) {
+	sk1 := [32]byte{}
+	hex.Decode(sk1[:], []byte(skh1))
+
+	sk2 := [32]byte{}
+	hex.Decode(sk2[:], []byte(skh2))
+
 	k1, err := hexDecode32Array(conversationKey)
 	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
-	assertConversationKeyGenerationSec(t, sk1, sk2, conversationKey)
+
+	pub2 := nostr.GetPublicKey(sk2)
+	assertConversationKeyGenerationPub(t, skh1, hex.EncodeToString(pub2[:]), conversationKey)
 
 	customNonce, err := hex.DecodeString(salt)
 	require.NoErrorf(t, err, "hex decode failed for salt: %v", err)
@@ -39,7 +47,13 @@ func assertDecryptFail(t *testing.T, conversationKey string, _ string, ciphertex
 }
 
 func assertConversationKeyFail(t *testing.T, priv string, pub string, msg string) {
-	_, err := GenerateConversationKey(pub, priv)
+	var pub32 [32]byte
+	hex.Decode(pub32[:], []byte(pub))
+
+	var priv32 [32]byte
+	hex.Decode(priv32[:], []byte(priv))
+
+	_, err := GenerateConversationKey(pub32, priv32)
 	require.ErrorContains(t, err, msg)
 }
 
@@ -47,16 +61,16 @@ func assertConversationKeyGenerationPub(t *testing.T, priv string, pub string, c
 	expectedConversationKey, err := hexDecode32Array(conversationKey)
 	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
 
-	actualConversationKey, err := GenerateConversationKey(pub, priv)
+	var pub32 [32]byte
+	hex.Decode(pub32[:], []byte(pub))
+
+	var priv32 [32]byte
+	hex.Decode(priv32[:], []byte(priv))
+
+	actualConversationKey, err := GenerateConversationKey(pub32, priv32)
 	require.NoErrorf(t, err, "conversation key generation failed: %v", err)
 
 	require.Equalf(t, expectedConversationKey, actualConversationKey, "wrong conversation key")
-}
-
-func assertConversationKeyGenerationSec(t *testing.T, sk1 string, sk2 string, conversationKey string) {
-	pub2, err := nostr.GetPublicKey(sk2)
-	require.NoErrorf(t, err, "failed to derive pubkey from sk2: %v", err)
-	assertConversationKeyGenerationPub(t, sk1, pub2, conversationKey)
 }
 
 func assertMessageKeyGeneration(t *testing.T, conversationKey string, salt string, chachaKey string, chachaSalt string, hmacKey string) bool {
@@ -1061,7 +1075,7 @@ func TestMessageKeyGeneration033(t *testing.T) {
 func TestMaxLength(t *testing.T) {
 	sk1 := nostr.GeneratePrivateKey()
 	sk2 := nostr.GeneratePrivateKey()
-	pub2, _ := nostr.GetPublicKey(sk2)
+	pub2 := nostr.GetPublicKey(sk2)
 	salt := make([]byte, 32)
 	rand.Read(salt)
 	conversationKey, _ := GenerateConversationKey(pub2, sk1)
@@ -1072,8 +1086,8 @@ func TestMaxLength(t *testing.T) {
 	}
 
 	assertCryptPub(t,
-		sk1,
-		pub2,
+		hex.EncodeToString(sk1[:]),
+		hex.EncodeToString(pub2[:]),
 		fmt.Sprintf("%x", conversationKey),
 		fmt.Sprintf("%x", salt),
 		plaintext,

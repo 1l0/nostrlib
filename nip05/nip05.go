@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
+	"fiatjaf.com/nostr"
 	jsoniter "github.com/json-iterator/go"
-	"fiatjaf.com/nostrlib"
 )
 
 var NIP05_REGEX = regexp.MustCompile(`^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$`)
@@ -40,16 +40,17 @@ func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointe
 		return nil, err
 	}
 
-	pubkey, ok := result.Names[name]
+	pubkeyh, ok := result.Names[name]
 	if !ok {
 		return nil, fmt.Errorf("no entry for name '%s'", name)
 	}
 
-	if !nostr.IsValidPublicKey(pubkey) {
-		return nil, fmt.Errorf("got an invalid public key '%s'", pubkey)
+	pubkey, err := nostr.PubKeyFromHex(pubkeyh)
+	if err != nil {
+		return nil, fmt.Errorf("got an invalid public key '%s'", pubkeyh)
 	}
 
-	relays, _ := result.Relays[pubkey]
+	relays, _ := result.Relays[pubkeyh]
 	return &nostr.ProfilePointer{
 		PublicKey: pubkey,
 		Relays:    relays,

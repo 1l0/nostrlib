@@ -3,7 +3,7 @@ package nip29
 import (
 	"slices"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 type Role struct {

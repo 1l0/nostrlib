@@ -3,11 +3,10 @@ package nip19
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 
+	"fiatjaf.com/nostr"
 	"github.com/btcsuite/btcd/btcutil/bech32"
-	"fiatjaf.com/nostrlib"
 )
 
 func Decode(bech32string string) (prefix string, value any, err error) {
@@ -22,12 +21,21 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 	}
 
 	switch prefix {
-	case "npub", "nsec", "note":
+	case "nsec":
 		if len(data) != 32 {
-			return prefix, nil, fmt.Errorf("data should be 32 bytes (%d)", len(data))
+			return prefix, nil, fmt.Errorf("nsec should be 32 bytes (%d)", len(data))
 		}
-
-		return prefix, hex.EncodeToString(data[0:32]), nil
+		return prefix, [32]byte(data[0:32]), nil
+	case "note":
+		if len(data) != 32 {
+			return prefix, nil, fmt.Errorf("note should be 32 bytes (%d)", len(data))
+		}
+		return prefix, [32]byte(data[0:32]), nil
+	case "npub":
+		if len(data) != 32 {
+			return prefix, nil, fmt.Errorf("npub should be 32 bytes (%d)", len(data))
+		}
+		return prefix, nostr.PubKey(data[0:32]), nil
 	case "nprofile":
 		var result nostr.ProfilePointer
 		curr := 0
@@ -35,7 +43,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 			t, v := readTLVEntry(data[curr:])
 			if v == nil {
 				// end here
-				if result.PublicKey == "" {
+				if result.PublicKey == nostr.ZeroPK {
 					return prefix, result, fmt.Errorf("no pubkey found for nprofile")
 				}
 
@@ -47,7 +55,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 				if len(v) != 32 {
 					return prefix, nil, fmt.Errorf("pubkey should be 32 bytes (%d)", len(v))
 				}
-				result.PublicKey = hex.EncodeToString(v)
+				result.PublicKey = nostr.PubKey(v)
 			case TLVRelay:
 				result.Relays = append(result.Relays, string(v))
 			default:
@@ -63,7 +71,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 			t, v := readTLVEntry(data[curr:])
 			if v == nil {
 				// end here
-				if result.ID == "" {
+				if result.ID == nostr.ZeroID {
 					return prefix, result, fmt.Errorf("no id found for nevent")
 				}
 
@@ -75,19 +83,19 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 				if len(v) != 32 {
 					return prefix, nil, fmt.Errorf("id should be 32 bytes (%d)", len(v))
 				}
-				result.ID = hex.EncodeToString(v)
+				result.ID = nostr.ID(v)
 			case TLVRelay:
 				result.Relays = append(result.Relays, string(v))
 			case TLVAuthor:
 				if len(v) != 32 {
 					return prefix, nil, fmt.Errorf("author should be 32 bytes (%d)", len(v))
 				}
-				result.Author = hex.EncodeToString(v)
+				result.Author = nostr.PubKey(v)
 			case TLVKind:
 				if len(v) != 4 {
 					return prefix, nil, fmt.Errorf("invalid uint32 value for integer (%v)", v)
 				}
-				result.Kind = int(binary.BigEndian.Uint32(v))
+				result.Kind = uint16(binary.BigEndian.Uint32(v))
 			default:
 				// ignore
 			}
@@ -101,7 +109,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 			t, v := readTLVEntry(data[curr:])
 			if v == nil {
 				// end here
-				if result.Kind == 0 || result.Identifier == "" || result.PublicKey == "" {
+				if result.Kind == 0 || result.Identifier == "" || result.PublicKey == nostr.ZeroPK {
 					return prefix, result, fmt.Errorf("incomplete naddr")
 				}
 
@@ -117,9 +125,9 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 				if len(v) != 32 {
 					return prefix, nil, fmt.Errorf("author should be 32 bytes (%d)", len(v))
 				}
-				result.PublicKey = hex.EncodeToString(v)
+				result.PublicKey = nostr.PubKey(v)
 			case TLVKind:
-				result.Kind = int(binary.BigEndian.Uint32(v))
+				result.Kind = uint16(binary.BigEndian.Uint32(v))
 			default:
 				// ignore
 			}
@@ -131,13 +139,8 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 	return prefix, data, fmt.Errorf("unknown tag %s", prefix)
 }
 
-func EncodePrivateKey(privateKeyHex string) (string, error) {
-	b, err := hex.DecodeString(privateKeyHex)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode private key hex: %w", err)
-	}
-
-	bits5, err := bech32.ConvertBits(b, 8, 5, true)
+func EncodeNsec(sk [32]byte) (string, error) {
+	bits5, err := bech32.ConvertBits(sk[:], 8, 5, true)
 	if err != nil {
 		return "", err
 	}
@@ -145,79 +148,44 @@ func EncodePrivateKey(privateKeyHex string) (string, error) {
 	return bech32.Encode("nsec", bits5)
 }
 
-func EncodePublicKey(publicKeyHex string) (string, error) {
-	b, err := hex.DecodeString(publicKeyHex)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode public key hex: %w", err)
-	}
-
-	bits5, err := bech32.ConvertBits(b, 8, 5, true)
-	if err != nil {
-		return "", err
-	}
-
-	return bech32.Encode("npub", bits5)
+func EncodeNpub(pk nostr.PubKey) string {
+	bits5, _ := bech32.ConvertBits(pk[:], 8, 5, true)
+	npub, _ := bech32.Encode("npub", bits5)
+	return npub
 }
 
-func EncodeNote(eventIDHex string) (string, error) {
-	b, err := hex.DecodeString(eventIDHex)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode event id hex: %w", err)
-	}
-
-	bits5, err := bech32.ConvertBits(b, 8, 5, true)
-	if err != nil {
-		return "", err
-	}
-
-	return bech32.Encode("note", bits5)
-}
-
-func EncodeProfile(publicKeyHex string, relays []string) (string, error) {
+func EncodeNprofile(pk nostr.PubKey, relays []string) string {
 	buf := &bytes.Buffer{}
-	pubkey, err := hex.DecodeString(publicKeyHex)
-	if err != nil {
-		return "", fmt.Errorf("invalid pubkey '%s': %w", publicKeyHex, err)
-	}
-	writeTLVEntry(buf, TLVDefault, pubkey)
+	writeTLVEntry(buf, TLVDefault, pk[:])
 
 	for _, url := range relays {
 		writeTLVEntry(buf, TLVRelay, []byte(url))
 	}
 
-	bits5, err := bech32.ConvertBits(buf.Bytes(), 8, 5, true)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert bits: %w", err)
-	}
+	bits5, _ := bech32.ConvertBits(buf.Bytes(), 8, 5, true)
 
-	return bech32.Encode("nprofile", bits5)
+	nprofile, _ := bech32.Encode("nprofile", bits5)
+	return nprofile
 }
 
-func EncodeEvent(eventIDHex string, relays []string, author string) (string, error) {
+func EncodeNevent(id nostr.ID, relays []string, author nostr.PubKey) string {
 	buf := &bytes.Buffer{}
-	id, err := hex.DecodeString(eventIDHex)
-	if err != nil || len(id) != 32 {
-		return "", fmt.Errorf("invalid id '%s': %w", eventIDHex, err)
-	}
-	writeTLVEntry(buf, TLVDefault, id)
+	writeTLVEntry(buf, TLVDefault, id[:])
 
 	for _, url := range relays {
 		writeTLVEntry(buf, TLVRelay, []byte(url))
 	}
 
-	if pubkey, _ := hex.DecodeString(author); len(pubkey) == 32 {
-		writeTLVEntry(buf, TLVAuthor, pubkey)
+	if author != nostr.ZeroPK {
+		writeTLVEntry(buf, TLVAuthor, author[:])
 	}
 
-	bits5, err := bech32.ConvertBits(buf.Bytes(), 8, 5, true)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert bits: %w", err)
-	}
-
-	return bech32.Encode("nevent", bits5)
+	bits5, _ := bech32.ConvertBits(buf.Bytes(), 8, 5, true)
+	nevent, _ := bech32.Encode("nevent", bits5)
+	return nevent
 }
 
-func EncodeEntity(publicKey string, kind int, identifier string, relays []string) (string, error) {
+func EncodeNaddr(pk nostr.PubKey, kind uint16, identifier string, relays []string) string {
 	buf := &bytes.Buffer{}
 
 	writeTLVEntry(buf, TLVDefault, []byte(identifier))
@@ -226,20 +194,13 @@ func EncodeEntity(publicKey string, kind int, identifier string, relays []string
 		writeTLVEntry(buf, TLVRelay, []byte(url))
 	}
 
-	pubkey, err := hex.DecodeString(publicKey)
-	if err != nil {
-		return "", fmt.Errorf("invalid pubkey '%s': %w", pubkey, err)
-	}
-	writeTLVEntry(buf, TLVAuthor, pubkey)
+	writeTLVEntry(buf, TLVAuthor, pk[:])
 
 	kindBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(kindBytes, uint32(kind))
 	writeTLVEntry(buf, TLVKind, kindBytes)
 
-	bits5, err := bech32.ConvertBits(buf.Bytes(), 8, 5, true)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert bits: %w", err)
-	}
-
-	return bech32.Encode("naddr", bits5)
+	bits5, _ := bech32.ConvertBits(buf.Bytes(), 8, 5, true)
+	naddr, _ := bech32.Encode("naddr", bits5)
+	return naddr
 }

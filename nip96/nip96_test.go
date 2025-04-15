@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

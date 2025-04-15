@@ -1,11 +1,11 @@
 package negentropy
 
 import (
+	"bytes"
 	"cmp"
 	"fmt"
-	"strings"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 const FingerprintSize = 16
@@ -33,23 +33,26 @@ func (v Mode) String() string {
 
 type Item struct {
 	Timestamp nostr.Timestamp
-	ID        string
+	ID        nostr.ID
 }
 
 func ItemCompare(a, b Item) int {
 	if a.Timestamp == b.Timestamp {
-		return strings.Compare(a.ID, b.ID)
+		return bytes.Compare(a.ID[:], b.ID[:])
 	}
 	return cmp.Compare(a.Timestamp, b.Timestamp)
 }
 
-func (i Item) String() string { return fmt.Sprintf("Item<%d:%s>", i.Timestamp, i.ID) }
+func (i Item) String() string { return fmt.Sprintf("Item<%d:%x>", i.Timestamp, i.ID[:]) }
 
-type Bound struct{ Item }
+type Bound struct {
+	Timestamp nostr.Timestamp
+	IDPrefix  []byte
+}
 
 func (b Bound) String() string {
 	if b.Timestamp == InfiniteBound.Timestamp {
 		return "Bound<infinite>"
 	}
-	return fmt.Sprintf("Bound<%d:%s>", b.Timestamp, b.ID)
+	return fmt.Sprintf("Bound<%d:%x>", b.Timestamp, b.IDPrefix)
 }

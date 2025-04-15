@@ -3,7 +3,7 @@ package nip34
 import (
 	"strings"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 type RepositoryState struct {

@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	"github.com/elnosh/gonuts/cashu"
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 type Info struct {

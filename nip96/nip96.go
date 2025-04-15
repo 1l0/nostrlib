@@ -14,7 +14,7 @@ import (
 	"strconv"
 
 	jsoniter "github.com/json-iterator/go"
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 // Upload uploads a file to the provided req.Host.

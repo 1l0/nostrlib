@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"fiatjaf.com/nostrlib/sdk/hints/sqlh"
+	"fiatjaf.com/nostr/sdk/hints/sqlh"
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
 	"github.com/stretchr/testify/require"

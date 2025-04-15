@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
-	"fiatjaf.com/nostrlib/sdk/hints/sqlh"
+	"fiatjaf.com/nostr/sdk/hints/sqlh"
 	"github.com/stretchr/testify/require"
 )
 

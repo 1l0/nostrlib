@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 type GroupAddress struct {

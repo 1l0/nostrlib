@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip77/negentropy"
-	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage/empty"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip77/negentropy"
+	"fiatjaf.com/nostr/nip77/negentropy/storage/empty"
 )
 
 func FetchIDsOnly(
 	ctx context.Context,
 	url string,
 	filter nostr.Filter,
-) (<-chan string, error) {
+) (<-chan nostr.ID, error) {
 	id := "go-nostr-tmp" // for now we can't have more than one subscription in the same connection
 
 	neg := negentropy.New(empty.Empty{}, 1024*1024)
@@ -56,7 +56,7 @@ func FetchIDsOnly(
 		return nil, fmt.Errorf("failed to write to relay: %w", err)
 	}
 
-	ch := make(chan string)
+	ch := make(chan nostr.ID)
 	go func() {
 		for id := range neg.HaveNots {
 			ch <- id

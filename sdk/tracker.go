@@ -4,8 +4,8 @@ import (
 	"net/url"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostrlib/sdk/hints"
-	"github.com/nbd-wtf/go-nostr/nip27"
+	"fiatjaf.com/nostr/nip27"
+	"fiatjaf.com/nostr/sdk/hints"
 )
 
 func (sys *System) TrackQueryAttempts(relay string, author nostr.PubKey, kind uint16) {

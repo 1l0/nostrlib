@@ -2,44 +2,41 @@ package nip46
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
-	"slices"
 	"sync"
 
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip44"
 	"github.com/mailru/easyjson"
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip04"
-	"fiatjaf.com/nostrlib/nip44"
 )
 
 var _ Signer = (*DynamicSigner)(nil)
 
 type DynamicSigner struct {
-	sessionKeys []string
-	sessions    []Session
+	sessions map[nostr.PubKey]Session
 
 	sync.Mutex
 
-	getHandlerSecretKey func(handlerPubkey string) (string, error)
-	getUserKeyer        func(handlerPubkey string) (nostr.Keyer, error)
-	authorizeSigning    func(event nostr.Event, from string, secret string) bool
-	authorizeEncryption func(from string, secret string) bool
+	getHandlerSecretKey func(handlerPubkey nostr.PubKey) ([32]byte, error)
+	getUserKeyer        func(handlerPubkey nostr.PubKey) (nostr.Keyer, error)
+	authorizeSigning    func(event nostr.Event, from nostr.PubKey, secret string) bool
+	authorizeEncryption func(from nostr.PubKey, secret string) bool
 	onEventSigned       func(event nostr.Event)
-	getRelays           func(pubkey string) map[string]RelayReadWrite
 }
 
 func NewDynamicSigner(
 	// the handler is the keypair we use to communicate with the NIP-46 client, decrypt requests, encrypt responses etc
-	getHandlerSecretKey func(handlerPubkey string) (string, error),
+	getHandlerSecretKey func(handlerPubkey nostr.PubKey) ([32]byte, error),
 
 	// this should correspond to the actual user on behalf of which we will respond to requests
-	getUserKeyer func(handlerPubkey string) (nostr.Keyer, error),
+	getUserKeyer func(handlerPubkey nostr.PubKey) (nostr.Keyer, error),
 
 	// this is called on every sign_event call, if it is nil it will be assumed that everything is authorized
-	authorizeSigning func(event nostr.Event, from string, secret string) bool,
+	authorizeSigning func(event nostr.Event, from nostr.PubKey, secret string) bool,
 
 	// this is called on every encrypt or decrypt calls, if it is nil it will be assumed that everything is authorized
-	authorizeEncryption func(from string, secret string) bool,
+	authorizeEncryption func(from nostr.PubKey, secret string) bool,
 
 	// unless it is nil, this is called after every event is signed
 	onEventSigned func(event nostr.Event),
@@ -53,34 +50,28 @@ func NewDynamicSigner(
 		authorizeSigning:    authorizeSigning,
 		authorizeEncryption: authorizeEncryption,
 		onEventSigned:       onEventSigned,
-		getRelays:           getRelays,
 	}
 }
 
-func (p *DynamicSigner) GetSession(clientPubkey string) (Session, bool) {
-	idx, exists := slices.BinarySearch(p.sessionKeys, clientPubkey)
+func (p *DynamicSigner) GetSession(clientPubkey nostr.PubKey) (Session, bool) {
+	session, exists := p.sessions[clientPubkey]
 	if exists {
-		return p.sessions[idx], true
+		return session, true
 	}
 	return Session{}, false
 }
 
-func (p *DynamicSigner) setSession(clientPubkey string, session Session) {
+func (p *DynamicSigner) setSession(clientPubkey nostr.PubKey, session Session) {
 	p.Lock()
 	defer p.Unlock()
 
-	idx, exists := slices.BinarySearch(p.sessionKeys, clientPubkey)
+	_, exists := p.sessions[clientPubkey]
 	if exists {
 		return
 	}
 
 	// add to pool
-	p.sessionKeys = append(p.sessionKeys, "") // bogus append just to increase the capacity
-	p.sessions = append(p.sessions, Session{})
-	copy(p.sessionKeys[idx+1:], p.sessionKeys[idx:])
-	copy(p.sessions[idx+1:], p.sessions[idx:])
-	p.sessionKeys[idx] = clientPubkey
-	p.sessions[idx] = session
+	p.sessions[clientPubkey] = session
 }
 
 func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
@@ -99,7 +90,10 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 		return req, resp, eventResponse, fmt.Errorf("invalid \"p\" tag")
 	}
 
-	handlerPubkey := handler[1]
+	handlerPubkey, err := nostr.PubKeyFromHex(handler[1])
+	if err != nil {
+		return req, resp, eventResponse, fmt.Errorf("%x is invalid pubkey: %w", handler[1], err)
+	}
 	handlerSecret, err := p.getHandlerSecretKey(handlerPubkey)
 	if err != nil {
 		return req, resp, eventResponse, fmt.Errorf("no private key for %s: %w", handlerPubkey, err)
@@ -109,17 +103,9 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 		return req, resp, eventResponse, fmt.Errorf("failed to get user keyer for %s: %w", handlerPubkey, err)
 	}
 
-	var session Session
-	idx, exists := slices.BinarySearch(p.sessionKeys, event.PubKey)
-	if exists {
-		session = p.sessions[idx]
-	} else {
+	session, exists := p.sessions[event.PubKey]
+	if !exists {
 		session = Session{}
-
-		session.SharedKey, err = nip04.ComputeSharedSecret(event.PubKey, handlerSecret)
-		if err != nil {
-			return req, resp, eventResponse, fmt.Errorf("failed to compute shared secret: %w", err)
-		}
 
 		session.ConversationKey, err = nip44.GenerateConversationKey(event.PubKey, handlerSecret)
 		if err != nil {
@@ -150,7 +136,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 		}
 		result = "ack"
 	case "get_public_key":
-		result = session.PublicKey
+		result = hex.EncodeToString(session.PublicKey[:])
 	case "sign_event":
 		if len(req.Params) != 1 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'sign_event'")
@@ -174,21 +160,14 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 		}
 		jrevt, _ := easyjson.Marshal(evt)
 		result = string(jrevt)
-	case "get_relays":
-		if p.getRelays == nil {
-			jrelays, _ := json.Marshal(p.getRelays(session.PublicKey))
-			result = string(jrelays)
-		} else {
-			result = "{}"
-		}
 	case "nip44_encrypt":
 		if len(req.Params) != 2 {
-			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
+			resultErr = fmt.Errorf("wrong number of arguments to 'nip44_encrypt'")
 			break
 		}
-		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
+		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
+		if err != nil {
+			resultErr = fmt.Errorf("first argument to 'nip44_encrypt' is not a valid pubkey string")
 			break
 		}
 		if p.authorizeEncryption != nil && !p.authorizeEncryption(event.PubKey, secret) {
@@ -208,9 +187,9 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
 			break
 		}
-		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
+		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
+		if err != nil {
+			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey string")
 			break
 		}
 		if p.authorizeEncryption != nil && !p.authorizeEncryption(event.PubKey, secret) {

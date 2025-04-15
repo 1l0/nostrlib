@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 // Download downloads a file from the media server by its hash

@@ -10,27 +10,20 @@ import (
 	"fmt"
 	"strings"
 
+	"fiatjaf.com/nostr"
 	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 // ComputeSharedSecret returns a shared secret key used to encrypt messages.
 // The private and public keys should be hex encoded.
 // Uses the Diffie-Hellman key exchange (ECDH) (RFC 4753).
-func ComputeSharedSecret(pub string, sk string) (sharedSecret []byte, err error) {
-	privKeyBytes, err := hex.DecodeString(sk)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding sender private key: %w", err)
-	}
-	privKey, _ := btcec.PrivKeyFromBytes(privKeyBytes)
+func ComputeSharedSecret(pub nostr.PubKey, sk [32]byte) (sharedSecret []byte, err error) {
+	privKey, _ := btcec.PrivKeyFromBytes(sk[:])
 
 	// adding 02 to signal that this is a compressed public key (33 bytes)
-	pubKeyBytes, err := hex.DecodeString("02" + pub)
+	pubKey, err := btcec.ParsePubKey(append([]byte{2}, pub[:]...))
 	if err != nil {
-		return nil, fmt.Errorf("error decoding hex string of receiver public key '%s': %w", "02"+pub, err)
-	}
-	pubKey, err := btcec.ParsePubKey(pubKeyBytes)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing receiver public key '%s': %w", "02"+pub, err)
+		return nil, fmt.Errorf("error parsing receiver public key '%s': %w", "02"+hex.EncodeToString(pub[:]), err)
 	}
 
 	return btcec.GenerateSharedSecret(privKey, pubKey), nil

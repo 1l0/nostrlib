@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 
+	"fiatjaf.com/nostr"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/chacha20"
@@ -153,10 +154,12 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 	return string(unpadded), nil
 }
 
-func GenerateConversationKey(pub string, sk string) ([32]byte, error) {
+var maxThreshold, _ = hex.DecodeString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+
+func GenerateConversationKey(pub nostr.PubKey, sk [32]byte) ([32]byte, error) {
 	var ck [32]byte
 
-	if sk >= "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141" || sk == "0000000000000000000000000000000000000000000000000000000000000000" {
+	if bytes.Compare(sk[:], maxThreshold) != -1 || sk == [32]byte{} {
 		return ck, fmt.Errorf("invalid private key: x coordinate %s is not on the secp256k1 curve", sk)
 	}
 
@@ -220,20 +223,13 @@ func calcPadding(sLen int) int {
 }
 
 // code adapted from nip04.ComputeSharedSecret()
-func computeSharedSecret(pub string, sk string) (sharedSecret [32]byte, err error) {
-	privKeyBytes, err := hex.DecodeString(sk)
-	if err != nil {
-		return sharedSecret, fmt.Errorf("error decoding sender private key: %w", err)
-	}
-	privKey, _ := btcec.PrivKeyFromBytes(privKeyBytes)
+func computeSharedSecret(pub nostr.PubKey, sk [32]byte) (sharedSecret [32]byte, err error) {
+	privKey, _ := btcec.PrivKeyFromBytes(sk[:])
 
-	pubKeyBytes, err := hex.DecodeString("02" + pub)
+	pubKey, err := btcec.ParsePubKey(append([]byte{2}, pub[:]...))
 	if err != nil {
-		return sharedSecret, fmt.Errorf("error decoding hex string of receiver public key '%s': %w", "02"+pub, err)
-	}
-	pubKey, err := btcec.ParsePubKey(pubKeyBytes)
-	if err != nil {
-		return sharedSecret, fmt.Errorf("error parsing receiver public key '%s': %w", "02"+pub, err)
+		return sharedSecret, fmt.Errorf("error parsing receiver public key '%s': %w",
+			"02"+hex.EncodeToString(pub[:]), err)
 	}
 
 	var point, result secp256k1.JacobianPoint

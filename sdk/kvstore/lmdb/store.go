@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"fiatjaf.com/nostrlib/sdk/kvstore"
+	"fiatjaf.com/nostr/sdk/kvstore"
 )
 
 var _ kvstore.KVStore = (*Store)(nil)

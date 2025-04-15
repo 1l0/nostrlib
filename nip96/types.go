@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 // UploadRequest is a NIP96 upload request.

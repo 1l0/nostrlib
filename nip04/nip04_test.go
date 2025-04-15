@@ -1,10 +1,11 @@
 package nip04
 
 import (
+	"encoding/hex"
 	"strings"
 	"testing"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,10 +14,8 @@ func TestSharedKeysAreTheSame(t *testing.T) {
 		sk1 := nostr.GeneratePrivateKey()
 		sk2 := nostr.GeneratePrivateKey()
 
-		pk1, err := nostr.GetPublicKey(sk1)
-		require.NoError(t, err)
-		pk2, err := nostr.GetPublicKey(sk2)
-		require.NoError(t, err)
+		pk1 := nostr.GetPublicKey(sk1)
+		pk2 := nostr.GetPublicKey(sk2)
 
 		ss1, err := ComputeSharedSecret(pk2, sk1)
 		require.NoError(t, err)
@@ -57,10 +56,10 @@ func TestEncryptionAndDecryptionWithMultipleLengths(t *testing.T) {
 }
 
 func TestNostrToolsCompatibility(t *testing.T) {
-	sk1 := "92996316beebf94171065a714cbf164d1f56d7ad9b35b329d9fc97535bf25352"
-	sk2 := "591c0c249adfb9346f8d37dfeed65725e2eea1d7a6e99fa503342f367138de84"
-	pk2, _ := nostr.GetPublicKey(sk2)
-	shared, _ := ComputeSharedSecret(pk2, sk1)
+	sk1, _ := hex.DecodeString("92996316beebf94171065a714cbf164d1f56d7ad9b35b329d9fc97535bf25352")
+	sk2, _ := hex.DecodeString("591c0c249adfb9346f8d37dfeed65725e2eea1d7a6e99fa503342f367138de84")
+	pk2 := nostr.GetPublicKey([32]byte(sk2))
+	shared, _ := ComputeSharedSecret(pk2, [32]byte(sk1))
 	ciphertext := "A+fRnU4aXS4kbTLfowqAww==?iv=QFYUrl5or/n/qamY79ze0A=="
 	plaintext, _ := Decrypt(ciphertext, shared)
 	require.Equal(t, "hello", plaintext, "invalid decryption of nostr-tools payload")

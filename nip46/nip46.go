@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"strings"
 
+	"fiatjaf.com/nostr"
 	jsoniter "github.com/json-iterator/go"
-	"fiatjaf.com/nostrlib"
 )
 
 var json = jsoniter.ConfigFastest
@@ -34,7 +34,7 @@ func (r Response) String() string {
 }
 
 type Signer interface {
-	GetSession(clientPubkey string) (Session, bool)
+	GetSession(client nostr.PubKey) (Session, bool)
 	HandleRequest(context.Context, *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, err error)
 }
 
@@ -46,7 +46,7 @@ func IsValidBunkerURL(input string) bool {
 	if p.Scheme != "bunker" {
 		return false
 	}
-	if !nostr.IsValidPublicKey(p.Host) {
+	if _, err := nostr.PubKeyFromHex(p.Host); err != nil {
 		return false
 	}
 	if !strings.Contains(p.RawQuery, "relay=") {

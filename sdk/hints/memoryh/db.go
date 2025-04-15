@@ -6,15 +6,15 @@ import (
 	"slices"
 	"sync"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/sdk/hints"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/hints"
 )
 
 var _ hints.HintsDB = (*HintDB)(nil)
 
 type HintDB struct {
 	RelayBySerial         []string
-	OrderedRelaysByPubKey map[string][]RelayEntry
+	OrderedRelaysByPubKey map[nostr.PubKey][]RelayEntry
 
 	sync.Mutex
 }
@@ -22,11 +22,11 @@ type HintDB struct {
 func NewHintDB() *HintDB {
 	return &HintDB{
 		RelayBySerial:         make([]string, 0, 100),
-		OrderedRelaysByPubKey: make(map[string][]RelayEntry, 100),
+		OrderedRelaysByPubKey: make(map[nostr.PubKey][]RelayEntry, 100),
 	}
 }
 
-func (db *HintDB) Save(pubkey string, relay string, key hints.HintKey, ts nostr.Timestamp) {
+func (db *HintDB) Save(pubkey nostr.PubKey, relay string, key hints.HintKey, ts nostr.Timestamp) {
 	if now := nostr.Now(); ts > now {
 		ts = now
 	}
@@ -67,7 +67,7 @@ func (db *HintDB) Save(pubkey string, relay string, key hints.HintKey, ts nostr.
 	db.OrderedRelaysByPubKey[pubkey] = entries
 }
 
-func (db *HintDB) TopN(pubkey string, n int) []string {
+func (db *HintDB) TopN(pubkey nostr.PubKey, n int) []string {
 	db.Lock()
 	defer db.Unlock()
 
@@ -104,7 +104,7 @@ func (db *HintDB) PrintScores() {
 	}
 }
 
-func (db *HintDB) GetDetailedScores(pubkey string, n int) []hints.RelayScores {
+func (db *HintDB) GetDetailedScores(pubkey nostr.PubKey, n int) []hints.RelayScores {
 	db.Lock()
 	defer db.Unlock()
 

@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strconv"
 
-	nostr "fiatjaf.com/nostrlib"
+	nostr "fiatjaf.com/nostr"
 )
 
 var (

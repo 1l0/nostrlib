@@ -9,8 +9,8 @@ import (
 	"slices"
 	"strings"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip60"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip60"
 )
 
 var NutzapsNotAccepted = errors.New("user doesn't accept nutzaps")

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 type Repository struct {

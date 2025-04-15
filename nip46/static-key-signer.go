@@ -2,57 +2,45 @@ package nip46
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
-	"slices"
 	"sync"
 
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip04"
+	"fiatjaf.com/nostr/nip44"
 	"github.com/mailru/easyjson"
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip04"
-	"fiatjaf.com/nostrlib/nip44"
 )
 
 var _ Signer = (*StaticKeySigner)(nil)
 
 type StaticKeySigner struct {
-	secretKey string
-
-	sessionKeys []string
-	sessions    []Session
+	secretKey [32]byte
+	sessions  map[nostr.PubKey]Session
 
 	sync.Mutex
 
-	RelaysToAdvertise map[string]RelayReadWrite
-	AuthorizeRequest  func(harmless bool, from string, secret string) bool
+	AuthorizeRequest func(harmless bool, from nostr.PubKey, secret string) bool
 }
 
-func NewStaticKeySigner(secretKey string) StaticKeySigner {
+func NewStaticKeySigner(secretKey [32]byte) StaticKeySigner {
 	return StaticKeySigner{
-		secretKey:         secretKey,
-		RelaysToAdvertise: make(map[string]RelayReadWrite),
+		secretKey: secretKey,
 	}
 }
 
-func (p *StaticKeySigner) GetSession(clientPubkey string) (Session, bool) {
-	idx, exists := slices.BinarySearch(p.sessionKeys, clientPubkey)
-	if exists {
-		return p.sessions[idx], true
-	}
-	return Session{}, false
+func (p *StaticKeySigner) GetSession(clientPubkey nostr.PubKey) (Session, bool) {
+	session, ok := p.sessions[clientPubkey]
+	return session, ok
 }
 
-func (p *StaticKeySigner) getOrCreateSession(clientPubkey string) (Session, error) {
+func (p *StaticKeySigner) getOrCreateSession(clientPubkey nostr.PubKey) (Session, error) {
 	p.Lock()
 	defer p.Unlock()
 
-	idx, exists := slices.BinarySearch(p.sessionKeys, clientPubkey)
+	session, exists := p.sessions[clientPubkey]
 	if exists {
-		return p.sessions[idx], nil
-	}
-
-	shared, err := nip04.ComputeSharedSecret(clientPubkey, p.secretKey)
-	if err != nil {
-		return Session{}, fmt.Errorf("failed to compute shared secret: %w", err)
+		return session, nil
 	}
 
 	ck, err := nip44.GenerateConversationKey(clientPubkey, p.secretKey)
@@ -60,24 +48,14 @@ func (p *StaticKeySigner) getOrCreateSession(clientPubkey string) (Session, erro
 		return Session{}, fmt.Errorf("failed to compute shared secret: %w", err)
 	}
 
-	pubkey, err := nostr.GetPublicKey(p.secretKey)
-	if err != nil {
-		return Session{}, fmt.Errorf("failed to derive public key: %w", err)
-	}
-
-	session := Session{
+	pubkey := nostr.GetPublicKey(p.secretKey)
+	session = Session{
 		PublicKey:       pubkey,
-		SharedKey:       shared,
 		ConversationKey: ck,
 	}
 
 	// add to pool
-	p.sessionKeys = append(p.sessionKeys, "") // bogus append just to increase the capacity
-	p.sessions = append(p.sessions, Session{})
-	copy(p.sessionKeys[idx+1:], p.sessionKeys[idx:])
-	copy(p.sessions[idx+1:], p.sessions[idx:])
-	p.sessionKeys[idx] = clientPubkey
-	p.sessions[idx] = session
+	p.sessions[pubkey] = session
 
 	return session, nil
 }
@@ -116,7 +94,7 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event *nostr.Event) (
 		result = "ack"
 		harmless = true
 	case "get_public_key":
-		result = session.PublicKey
+		result = hex.EncodeToString(session.PublicKey[:])
 		harmless = true
 	case "sign_event":
 		if len(req.Params) != 1 {
@@ -136,18 +114,14 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event *nostr.Event) (
 		}
 		jrevt, _ := easyjson.Marshal(evt)
 		result = string(jrevt)
-	case "get_relays":
-		jrelays, _ := json.Marshal(p.RelaysToAdvertise)
-		result = string(jrelays)
-		harmless = true
 	case "nip44_encrypt":
 		if len(req.Params) != 2 {
-			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
+			resultErr = fmt.Errorf("wrong number of arguments to 'nip44_encrypt'")
 			break
 		}
-		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
+		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
+		if err != nil {
+			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a valid pubkey string")
 			break
 		}
 		plaintext := req.Params[1]
@@ -168,9 +142,9 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event *nostr.Event) (
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
 			break
 		}
-		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
+		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
+		if err != nil {
+			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey string")
 			break
 		}
 		ciphertext := req.Params[1]
@@ -191,9 +165,9 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event *nostr.Event) (
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
 			break
 		}
-		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
+		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
+		if err != nil {
+			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a valid pubkey string")
 			break
 		}
 		plaintext := req.Params[1]
@@ -214,9 +188,9 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event *nostr.Event) (
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
 			break
 		}
-		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
+		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
+		if err != nil {
+			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey string")
 			break
 		}
 		ciphertext := req.Params[1]

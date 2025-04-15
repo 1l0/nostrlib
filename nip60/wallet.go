@@ -11,7 +11,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 type Wallet struct {

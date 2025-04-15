@@ -1,6 +1,6 @@
 package hints
 
-import "fiatjaf.com/nostrlib"
+import "fiatjaf.com/nostr"
 
 const END_OF_WORLD nostr.Timestamp = 2208999600 // 2040-01-01
 

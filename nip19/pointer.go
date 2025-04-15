@@ -3,7 +3,7 @@ package nip19
 import (
 	"fmt"
 
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func EncodePointer(pointer nostr.Pointer) string {

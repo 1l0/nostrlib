@@ -3,7 +3,7 @@ package nip92
 import (
 	"testing"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/require"
 )
 

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 type CalendarEventKind int

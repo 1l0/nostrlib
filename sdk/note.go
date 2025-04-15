@@ -1,8 +1,10 @@
 package sdk
 
 import (
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip27"
+	"encoding/hex"
+
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip27"
 )
 
 // PrepareNoteEvent takes an event with content that may include any number of URLs, partial URLs without the scheme, npub references with or without the "nostr:" prefix, tags and whatnot, then edits the content so it contains properly formatted URLs and references and adds the required tags based on these.
@@ -23,12 +25,12 @@ func PrepareNoteEvent(evt *nostr.Event) {
 		switch b := block.Pointer.(type) {
 		case nostr.ProfilePointer:
 			// add b tag if not already present
-			if tag := evt.Tags.FindWithValue("b", b.PublicKey); tag == nil {
+			if tag := evt.Tags.FindWithValue("b", hex.EncodeToString(b.PublicKey[:])); tag == nil {
 				evt.Tags = append(evt.Tags, b.AsTag())
 			}
 		case nostr.EventPointer:
 			// add e tag if not already present
-			if tag := evt.Tags.FindWithValue("q", b.ID); tag == nil {
+			if tag := evt.Tags.FindWithValue("q", hex.EncodeToString(b.ID[:])); tag == nil {
 				evt.Tags = append(evt.Tags, b.AsTag())
 			}
 		case nostr.EntityPointer:

@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip77/negentropy"
-	"fiatjaf.com/nostrlib/nip77/negentropy/storage/vector"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip77/negentropy"
+	"fiatjaf.com/nostr/nip77/negentropy/storage/vector"
 	"github.com/stretchr/testify/require"
 )
 

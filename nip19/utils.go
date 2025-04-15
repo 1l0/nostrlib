@@ -1,10 +1,9 @@
 package nip19
 
 import (
-	"github.com/nbd-wtf/go-nostr"
+	"fiatjaf.com/nostr"
 )
 
 func NeventFromRelayEvent(ie nostr.RelayEvent) string {
-	v, _ := EncodeEvent(ie.ID, []string{ie.Relay.URL}, ie.PubKey)
-	return v
+	return EncodeNevent(ie.ID, []string{ie.Relay.URL}, ie.PubKey)
 }

@@ -2,15 +2,14 @@ package lmdbh
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"os"
 	"slices"
 
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk/hints"
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
 var _ hints.HintsDB = (*LMDBHints)(nil)
@@ -63,7 +62,7 @@ func (lh *LMDBHints) Close() {
 	lh.env.Close()
 }
 
-func (lh *LMDBHints) Save(pubkey string, relay string, hintkey hints.HintKey, ts nostr.Timestamp) {
+func (lh *LMDBHints) Save(pubkey nostr.PubKey, relay string, hintkey hints.HintKey, ts nostr.Timestamp) {
 	if now := nostr.Now(); ts > now {
 		ts = now
 	}
@@ -91,7 +90,7 @@ func (lh *LMDBHints) Save(pubkey string, relay string, hintkey hints.HintKey, ts
 	}
 }
 
-func (lh *LMDBHints) TopN(pubkey string, n int) []string {
+func (lh *LMDBHints) TopN(pubkey nostr.PubKey, n int) []string {
 	type relayScore struct {
 		relay string
 		score int64
@@ -107,11 +106,10 @@ func (lh *LMDBHints) TopN(pubkey string, n int) []string {
 		}
 		defer cursor.Close()
 
-		prefix, _ := hex.DecodeString(pubkey)
-		k, v, err := cursor.Get(prefix, nil, lmdb.SetRange)
+		k, v, err := cursor.Get(pubkey[:], nil, lmdb.SetRange)
 		for ; err == nil; k, v, err = cursor.Get(nil, nil, lmdb.Next) {
 			// check if we're still in the prefix range
-			if len(k) < 32 || !bytes.Equal(k[:32], prefix) {
+			if len(k) < 32 || !bytes.Equal(k[:32], pubkey[:]) {
 				break
 			}
 
@@ -182,7 +180,7 @@ func (lh *LMDBHints) PrintScores() {
 	}
 }
 
-func (lh *LMDBHints) GetDetailedScores(pubkey string, n int) []hints.RelayScores {
+func (lh *LMDBHints) GetDetailedScores(pubkey nostr.PubKey, n int) []hints.RelayScores {
 	type relayScore struct {
 		relay string
 		tss   timestamps
@@ -199,11 +197,10 @@ func (lh *LMDBHints) GetDetailedScores(pubkey string, n int) []hints.RelayScores
 		}
 		defer cursor.Close()
 
-		prefix, _ := hex.DecodeString(pubkey)
-		k, v, err := cursor.Get(prefix, nil, lmdb.SetRange)
+		k, v, err := cursor.Get(pubkey[:], nil, lmdb.SetRange)
 		for ; err == nil; k, v, err = cursor.Get(nil, nil, lmdb.Next) {
 			// check if we're still in the prefix range
-			if len(k) < 32 || !bytes.Equal(k[:32], prefix) {
+			if len(k) < 32 || !bytes.Equal(k[:32], pubkey[:]) {
 				break
 			}
 

@@ -1,7 +1,6 @@
 package vector
 
 import (
-	"encoding/hex"
 	"fmt"
 	"iter"
 	"slices"
@@ -24,7 +23,7 @@ func New() *Vector {
 	}
 }
 
-func (v *Vector) Insert(createdAt nostr.Timestamp, id string) {
+func (v *Vector) Insert(createdAt nostr.Timestamp, id nostr.ID) {
 	if len(id) != 64 {
 		panic(fmt.Errorf("bad id size for added item: expected %d bytes, got %d", 32, len(id)/2))
 	}
@@ -68,10 +67,8 @@ func (v *Vector) FindLowerBound(begin, end int, bound negentropy.Bound) int {
 func (v *Vector) Fingerprint(begin, end int) string {
 	v.acc.Reset()
 
-	tmp := make([]byte, 32)
 	for _, item := range v.Range(begin, end) {
-		hex.Decode(tmp, []byte(item.ID))
-		v.acc.AddBytes(tmp)
+		v.acc.AddBytes(item.ID[:])
 	}
 
 	return v.acc.GetFingerprint(end - begin)

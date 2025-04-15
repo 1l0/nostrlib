@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip19"
-	"github.com/nbd-wtf/go-nostr/nip73"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/nip73"
 )
 
 type Block struct {
@@ -54,7 +54,7 @@ func Parse(content string) iter.Seq[Block] {
 				var pointer nostr.Pointer
 				switch prefix {
 				case "npub":
-					pointer = nostr.ProfilePointer{PublicKey: data.(string)}
+					pointer = nostr.ProfilePointer{PublicKey: data.(nostr.PubKey)}
 				case "nprofile", "nevent", "naddr":
 					pointer = data.(nostr.Pointer)
 				case "note", "nsec":

@@ -6,6 +6,11 @@ import (
 	"unsafe"
 )
 
+var (
+	ZeroID = [32]byte{}
+	ZeroPK = [32]byte{}
+)
+
 type PubKey [32]byte
 
 func (pk PubKey) String() string { return hex.EncodeToString(pk[:]) }

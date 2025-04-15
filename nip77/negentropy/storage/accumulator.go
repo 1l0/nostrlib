@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 
-	"fiatjaf.com/nostrlib/nip77/negentropy"
+	"fiatjaf.com/nostr/nip77/negentropy"
 )
 
 type Accumulator struct {

@@ -3,7 +3,7 @@ package nip40
 import (
 	"strconv"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 // GetExpiration returns the expiration timestamp for this event, or -1 if no "expiration" tag exists or

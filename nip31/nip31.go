@@ -1,6 +1,6 @@
 package nip31
 
-import "fiatjaf.com/nostrlib"
+import "fiatjaf.com/nostr"
 
 func GetAlt(event nostr.Event) string {
 	for _, tag := range event.Tags {

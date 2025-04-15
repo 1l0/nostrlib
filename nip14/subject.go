@@ -1,6 +1,6 @@
 package nip14
 
-import "fiatjaf.com/nostrlib"
+import "fiatjaf.com/nostr"
 
 func GetSubject(tags nostr.Tags) string {
 	for _, tag := range tags {

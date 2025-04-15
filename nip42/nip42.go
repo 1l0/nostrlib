@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 // CreateUnsignedAuthEvent creates an event which should be sent via an "AUTH" command.

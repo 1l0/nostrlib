@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip04"
+	"fiatjaf.com/nostr/nip44"
 	"github.com/mailru/easyjson"
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip04"
-	"fiatjaf.com/nostrlib/nip44"
 	"github.com/puzpuzpuz/xsync/v3"
 )
 
@@ -38,7 +38,7 @@ type BunkerClient struct {
 // pool can be passed to reuse an existing pool, otherwise a new pool will be created.
 func ConnectBunker(
 	ctx context.Context,
-	clientSecretKey string,
+	clientSecretKey nostr.PubKey,
 	bunkerURLOrNIP05 string,
 	pool *nostr.SimplePool,
 	onAuth func(string),
@@ -51,7 +51,7 @@ func ConnectBunker(
 	// assume it's a bunker url (will fail later if not)
 	secret := parsed.Query().Get("secret")
 	relays := parsed.Query()["relay"]
-	targetPublicKey := parsed.Host
+	targetPublicKey, _ := nostr.PubKeyFromHex(parsed.Host)
 
 	if parsed.Scheme == "" {
 		// could be a NIP-05
@@ -85,8 +85,8 @@ func ConnectBunker(
 
 func NewBunker(
 	ctx context.Context,
-	clientSecretKey string,
-	targetPublicKey string,
+	clientSecretKey [32]byte,
+	targetPublicKey nostr.PubKey,
 	relays []string,
 	pool *nostr.SimplePool,
 	onAuth func(string),
@@ -95,8 +95,7 @@ func NewBunker(
 		pool = nostr.NewSimplePool(ctx)
 	}
 
-	clientPublicKey, _ := nostr.GetPublicKey(clientSecretKey)
-	sharedSecret, _ := nip04.ComputeSharedSecret(targetPublicKey, clientSecretKey)
+	clientPublicKey := nostr.GetPublicKey(clientSecretKey)
 	conversationKey, _ := nip44.GenerateConversationKey(targetPublicKey, clientSecretKey)
 
 	bunker := &BunkerClient{

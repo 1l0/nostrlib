@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"sync"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip77/negentropy"
-	"fiatjaf.com/nostrlib/nip77/negentropy/storage/vector"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip77/negentropy"
+	"fiatjaf.com/nostr/nip77/negentropy/storage/vector"
 )
 
 type direction struct {
 	label  string
-	items  chan string
+	items  chan nostr.ID
 	source nostr.RelayStore
 	target nostr.RelayStore
 }
@@ -91,7 +91,9 @@ func NegentropySync(
 	}()
 
 	wg := sync.WaitGroup{}
-	pool := newidlistpool(50)
+	pool := sync.Pool{
+		New: func() any { return make([]nostr.ID, 0, 50) },
+	}
 
 	// Define sync directions
 	directions := [][]direction{
@@ -105,11 +107,11 @@ func NegentropySync(
 		go func(dir direction) {
 			defer wg.Done()
 
-			seen := make(map[string]struct{})
+			seen := make(map[nostr.ID]struct{})
 
-			doSync := func(ids []string) {
+			doSync := func(ids []nostr.ID) {
 				defer wg.Done()
-				defer pool.giveback(ids)
+				defer pool.Put(ids)
 
 				if len(ids) == 0 {
 					return
@@ -124,7 +126,7 @@ func NegentropySync(
 				}
 			}
 
-			ids := pool.grab()
+			ids := pool.Get().([]nostr.ID)
 			for item := range dir.items {
 				if _, ok := seen[item]; ok {
 					continue
@@ -135,7 +137,7 @@ func NegentropySync(
 				if len(ids) == 50 {
 					wg.Add(1)
 					go doSync(ids)
-					ids = pool.grab()
+					ids = pool.Get().([]nostr.ID)
 				}
 			}
 			wg.Add(1)

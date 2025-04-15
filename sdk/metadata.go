@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip05"
-	"fiatjaf.com/nostrlib/nip19"
-	"fiatjaf.com/nostrlib/sdk/hints"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip05"
+	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/sdk/hints"
 )
 
 // ProfileMetadata represents user profile information from kind 0 events.

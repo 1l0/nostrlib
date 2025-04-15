@@ -1,6 +1,6 @@
 package nip10
 
-import "fiatjaf.com/nostrlib"
+import "fiatjaf.com/nostr"
 
 func GetThreadRoot(tags nostr.Tags) *nostr.EventPointer {
 	for _, tag := range tags {

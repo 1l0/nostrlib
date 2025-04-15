@@ -5,7 +5,7 @@ import (
 	"math"
 	"net"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 func DecodeRequest(req Request) (MethodParams, error) {

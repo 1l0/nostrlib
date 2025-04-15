@@ -4,11 +4,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"fiatjaf.com/nostr"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/elnosh/gonuts/cashu"
 	"github.com/elnosh/gonuts/crypto"
-	"github.com/nbd-wtf/go-nostr"
 )
 
 func VerifyNutzap(

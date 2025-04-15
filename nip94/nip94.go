@@ -3,7 +3,7 @@ package nip94
 import (
 	"strings"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 func ParseFileMetadata(event nostr.Event) FileMetadata {

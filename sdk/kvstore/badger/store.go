@@ -2,7 +2,7 @@ package badger
 
 import (
 	"github.com/dgraph-io/badger/v4"
-	"fiatjaf.com/nostrlib/sdk/kvstore"
+	"fiatjaf.com/nostr/sdk/kvstore"
 )
 
 var _ kvstore.KVStore = (*Store)(nil)

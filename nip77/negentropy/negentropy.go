@@ -1,12 +1,13 @@
 package negentropy
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math"
 	"strings"
 	"unsafe"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 )
 
 const (
@@ -15,7 +16,7 @@ const (
 	buckets              = 16
 )
 
-var InfiniteBound = Bound{Item: Item{Timestamp: maxTimestamp}}
+var InfiniteBound = Bound{Timestamp: maxTimestamp}
 
 type Negentropy struct {
 	storage          Storage
@@ -25,8 +26,8 @@ type Negentropy struct {
 	lastTimestampIn  nostr.Timestamp
 	lastTimestampOut nostr.Timestamp
 
-	Haves    chan string
-	HaveNots chan string
+	Haves    chan nostr.ID
+	HaveNots chan nostr.ID
 }
 
 func New(storage Storage, frameSizeLimit int) *Negentropy {
@@ -39,8 +40,8 @@ func New(storage Storage, frameSizeLimit int) *Negentropy {
 	return &Negentropy{
 		storage:        storage,
 		frameSizeLimit: frameSizeLimit,
-		Haves:          make(chan string, buckets*4),
-		HaveNots:       make(chan string, buckets*4),
+		Haves:          make(chan nostr.ID, buckets*4),
+		HaveNots:       make(chan nostr.ID, buckets*4),
 	}
 }
 
@@ -158,9 +159,10 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			}
 
 			// what they have
-			theirItems := make(map[string]struct{}, numIds)
+			theirItems := make(map[nostr.ID]struct{}, numIds)
 			for i := 0; i < numIds; i++ {
-				if id, err := reader.ReadString(64); err != nil {
+				var id [32]byte
+				if err := reader.ReadHexBytes(id[:]); err != nil {
 					return "", fmt.Errorf("failed to read id (#%d/%d) in list: %w", i, numIds, err)
 				} else {
 					theirItems[id] = struct{}{}
@@ -203,11 +205,11 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 
 				for index, item := range n.storage.Range(lower, upper) {
 					if n.frameSizeLimit-200 < fullOutput.Len()/2+responseIds.Len()/2 {
-						endBound = Bound{item}
+						endBound = Bound{item.Timestamp, item.ID[:]}
 						upper = index
 						break
 					}
-					responseIds.WriteString(item.ID)
+					responseIds.WriteString(hex.EncodeToString(item.ID[:]))
 					responses++
 				}
 
@@ -254,7 +256,7 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *Stri
 		writeVarInt(output, numElems)
 
 		for _, item := range n.storage.Range(lower, upper) {
-			output.WriteHex(item.ID)
+			output.WriteBytes(item.ID[:])
 		}
 	} else {
 		itemsPerBucket := numElems / buckets

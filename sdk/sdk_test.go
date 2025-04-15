@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/require"
 )
 

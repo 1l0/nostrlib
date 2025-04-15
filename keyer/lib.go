@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip05"
-	"fiatjaf.com/nostrlib/nip19"
-	"fiatjaf.com/nostrlib/nip46"
-	"fiatjaf.com/nostrlib/nip49"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip05"
+	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/nip46"
+	"fiatjaf.com/nostr/nip49"
 	"github.com/puzpuzpuz/xsync/v3"
 )
 

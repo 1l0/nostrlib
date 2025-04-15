@@ -18,7 +18,7 @@ type Keyer interface {
 // User is an entity that has a public key (although they can't sign anything).
 type User interface {
 	// GetPublicKey returns the public key associated with this user.
-	GetPublicKey(ctx context.Context) (string, error)
+	GetPublicKey(ctx context.Context) (PubKey, error)
 }
 
 // Signer is a User that can also sign events.
@@ -35,9 +35,9 @@ type Signer interface {
 type Cipher interface {
 	// Encrypt encrypts a plaintext message for a recipient.
 	// Returns the encrypted message as a base64-encoded string.
-	Encrypt(ctx context.Context, plaintext string, recipientPublicKey string) (base64ciphertext string, err error)
+	Encrypt(ctx context.Context, plaintext string, recipient PubKey) (base64ciphertext string, err error)
 
 	// Decrypt decrypts a base64-encoded ciphertext from a sender.
 	// Returns the decrypted plaintext.
-	Decrypt(ctx context.Context, base64ciphertext string, senderPublicKey string) (plaintext string, err error)
+	Decrypt(ctx context.Context, base64ciphertext string, sender PubKey) (plaintext string, err error)
 }

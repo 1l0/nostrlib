@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip05"
-	"fiatjaf.com/nostrlib/nip19"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip05"
+	"fiatjaf.com/nostr/nip19"
 )
 
 // InputToProfile turns any npub/nprofile/hex/nip05 input into a ProfilePointer (or nil).

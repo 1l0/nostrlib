@@ -6,7 +6,7 @@ import (
 
 	"github.com/elnosh/gonuts/cashu"
 	"github.com/elnosh/gonuts/cashu/nuts/nut04"
-	"fiatjaf.com/nostrlib/nip60/client"
+	"fiatjaf.com/nostr/nip60/client"
 )
 
 func (w *Wallet) SendExternal(

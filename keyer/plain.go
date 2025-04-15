@@ -3,8 +3,8 @@ package keyer
 import (
 	"context"
 
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip44"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip44"
 	"github.com/puzpuzpuz/xsync/v3"
 )
 

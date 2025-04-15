@@ -8,7 +8,7 @@ import (
 
 	"github.com/mailru/easyjson"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	"fiatjaf.com/nostrlib"
+	"fiatjaf.com/nostr"
 	"github.com/tidwall/gjson"
 )
 

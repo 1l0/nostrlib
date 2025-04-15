@@ -11,8 +11,8 @@ import (
 	"github.com/elnosh/gonuts/cashu/nuts/nut02"
 	"github.com/elnosh/gonuts/cashu/nuts/nut10"
 	"github.com/elnosh/gonuts/cashu/nuts/nut11"
-	"fiatjaf.com/nostrlib"
-	"fiatjaf.com/nostrlib/nip60/client"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip60/client"
 )
 
 type SendOption func(opts *sendSettings)
