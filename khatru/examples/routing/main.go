@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"slices"
 
-	"fiatjaf.com/nostr/eventstore/slicestore"
-	"fiatjaf.com/nostr/eventstore/sqlite3"
-	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/badger"
+	"fiatjaf.com/nostr/eventstore/slicestore"
+	"fiatjaf.com/nostr/khatru"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 	r1.CountEvents = append(r1.CountEvents, db1.CountEvents)
 	r1.DeleteEvent = append(r1.DeleteEvent, db1.DeleteEvent)
 
-	db2 := sqlite3.SQLite3Backend{DatabaseURL: "/tmp/t"}
+	db2 := badger.BadgerBackend{DatabaseURL: "/tmp/t"}
 	db2.Init()
 	r2 := khatru.NewRelay()
 	r2.StoreEvent = append(r2.StoreEvent, db2.SaveEvent)

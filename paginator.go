@@ -3,14 +3,13 @@ package nostr
 import (
 	"context"
 	"math"
-	"slices"
 	"time"
 )
 
 func (pool *Pool) PaginatorWithInterval(
 	interval time.Duration,
-) func(ctx context.Context, urls []string, filter Filter, opts ...SubscriptionOption) chan RelayEvent {
-	return func(ctx context.Context, urls []string, filter Filter, opts ...SubscriptionOption) chan RelayEvent {
+) func(ctx context.Context, urls []string, filter Filter, opts SubscriptionOptions) chan RelayEvent {
+	return func(ctx context.Context, urls []string, filter Filter, opts SubscriptionOptions) chan RelayEvent {
 		nextUntil := Now()
 		if filter.Until != nil {
 			nextUntil = *filter.Until
@@ -23,8 +22,8 @@ func (pool *Pool) PaginatorWithInterval(
 		var globalCount uint64 = 0
 		globalCh := make(chan RelayEvent)
 
-		repeatedCache := make([]string, 0, 300)
-		nextRepeatedCache := make([]string, 0, 300)
+		repeatedCache := make([]ID, 0, 300)
+		nextRepeatedCache := make([]ID, 0, 300)
 
 		go func() {
 			defer close(globalCh)
@@ -34,8 +33,8 @@ func (pool *Pool) PaginatorWithInterval(
 				time.Sleep(interval)
 
 				keepGoing := false
-				for evt := range pool.FetchMany(ctx, urls, filter, opts...) {
-					if slices.Contains(repeatedCache, evt.ID) {
+				for evt := range pool.FetchMany(ctx, urls, filter, opts) {
+					if ContainsID(repeatedCache, evt.ID) {
 						continue
 					}
 

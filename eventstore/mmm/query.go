@@ -2,42 +2,46 @@ package mmm
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
+	"iter"
 	"log"
 	"slices"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
-	"fiatjaf.com/nostr/eventstore/internal"
-	"fiatjaf.com/nostr/eventstore/mmm/betterbinary"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
 // GetByID returns the event -- if found in this mmm -- and all the IndexingLayers it belongs to.
-func (b *MultiMmapManager) GetByID(id string) (*nostr.Event, IndexingLayers) {
-	events := make(chan *nostr.Event)
+func (b *MultiMmapManager) GetByID(id nostr.ID) (*nostr.Event, IndexingLayers) {
 	presence := make(chan []uint16)
-	b.queryByIDs(events, []string{id}, presence)
-	for evt := range events {
+
+	var event *nostr.Event
+	b.queryByIDs(func(evt nostr.Event) bool {
+		event = &evt
+		return false
+	}, []nostr.ID{id}, presence)
+
+	if event != nil {
 		p := <-presence
 		present := make([]*IndexingLayer, len(p))
 		for i, id := range p {
 			present[i] = b.layers.ByID(id)
 		}
-		return evt, present
+		return event, present
 	}
+
 	return nil, nil
 }
 
 // queryByIDs emits the events of the given id to the given channel if they exist anywhere in this mmm.
 // if presence is given it will also be used to emit slices of the ids of the IndexingLayers this event is stored in.
 // it closes the channels when it ends.
-func (b *MultiMmapManager) queryByIDs(ch chan *nostr.Event, ids []string, presence chan []uint16) {
-	go b.lmdbEnv.View(func(txn *lmdb.Txn) error {
+func (b *MultiMmapManager) queryByIDs(yield func(nostr.Event) bool, ids []nostr.ID, presence chan []uint16) {
+	b.lmdbEnv.View(func(txn *lmdb.Txn) error {
 		txn.RawRead = true
-		defer close(ch)
 		if presence != nil {
 			defer close(presence)
 		}
@@ -47,15 +51,17 @@ func (b *MultiMmapManager) queryByIDs(ch chan *nostr.Event, ids []string, presen
 				continue
 			}
 
-			idPrefix8, _ := hex.DecodeString(id[0 : 8*2])
-			val, err := txn.Get(b.indexId, idPrefix8)
+			val, err := txn.Get(b.indexId, id[0:8])
 			if err == nil {
 				pos := positionFromBytes(val[0:12])
-				evt := &nostr.Event{}
-				if err := b.loadEvent(pos, evt); err != nil {
+				evt := nostr.Event{}
+				if err := b.loadEvent(pos, &evt); err != nil {
 					panic(fmt.Errorf("failed to decode event from %v: %w", pos, err))
 				}
-				ch <- evt
+
+				if !yield(evt) {
+					return nil
+				}
 
 				if presence != nil {
 					layers := make([]uint16, 0, (len(val)-12)/2)
@@ -71,45 +77,42 @@ func (b *MultiMmapManager) queryByIDs(ch chan *nostr.Event, ids []string, presen
 	})
 }
 
-func (il *IndexingLayer) QueryEvents(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
-	ch := make(chan *nostr.Event)
-
-	if len(filter.IDs) > 0 {
-		il.mmmm.queryByIDs(ch, filter.IDs, nil)
-		return ch, nil
-	}
-
-	if filter.Search != "" {
-		close(ch)
-		return ch, nil
-	}
-
-	// max number of events we'll return
-	limit := il.MaxLimit / 4
-	if filter.Limit > 0 && filter.Limit < il.MaxLimit {
-		limit = filter.Limit
-	}
-	if tlimit := nostr.GetTheoreticalLimit(filter); tlimit == 0 {
-		close(ch)
-		return ch, nil
-	} else if tlimit > 0 {
-		limit = tlimit
-	}
-
-	go il.lmdbEnv.View(func(txn *lmdb.Txn) error {
-		txn.RawRead = true
-		defer close(ch)
-
-		results, err := il.query(txn, filter, limit)
-
-		for _, ie := range results {
-			ch <- ie.Event
+func (il *IndexingLayer) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
+	return func(yield func(nostr.Event) bool) {
+		if len(filter.IDs) > 0 {
+			il.mmmm.queryByIDs(yield, filter.IDs, nil)
+			return
 		}
 
-		return err
-	})
+		if filter.Search != "" {
+			return
+		}
 
-	return ch, nil
+		// max number of events we'll return
+		limit := il.MaxLimit / 4
+		if filter.Limit > 0 && filter.Limit < il.MaxLimit {
+			limit = filter.Limit
+		}
+		if tlimit := nostr.GetTheoreticalLimit(filter); tlimit == 0 {
+			return
+		} else if tlimit > 0 {
+			limit = tlimit
+		}
+
+		il.lmdbEnv.View(func(txn *lmdb.Txn) error {
+			txn.RawRead = true
+
+			results, err := il.query(txn, filter, limit)
+
+			for _, ie := range results {
+				if !yield(ie.Event) {
+					break
+				}
+			}
+
+			return err
+		})
+	}
 }
 
 func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([]internal.IterEvent, error) {
@@ -128,16 +131,16 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 	// we will continue to pull from it as soon as some other iterator takes the position
 	oldest := internal.IterEvent{Q: -1}
 
-	secondPhase := false // after we have gathered enough events we will change the way we iterate
+	sndPhase := false // after we have gathered enough events we will change the way we iterate
 	secondBatch := make([][]internal.IterEvent, 0, len(queries)+1)
-	secondPhaseParticipants := make([]int, 0, len(queries)+1)
+	sndPhaseParticipants := make([]int, 0, len(queries)+1)
 
 	// while merging results in the second phase we will alternate between these two lists
 	//   to avoid having to create new lists all the time
-	var secondPhaseResultsA []internal.IterEvent
-	var secondPhaseResultsB []internal.IterEvent
-	var secondPhaseResultsToggle bool // this is just a dummy thing we use to keep track of the alternating
-	var secondPhaseHasResultsPending bool
+	var sndPhaseResultsA []internal.IterEvent
+	var sndPhaseResultsB []internal.IterEvent
+	var sndPhaseResultsToggle bool // this is just a dummy thing we use to keep track of the alternating
+	var sndPhaseHasResultsPending bool
 
 	remainingUnexhausted := len(queries) // when all queries are exhausted we can finally end this thing
 	batchSizePerQuery := internal.BatchSizePerNumberOfQueries(limit, remainingUnexhausted)
@@ -221,8 +224,8 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 				}
 
 				// decode the entire thing (TODO: do a conditional decode while also checking the extra tag)
-				event := &nostr.Event{}
-				if err := betterbinary.Unmarshal(bin, event); err != nil {
+				event := nostr.Event{}
+				if err := betterbinary.Unmarshal(bin, &event); err != nil {
 					log.Printf("mmm: value read error (id %x) on query prefix %x sp %x dbi %d: %s\n",
 						bin[0:32], query.prefix, query.startingPoint, query.dbi, err)
 					return nil, fmt.Errorf("event read error: %w", err)
@@ -240,18 +243,18 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 				evt := internal.IterEvent{Event: event, Q: q}
 				//
 				//
-				if secondPhase {
+				if sndPhase {
 					// do the process described below at HIWAWVRTP.
 					// if we've reached here this means we've already passed the `since` check.
 					// now we have to eliminate the event currently at the `since` threshold.
 					nextThreshold := firstPhaseResults[len(firstPhaseResults)-2]
-					if oldest.Event == nil {
+					if oldest.Event.ID == nostr.ZeroID {
 						// fmt.Println("          b1", evt.ID[0:8])
 						// BRANCH WHEN WE DON'T HAVE THE OLDEST EVENT (BWWDHTOE)
 						// when we don't have the oldest set, we will keep the results
 						//   and not change the cutting point -- it's bad, but hopefully not that bad.
 						results[q] = append(results[q], evt)
-						secondPhaseHasResultsPending = true
+						sndPhaseHasResultsPending = true
 					} else if nextThreshold.CreatedAt > oldest.CreatedAt {
 						// fmt.Println("          b2", nextThreshold.CreatedAt, ">", oldest.CreatedAt, evt.ID[0:8])
 						// one of the events we have stored is the actual next threshold
@@ -268,7 +271,7 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 						// finally
 						// add this to the results to be merged later
 						results[q] = append(results[q], evt)
-						secondPhaseHasResultsPending = true
+						sndPhaseHasResultsPending = true
 					} else if nextThreshold.CreatedAt < evt.CreatedAt {
 						// the next last event in the firstPhaseResults is the next threshold
 						// fmt.Println("          b3", nextThreshold.CreatedAt, "<", oldest.CreatedAt, evt.ID[0:8])
@@ -278,7 +281,7 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 						// fmt.Println("            new since", since)
 						// add this to the results to be merged later
 						results[q] = append(results[q], evt)
-						secondPhaseHasResultsPending = true
+						sndPhaseHasResultsPending = true
 						// update the oldest event
 						if evt.CreatedAt < oldest.CreatedAt {
 							oldest = evt
@@ -297,7 +300,7 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 					firstPhaseTotalPulled++
 
 					// update the oldest event
-					if oldest.Event == nil || evt.CreatedAt < oldest.CreatedAt {
+					if oldest.Event.ID == nostr.ZeroID || evt.CreatedAt < oldest.CreatedAt {
 						oldest = evt
 					}
 				}
@@ -323,20 +326,20 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 
 		// we will do this check if we don't accumulated the requested number of events yet
 		// fmt.Println("oldest", oldest.Event, "from iter", oldest.Q)
-		if secondPhase && secondPhaseHasResultsPending && (oldest.Event == nil || remainingUnexhausted == 0) {
+		if sndPhase && sndPhaseHasResultsPending && (oldest.Event.ID == nostr.ZeroID || remainingUnexhausted == 0) {
 			// fmt.Println("second phase aggregation!")
 			// when we are in the second phase we will aggressively aggregate results on every iteration
 			//
 			secondBatch = secondBatch[:0]
-			for s := 0; s < len(secondPhaseParticipants); s++ {
-				q := secondPhaseParticipants[s]
+			for s := 0; s < len(sndPhaseParticipants); s++ {
+				q := sndPhaseParticipants[s]
 
 				if len(results[q]) > 0 {
 					secondBatch = append(secondBatch, results[q])
 				}
 
 				if exhausted[q] {
-					secondPhaseParticipants = internal.SwapDelete(secondPhaseParticipants, s)
+					sndPhaseParticipants = internal.SwapDelete(sndPhaseParticipants, s)
 					s--
 				}
 			}
@@ -344,29 +347,29 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 			// every time we get here we will alternate between these A and B lists
 			//   combining everything we have into a new partial results list.
 			// after we've done that we can again set the oldest.
-			// fmt.Println("  xxx", secondPhaseResultsToggle)
-			if secondPhaseResultsToggle {
-				secondBatch = append(secondBatch, secondPhaseResultsB)
-				secondPhaseResultsA = internal.MergeSortMultiple(secondBatch, limit, secondPhaseResultsA)
-				oldest = secondPhaseResultsA[len(secondPhaseResultsA)-1]
-				// fmt.Println("  new aggregated a", len(secondPhaseResultsB))
+			// fmt.Println("  xxx", sndPhaseResultsToggle)
+			if sndPhaseResultsToggle {
+				secondBatch = append(secondBatch, sndPhaseResultsB)
+				sndPhaseResultsA = internal.MergeSortMultiple(secondBatch, limit, sndPhaseResultsA)
+				oldest = sndPhaseResultsA[len(sndPhaseResultsA)-1]
+				// fmt.Println("  new aggregated a", len(sndPhaseResultsB))
 			} else {
-				secondBatch = append(secondBatch, secondPhaseResultsA)
-				secondPhaseResultsB = internal.MergeSortMultiple(secondBatch, limit, secondPhaseResultsB)
-				oldest = secondPhaseResultsB[len(secondPhaseResultsB)-1]
-				// fmt.Println("  new aggregated b", len(secondPhaseResultsB))
+				secondBatch = append(secondBatch, sndPhaseResultsA)
+				sndPhaseResultsB = internal.MergeSortMultiple(secondBatch, limit, sndPhaseResultsB)
+				oldest = sndPhaseResultsB[len(sndPhaseResultsB)-1]
+				// fmt.Println("  new aggregated b", len(sndPhaseResultsB))
 			}
-			secondPhaseResultsToggle = !secondPhaseResultsToggle
+			sndPhaseResultsToggle = !sndPhaseResultsToggle
 
 			since = uint32(oldest.CreatedAt)
 			// fmt.Println("  new since", since)
 
 			// reset the `results` list so we can keep using it
 			results = results[:len(queries)]
-			for _, q := range secondPhaseParticipants {
+			for _, q := range sndPhaseParticipants {
 				results[q] = results[q][:0]
 			}
-		} else if !secondPhase && firstPhaseTotalPulled >= limit && remainingUnexhausted > 0 {
+		} else if !sndPhase && firstPhaseTotalPulled >= limit && remainingUnexhausted > 0 {
 			// fmt.Println("have enough!", firstPhaseTotalPulled, "/", limit, "remaining", remainingUnexhausted)
 
 			// we will exclude this oldest number as it is not relevant anymore
@@ -410,16 +413,16 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 				results[q] = results[q][:0]
 
 				// build this index of indexes with everybody who remains
-				secondPhaseParticipants = append(secondPhaseParticipants, q)
+				sndPhaseParticipants = append(sndPhaseParticipants, q)
 			}
 
 			// we create these two lists and alternate between them so we don't have to create a
 			//   a new one every time
-			secondPhaseResultsA = make([]internal.IterEvent, 0, limit*2)
-			secondPhaseResultsB = make([]internal.IterEvent, 0, limit*2)
+			sndPhaseResultsA = make([]internal.IterEvent, 0, limit*2)
+			sndPhaseResultsB = make([]internal.IterEvent, 0, limit*2)
 
 			// from now on we won't run this block anymore
-			secondPhase = true
+			sndPhase = true
 		}
 
 		// fmt.Println("remaining", remainingUnexhausted)
@@ -428,27 +431,27 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 		}
 	}
 
-	// fmt.Println("is secondPhase?", secondPhase)
+	// fmt.Println("is sndPhase?", sndPhase)
 
 	var combinedResults []internal.IterEvent
 
-	if secondPhase {
+	if sndPhase {
 		// fmt.Println("ending second phase")
-		// when we reach this point either secondPhaseResultsA or secondPhaseResultsB will be full of stuff,
+		// when we reach this point either sndPhaseResultsA or sndPhaseResultsB will be full of stuff,
 		//   the other will be empty
-		var secondPhaseResults []internal.IterEvent
-		// fmt.Println("xxx", secondPhaseResultsToggle, len(secondPhaseResultsA), len(secondPhaseResultsB))
-		if secondPhaseResultsToggle {
-			secondPhaseResults = secondPhaseResultsB
-			combinedResults = secondPhaseResultsA[0:limit] // reuse this
-			// fmt.Println("  using b", len(secondPhaseResultsA))
+		var sndPhaseResults []internal.IterEvent
+		// fmt.Println("xxx", sndPhaseResultsToggle, len(sndPhaseResultsA), len(sndPhaseResultsB))
+		if sndPhaseResultsToggle {
+			sndPhaseResults = sndPhaseResultsB
+			combinedResults = sndPhaseResultsA[0:limit] // reuse this
+			// fmt.Println("  using b", len(sndPhaseResultsA))
 		} else {
-			secondPhaseResults = secondPhaseResultsA
-			combinedResults = secondPhaseResultsB[0:limit] // reuse this
-			// fmt.Println("  using a", len(secondPhaseResultsA))
+			sndPhaseResults = sndPhaseResultsA
+			combinedResults = sndPhaseResultsB[0:limit] // reuse this
+			// fmt.Println("  using a", len(sndPhaseResultsA))
 		}
 
-		all := [][]internal.IterEvent{firstPhaseResults, secondPhaseResults}
+		all := [][]internal.IterEvent{firstPhaseResults, sndPhaseResults}
 		combinedResults = internal.MergeSortMultiple(all, limit, combinedResults)
 		// fmt.Println("final combinedResults", len(combinedResults), cap(combinedResults), limit)
 	} else {

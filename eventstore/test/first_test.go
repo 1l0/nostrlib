@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,11 +16,11 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 	err := db.Init()
 	require.NoError(t, err)
 
-	allEvents := make([]*nostr.Event, 0, 10)
+	allEvents := make([]nostr.Event, 0, 10)
 
 	// insert
 	for i := 0; i < 10; i++ {
-		evt := &nostr.Event{
+		evt := nostr.Event{
 			CreatedAt: nostr.Timestamp(i*10 + 2),
 			Content:   fmt.Sprintf("hello %d", i),
 			Tags: nostr.Tags{
@@ -38,7 +38,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 		}
 		evt.Sign(sk)
 		allEvents = append(allEvents, evt)
-		err = db.SaveEvent(ctx, evt)
+		err = db.SaveEvent(evt)
 		require.NoError(t, err)
 	}
 
@@ -67,60 +67,61 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 	}
 
 	{
-		results, err := w.QuerySync(ctx, nostr.Filter{IDs: []string{allEvents[7].ID, allEvents[9].ID}})
+		results, err := w.QuerySync(ctx, nostr.Filter{IDs: []nostr.ID{allEvents[7].ID, allEvents[9].ID}})
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		require.ElementsMatch(t,
-			[]*nostr.Event{allEvents[7], allEvents[9]},
+			[]nostr.Event{allEvents[7], allEvents[9]},
 			results,
 			"id query error")
 	}
 
 	{
-		results, err := w.QuerySync(ctx, nostr.Filter{Kinds: []int{1}})
+		results, err := w.QuerySync(ctx, nostr.Filter{Kinds: []uint16{1}})
 		require.NoError(t, err)
 		require.ElementsMatch(t,
-			[]*nostr.Event{allEvents[1], allEvents[3], allEvents[5], allEvents[7], allEvents[9]},
+			[]nostr.Event{allEvents[1], allEvents[3], allEvents[5], allEvents[7], allEvents[9]},
 			results,
 			"kind query error")
 	}
 
 	{
-		results, err := w.QuerySync(ctx, nostr.Filter{Kinds: []int{9}})
+		results, err := w.QuerySync(ctx, nostr.Filter{Kinds: []uint16{9}})
 		require.NoError(t, err)
 		require.ElementsMatch(t,
-			[]*nostr.Event{allEvents[0], allEvents[2], allEvents[4], allEvents[6], allEvents[8]},
+			[]nostr.Event{allEvents[0], allEvents[2], allEvents[4], allEvents[6], allEvents[8]},
 			results,
 			"second kind query error")
 	}
 
 	{
-		pk4, _ := nostr.GetPublicKey(sk4)
-		results, err := w.QuerySync(ctx, nostr.Filter{Authors: []string{pk4}})
+		pk4 := nostr.GetPublicKey(sk4)
+		results, err := w.QuerySync(ctx, nostr.Filter{Authors: []nostr.PubKey{pk4}})
 		require.NoError(t, err)
 		require.ElementsMatch(t,
-			[]*nostr.Event{allEvents[0], allEvents[3], allEvents[6], allEvents[9]},
+			[]nostr.Event{allEvents[0], allEvents[3], allEvents[6], allEvents[9]},
 			results,
 			"pubkey query error")
 	}
 
 	{
-		pk3, _ := nostr.GetPublicKey(sk3)
-		results, err := w.QuerySync(ctx, nostr.Filter{Kinds: []int{9}, Authors: []string{pk3}})
+		pk3 := nostr.GetPublicKey(sk3)
+		results, err := w.QuerySync(ctx, nostr.Filter{Kinds: []uint16{9}, Authors: []nostr.PubKey{pk3}})
 		require.NoError(t, err)
 		require.ElementsMatch(t,
-			[]*nostr.Event{allEvents[2], allEvents[4], allEvents[8]},
+			[]nostr.Event{allEvents[2], allEvents[4], allEvents[8]},
 			results,
 			"pubkey kind query error")
 	}
 
 	{
-		pk3, _ := nostr.GetPublicKey(sk3)
-		pk4, _ := nostr.GetPublicKey(sk4)
-		results, err := w.QuerySync(ctx, nostr.Filter{Kinds: []int{9, 5, 7}, Authors: []string{pk3, pk4, pk4[1:] + "a"}})
+		pk3 := nostr.GetPublicKey(sk3)
+		pk4 := nostr.GetPublicKey(sk4)
+		pk4[1] = 'a'
+		results, err := w.QuerySync(ctx, nostr.Filter{Kinds: []uint16{9, 5, 7}, Authors: []nostr.PubKey{pk3, pk4}})
 		require.NoError(t, err)
 		require.ElementsMatch(t,
-			[]*nostr.Event{allEvents[0], allEvents[2], allEvents[4], allEvents[6], allEvents[8]},
+			[]nostr.Event{allEvents[0], allEvents[2], allEvents[4], allEvents[6], allEvents[8]},
 			results,
 			"2 pubkeys and kind query error")
 	}
@@ -129,14 +130,14 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 		results, err := w.QuerySync(ctx, nostr.Filter{Tags: nostr.TagMap{"t": []string{"2", "4", "6"}}})
 		require.NoError(t, err)
 		require.ElementsMatch(t,
-			[]*nostr.Event{allEvents[2], allEvents[4], allEvents[6]},
+			[]nostr.Event{allEvents[2], allEvents[4], allEvents[6]},
 			results,
 			"tag query error")
 	}
 
 	// delete
-	require.NoError(t, db.DeleteEvent(ctx, allEvents[4]), "delete 1 error")
-	require.NoError(t, db.DeleteEvent(ctx, allEvents[5]), "delete 2 error")
+	require.NoError(t, db.DeleteEvent(allEvents[4].ID), "delete 1 error")
+	require.NoError(t, db.DeleteEvent(allEvents[5].ID), "delete 2 error")
 
 	// query again
 	{
@@ -152,7 +153,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 		results, err := w.QuerySync(ctx, nostr.Filter{Tags: nostr.TagMap{"t": []string{"2", "6"}}})
 		require.NoError(t, err)
 		require.ElementsMatch(t,
-			[]*nostr.Event{allEvents[2], allEvents[6]},
+			[]nostr.Event{allEvents[2], allEvents[6]},
 			results,
 			"second tag query error")
 	}
@@ -161,7 +162,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 		results, err := w.QuerySync(ctx, nostr.Filter{Tags: nostr.TagMap{"e": []string{allEvents[3].Tags[1][1]}}})
 		require.NoError(t, err)
 		require.ElementsMatch(t,
-			[]*nostr.Event{allEvents[3]},
+			[]nostr.Event{allEvents[3]},
 			results,
 			"'e' tag query error")
 	}
@@ -184,7 +185,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 		p := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 		p2 := "2eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 
-		newEvents := []*nostr.Event{
+		newEvents := []nostr.Event{
 			{Tags: nostr.Tags{nostr.Tag{"p", p}}, Kind: 1984, CreatedAt: nostr.Timestamp(100), Content: "first"},
 			{Tags: nostr.Tags{nostr.Tag{"p", p}, nostr.Tag{"t", "x"}}, Kind: 1984, CreatedAt: nostr.Timestamp(101), Content: "middle"},
 			{Tags: nostr.Tags{nostr.Tag{"p", p}}, Kind: 1984, CreatedAt: nostr.Timestamp(102), Content: "last"},
@@ -195,21 +196,21 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 			{Tags: nostr.Tags{nostr.Tag{"p", p}, nostr.Tag{"p", p2}}, Kind: 1, CreatedAt: nostr.Timestamp(104), Content: "trololo"},
 		}
 
-		sk := nostr.GeneratePrivateKey()
+		sk := nostr.Generate()
 		for _, newEvent := range newEvents {
 			newEvent.Sign(sk)
-			require.NoError(t, db.SaveEvent(ctx, newEvent))
+			require.NoError(t, db.SaveEvent(newEvent))
 		}
 
 		{
 			results, err := w.QuerySync(ctx, nostr.Filter{
 				Tags:  nostr.TagMap{"p": []string{p}},
-				Kinds: []int{1984},
+				Kinds: []uint16{1984},
 				Limit: 2,
 			})
 			require.NoError(t, err)
 			require.ElementsMatch(t,
-				[]*nostr.Event{newEvents[2], newEvents[1]},
+				[]nostr.Event{newEvents[2], newEvents[1]},
 				results,
 				"'p' tag 1 query error")
 		}
@@ -222,7 +223,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 			require.NoError(t, err)
 			require.ElementsMatch(t,
 				// the results won't be in canonical time order because this query is too awful, needs a kind
-				[]*nostr.Event{newEvents[1]},
+				[]nostr.Event{newEvents[1]},
 				results,
 				"'p' tag 2 query error")
 		}
@@ -230,7 +231,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 		{
 			results, err := w.QuerySync(ctx, nostr.Filter{
 				Tags:  nostr.TagMap{"p": []string{p, p2}},
-				Kinds: []int{1},
+				Kinds: []uint16{1},
 				Limit: 4,
 			})
 			require.NoError(t, err)

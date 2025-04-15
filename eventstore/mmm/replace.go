@@ -1,22 +1,28 @@
 package mmm
 
 import (
-	"context"
 	"fmt"
 	"math"
+	"runtime"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
-	"fiatjaf.com/nostr/eventstore/internal"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (il *IndexingLayer) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {
+func (il *IndexingLayer) ReplaceEvent(evt nostr.Event) error {
 	// sanity checking
 	if evt.CreatedAt > math.MaxUint32 || evt.Kind > math.MaxUint16 {
 		return fmt.Errorf("event with values out of expected boundaries")
 	}
 
-	filter := nostr.Filter{Limit: 1, Kinds: []int{evt.Kind}, Authors: []string{evt.PubKey}}
+	il.mmmm.writeMutex.Lock()
+	defer il.mmmm.writeMutex.Unlock()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	filter := nostr.Filter{Limit: 1, Kinds: []uint16{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
 	if nostr.IsAddressableKind(evt.Kind) {
 		// when addressable, add the "d" tag to the filter
 		filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}
@@ -35,7 +41,7 @@ func (il *IndexingLayer) ReplaceEvent(ctx context.Context, evt *nostr.Event) err
 			shouldStore := true
 			for _, previous := range prevResults {
 				if internal.IsOlder(previous.Event, evt) {
-					if err := il.delete(mmmtxn, iltxn, previous.Event); err != nil {
+					if err := il.delete(mmmtxn, iltxn, previous.Event.ID); err != nil {
 						return fmt.Errorf("failed to delete event %s for replacing: %w", previous.Event.ID, err)
 					}
 				} else {

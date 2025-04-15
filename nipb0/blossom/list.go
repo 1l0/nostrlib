@@ -11,7 +11,7 @@ import (
 // List retrieves a list of blobs from a specific pubkey
 func (c *Client) List(ctx context.Context) ([]BlobDescriptor, error) {
 	pubkey, err := c.signer.GetPublicKey(ctx)
-	if !nostr.IsValidPublicKey(pubkey) {
+	if err != nil {
 		return nil, fmt.Errorf("pubkey %s is not valid", pubkey)
 	}
 

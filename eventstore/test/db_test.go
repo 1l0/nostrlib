@@ -5,16 +5,17 @@ import (
 	"os"
 	"testing"
 
+	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/badger"
 	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/eventstore/slicestore"
 )
 
-const (
+var (
 	dbpath = "/tmp/eventstore-test"
-	sk3    = "0000000000000000000000000000000000000000000000000000000000000003"
-	sk4    = "0000000000000000000000000000000000000000000000000000000000000004"
+	sk3    = nostr.MustSecretKeyFromHex("0000000000000000000000000000000000000000000000000000000000000003")
+	sk4    = nostr.MustSecretKeyFromHex("0000000000000000000000000000000000000000000000000000000000000004")
 )
 
 var ctx = context.Background()

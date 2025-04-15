@@ -1,7 +1,6 @@
 package bluge
 
 import (
-	"context"
 	"fmt"
 
 	"fiatjaf.com/nostr"
@@ -9,7 +8,7 @@ import (
 	"fiatjaf.com/nostr/eventstore/internal"
 )
 
-func (b *BlugeBackend) ReplaceEvent(ctx context.Context, evt nostr.Event) error {
+func (b *BlugeBackend) ReplaceEvent(evt nostr.Event) error {
 	b.Lock()
 	defer b.Unlock()
 
@@ -30,7 +29,7 @@ func (b *BlugeBackend) ReplaceEvent(ctx context.Context, evt nostr.Event) error 
 	}
 
 	if shouldStore {
-		if err := b.SaveEvent(ctx, evt); err != nil && err != eventstore.ErrDupEvent {
+		if err := b.SaveEvent(evt); err != nil && err != eventstore.ErrDupEvent {
 			return fmt.Errorf("failed to save: %w", err)
 		}
 	}

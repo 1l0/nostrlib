@@ -1,12 +1,14 @@
 package bluge
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
 	"github.com/blugelabs/bluge"
 	"github.com/blugelabs/bluge/analysis/token"
-	"fiatjaf.com/nostr/eventstore"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -49,4 +51,8 @@ func (b *BlugeBackend) Init() error {
 	}
 
 	return nil
+}
+
+func (b *BlugeBackend) CountEvents(nostr.Filter) (int64, error) {
+	return 0, errors.New("not supported")
 }

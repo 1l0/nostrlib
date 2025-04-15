@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
-	"fiatjaf.com/nostr/eventstore/mmm/betterbinary"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 	"github.com/rs/zerolog"
 )
 
@@ -30,14 +30,14 @@ type MultiMmapManager struct {
 	mmapf     mmap
 	mmapfEnd  uint64
 
+	writeMutex sync.Mutex
+
 	lmdbEnv     *lmdb.Env
 	stuff       lmdb.DBI
 	knownLayers lmdb.DBI
 	indexId     lmdb.DBI
 
 	freeRanges []position
-
-	mutex sync.Mutex
 }
 
 func (b *MultiMmapManager) String() string {
@@ -147,8 +147,8 @@ func (b *MultiMmapManager) Init() error {
 }
 
 func (b *MultiMmapManager) EnsureLayer(name string, il *IndexingLayer) error {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
+	b.writeMutex.Lock()
+	defer b.writeMutex.Unlock()
 
 	il.mmmm = b
 	il.name = name
@@ -168,9 +168,6 @@ func (b *MultiMmapManager) EnsureLayer(name string, il *IndexingLayer) error {
 				return fmt.Errorf("failed to init new layer %s: %w", name, err)
 			}
 
-			if err := il.runThroughEvents(txn); err != nil {
-				return fmt.Errorf("failed to run %s through events: %w", name, err)
-			}
 			return txn.Put(b.knownLayers, []byte(name), binary.BigEndian.AppendUint16(nil, il.id), 0)
 		} else if err == nil {
 			il.id = binary.BigEndian.Uint16(idv)
@@ -193,8 +190,8 @@ func (b *MultiMmapManager) EnsureLayer(name string, il *IndexingLayer) error {
 }
 
 func (b *MultiMmapManager) DropLayer(name string) error {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
+	b.writeMutex.Lock()
+	defer b.writeMutex.Unlock()
 
 	// get layer reference
 	idx := slices.IndexFunc(b.layers, func(il *IndexingLayer) bool { return il.name == name })

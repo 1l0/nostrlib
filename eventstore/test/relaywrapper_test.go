@@ -2,16 +2,17 @@ package test
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
+	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/slicestore"
-	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/require"
 )
 
-var sk = "486d5f6d4891f4ce3cd5f4d6b62d184ec8ea10db455830ab7918ca43d4d7ad24"
+var sk = nostr.MustSecretKeyFromHex("486d5f6d4891f4ce3cd5f4d6b62d184ec8ea10db455830ab7918ca43d4d7ad24")
 
 func TestRelayWrapper(t *testing.T) {
 	ctx := context.Background()
@@ -44,6 +45,6 @@ func TestRelayWrapper(t *testing.T) {
 	}
 	time.Sleep(time.Millisecond * 200)
 
-	evts, _ := w.QuerySync(ctx, nostr.Filter{Kinds: []int{3}})
+	evts := slices.Collect(w.QueryEvents(nostr.Filter{Kinds: []uint16{3}}))
 	require.Len(t, evts, 1)
 }

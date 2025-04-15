@@ -9,16 +9,11 @@ import (
 	"os"
 	"strings"
 
+	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/badger"
-	"fiatjaf.com/nostr/eventstore/elasticsearch"
 	"fiatjaf.com/nostr/eventstore/lmdb"
-	"fiatjaf.com/nostr/eventstore/mysql"
-	"fiatjaf.com/nostr/eventstore/postgresql"
 	"fiatjaf.com/nostr/eventstore/slicestore"
-	"fiatjaf.com/nostr/eventstore/sqlite3"
-	"fiatjaf.com/nostr/eventstore/strfry"
-	"fiatjaf.com/nostr"
 	"github.com/urfave/cli/v3"
 )
 
@@ -38,7 +33,7 @@ var app = &cli.Command{
 		&cli.StringFlag{
 			Name:    "type",
 			Aliases: []string{"t"},
-			Usage:   "store type ('sqlite', 'lmdb', 'badger', 'postgres', 'mysql', 'elasticsearch', 'mmm')",
+			Usage:   "store type ('lmdb', 'badger', 'mmm')",
 		},
 	},
 	Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
@@ -57,8 +52,6 @@ var app = &cli.Command{
 			case strings.HasPrefix(path, "https://"):
 				// if we ever add something else that uses URLs we'll have to modify this
 				typ = "elasticsearch"
-			case strings.HasSuffix(path, ".conf"):
-				typ = "strfry"
 			case strings.HasSuffix(path, ".jsonl"):
 				typ = "file"
 			default:
@@ -76,15 +69,6 @@ var app = &cli.Command{
 		}
 
 		switch typ {
-		case "sqlite":
-			db = &sqlite3.SQLite3Backend{
-				DatabaseURL:       path,
-				QueryLimit:        1_000_000,
-				QueryAuthorsLimit: 1_000_000,
-				QueryKindsLimit:   1_000_000,
-				QueryIDsLimit:     1_000_000,
-				QueryTagsLimit:    1_000_000,
-			}
 		case "lmdb":
 			db = &lmdb.LMDBBackend{Path: path, MaxLimit: 1_000_000}
 		case "badger":
@@ -94,28 +78,6 @@ var app = &cli.Command{
 			if db, err = doMmmInit(path); err != nil {
 				return ctx, err
 			}
-		case "postgres", "postgresql":
-			db = &postgresql.PostgresBackend{
-				DatabaseURL:       path,
-				QueryLimit:        1_000_000,
-				QueryAuthorsLimit: 1_000_000,
-				QueryKindsLimit:   1_000_000,
-				QueryIDsLimit:     1_000_000,
-				QueryTagsLimit:    1_000_000,
-			}
-		case "mysql":
-			db = &mysql.MySQLBackend{
-				DatabaseURL:       path,
-				QueryLimit:        1_000_000,
-				QueryAuthorsLimit: 1_000_000,
-				QueryKindsLimit:   1_000_000,
-				QueryIDsLimit:     1_000_000,
-				QueryTagsLimit:    1_000_000,
-			}
-		case "elasticsearch":
-			db = &elasticsearch.ElasticsearchStorage{URL: path}
-		case "strfry":
-			db = &strfry.StrfryBackend{ConfigPath: path}
 		case "file":
 			db = &slicestore.SliceStore{}
 

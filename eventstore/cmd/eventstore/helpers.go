@@ -28,16 +28,6 @@ func detect(dir string) (string, error) {
 		return "", err
 	}
 	if !f.IsDir() {
-		f, err := os.Open(dir)
-		if err != nil {
-			return "", err
-		}
-		buf := make([]byte, 15)
-		f.Read(buf)
-		if string(buf) == "SQLite format 3" {
-			return "sqlite", nil
-		}
-
 		return "", fmt.Errorf("unknown db format")
 	}
 

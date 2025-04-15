@@ -1,39 +1,39 @@
 package mmm
 
 import (
-	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"slices"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
 	"fiatjaf.com/nostr"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (il *IndexingLayer) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
+func (il *IndexingLayer) DeleteEvent(id nostr.ID) error {
+	il.mmmm.writeMutex.Lock()
+	defer il.mmmm.writeMutex.Unlock()
+
 	return il.mmmm.lmdbEnv.Update(func(mmmtxn *lmdb.Txn) error {
 		return il.lmdbEnv.Update(func(iltxn *lmdb.Txn) error {
-			return il.delete(mmmtxn, iltxn, evt)
+			return il.delete(mmmtxn, iltxn, id)
 		})
 	})
 }
 
-func (il *IndexingLayer) delete(mmmtxn *lmdb.Txn, iltxn *lmdb.Txn, evt *nostr.Event) error {
+func (il *IndexingLayer) delete(mmmtxn *lmdb.Txn, iltxn *lmdb.Txn, id nostr.ID) error {
 	zeroRefs := false
 	b := il.mmmm
 
 	b.Logger.Debug().Str("layer", il.name).Uint16("il", il.id).Msg("deleting")
 
 	// first in the mmmm txn we check if we have the event still
-	idPrefix8, _ := hex.DecodeString(evt.ID[0 : 8*2])
-	val, err := mmmtxn.Get(b.indexId, idPrefix8)
+	val, err := mmmtxn.Get(b.indexId, id[0:8])
 	if err != nil {
 		if lmdb.IsNotFound(err) {
 			// we already do not have this anywhere
 			return nil
 		}
-		return fmt.Errorf("failed to check if we have the event %x: %w", idPrefix8, err)
+		return fmt.Errorf("failed to check if we have the event %x: %w", id, err)
 	}
 
 	// we have this, but do we have it in the current layer?
@@ -49,8 +49,8 @@ func (il *IndexingLayer) delete(mmmtxn *lmdb.Txn, iltxn *lmdb.Txn, evt *nostr.Ev
 			copy(nextval, val[0:i])
 			copy(nextval[i:], val[i+2:])
 
-			if err := mmmtxn.Put(b.indexId, idPrefix8, nextval, 0); err != nil {
-				return fmt.Errorf("failed to update references for %x: %w", idPrefix8, err)
+			if err := mmmtxn.Put(b.indexId, id[0:8], nextval, 0); err != nil {
+				return fmt.Errorf("failed to update references for %x: %w", id[:], err)
 			}
 
 			// if there are no more layers we will delete everything later
@@ -58,6 +58,12 @@ func (il *IndexingLayer) delete(mmmtxn *lmdb.Txn, iltxn *lmdb.Txn, evt *nostr.Ev
 
 			break
 		}
+	}
+
+	// load the event so we can compute the indexes
+	var evt nostr.Event
+	if err := il.mmmm.loadEvent(pos, &evt); err != nil {
+		return fmt.Errorf("failed to load event %x when deleting: %w", id[:], err)
 	}
 
 	// calculate all index keys we have for this event and delete them
@@ -69,7 +75,7 @@ func (il *IndexingLayer) delete(mmmtxn *lmdb.Txn, iltxn *lmdb.Txn, evt *nostr.Ev
 
 	// if there are no more refs we delete the event from the id index and mmap
 	if zeroRefs {
-		if err := b.purge(mmmtxn, idPrefix8, pos); err != nil {
+		if err := b.purge(mmmtxn, id[0:8], pos); err != nil {
 			panic(err)
 		}
 	}

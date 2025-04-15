@@ -2,13 +2,12 @@ package test
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"slices"
 	"testing"
 
-	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,33 +20,33 @@ func unbalancedTest(t *testing.T, db eventstore.Store) {
 	const authors = 1400
 
 	bigfilter := nostr.Filter{
-		Authors: make([]string, authors),
+		Authors: make([]nostr.PubKey, authors),
 		Limit:   limit,
 	}
 	for i := 0; i < authors; i++ {
 		sk := make([]byte, 32)
 		binary.BigEndian.PutUint32(sk, uint32(i%(authors*2))+1)
-		pk, _ := nostr.GetPublicKey(hex.EncodeToString(sk))
+		pk := nostr.GetPublicKey([32]byte(sk))
 		bigfilter.Authors[i] = pk
 	}
 	// fmt.Println("filter", bigfilter)
 
-	expected := make([]*nostr.Event, 0, total)
+	expected := make([]nostr.Event, 0, total)
 	for i := 0; i < total; i++ {
 		skseed := uint32(i%(authors*2)) + 1
 		sk := make([]byte, 32)
 		binary.BigEndian.PutUint32(sk, skseed)
 
-		evt := &nostr.Event{
+		evt := nostr.Event{
 			CreatedAt: nostr.Timestamp(skseed)*1000 + nostr.Timestamp(i),
 			Content:   fmt.Sprintf("unbalanced %d", i),
 			Tags:      nostr.Tags{},
 			Kind:      1,
 		}
-		err := evt.Sign(hex.EncodeToString(sk))
+		err := evt.Sign([32]byte(sk))
 		require.NoError(t, err)
 
-		err = db.SaveEvent(ctx, evt)
+		err = db.SaveEvent(evt)
 		require.NoError(t, err)
 
 		if bigfilter.Matches(evt) {
@@ -55,7 +54,7 @@ func unbalancedTest(t *testing.T, db eventstore.Store) {
 		}
 	}
 
-	slices.SortFunc(expected, nostr.CompareEventPtrReverse)
+	slices.SortFunc(expected, nostr.CompareEventReverse)
 	if len(expected) > limit {
 		expected = expected[0:limit]
 	}
@@ -63,11 +62,10 @@ func unbalancedTest(t *testing.T, db eventstore.Store) {
 
 	w := eventstore.RelayWrapper{Store: db}
 
-	res, err := w.QuerySync(ctx, bigfilter)
+	res := slices.Collect(w.QueryEvents(bigfilter))
 
-	require.NoError(t, err)
 	require.Equal(t, limit, len(res))
-	require.True(t, slices.IsSortedFunc(res, nostr.CompareEventPtrReverse))
+	require.True(t, slices.IsSortedFunc(res, nostr.CompareEventReverse))
 	require.Equal(t, expected[0], res[0])
 
 	// fmt.Println(" expected   result")

@@ -68,9 +68,6 @@ func ConnectBunker(
 		// otherwise fail here
 		return nil, fmt.Errorf("wrong scheme '%s', must be bunker://", parsed.Scheme)
 	}
-	if !nostr.IsValidPublicKey(targetPublicKey) {
-		return nil, fmt.Errorf("'%s' is not a valid public key hex", targetPublicKey)
-	}
 
 	bunker := NewBunker(
 		ctx,

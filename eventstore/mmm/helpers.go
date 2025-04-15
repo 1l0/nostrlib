@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
 	"fiatjaf.com/nostr"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
 // this iterator always goes backwards
@@ -46,7 +46,7 @@ type key struct {
 	key []byte
 }
 
-func (il *IndexingLayer) getIndexKeysForEvent(evt *nostr.Event) iter.Seq[key] {
+func (il *IndexingLayer) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 	return func(yield func(key) bool) {
 		{
 			// ~ by pubkey+date

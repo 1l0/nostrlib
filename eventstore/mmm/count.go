@@ -2,16 +2,15 @@ package mmm
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"slices"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
-	"fiatjaf.com/nostr/eventstore/mmm/betterbinary"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (il *IndexingLayer) CountEvents(ctx context.Context, filter nostr.Filter) (int64, error) {
+func (il *IndexingLayer) CountEvents(filter nostr.Filter) (int64, error) {
 	var count int64 = 0
 
 	queries, extraAuthors, extraKinds, extraTagKey, extraTagValues, since, err := il.prepareQueries(filter)

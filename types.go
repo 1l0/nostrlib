@@ -12,59 +12,9 @@ type RelayEvent struct {
 	Relay *Relay
 }
 
-var (
-	ZeroID = [32]byte{}
-	ZeroPK = [32]byte{}
-)
+var ZeroID = [32]byte{}
 
-type PubKey [32]byte
-
-func (pk PubKey) String() string { return hex.EncodeToString(pk[:]) }
-func (pk PubKey) Hex() string    { return hex.EncodeToString(pk[:]) }
-
-func PubKeyFromHex(pkh string) (PubKey, error) {
-	pk := PubKey{}
-	if len(pkh) != 64 {
-		return pk, fmt.Errorf("pubkey should be 64-char hex, got '%s'", pkh)
-	}
-	if _, err := hex.Decode(pk[:], unsafe.Slice(unsafe.StringData(pkh), 64)); err != nil {
-		return pk, fmt.Errorf("'%s' is not valid hex: %w", pkh, err)
-	}
-
-	if !IsValidPublicKey(pk) {
-		return pk, fmt.Errorf("'%s' is not a valid pubkey", pkh)
-	}
-
-	return pk, nil
-}
-
-func PubKeyFromHexCheap(pkh string) (PubKey, error) {
-	pk := PubKey{}
-	if len(pkh) != 64 {
-		return pk, fmt.Errorf("pubkey should be 64-char hex, got '%s'", pkh)
-	}
-	if _, err := hex.Decode(pk[:], unsafe.Slice(unsafe.StringData(pkh), 64)); err != nil {
-		return pk, fmt.Errorf("'%s' is not valid hex: %w", pkh, err)
-	}
-
-	return pk, nil
-}
-
-func MustPubKeyFromHex(pkh string) PubKey {
-	pk := PubKey{}
-	hex.Decode(pk[:], unsafe.Slice(unsafe.StringData(pkh), 64))
-	return pk
-}
-
-func ContainsPubKey(haystack []PubKey, needle PubKey) bool {
-	for _, cand := range haystack {
-		if cand == needle {
-			return true
-		}
-	}
-	return false
-}
-
+// ID represents an event id
 type ID [32]byte
 
 func (id ID) String() string { return hex.EncodeToString(id[:]) }
@@ -87,4 +37,13 @@ func MustIDFromHex(idh string) ID {
 	id := ID{}
 	hex.Decode(id[:], unsafe.Slice(unsafe.StringData(idh), 64))
 	return id
+}
+
+func ContainsID(haystack []ID, needle ID) bool {
+	for _, cand := range haystack {
+		if cand == needle {
+			return true
+		}
+	}
+	return false
 }

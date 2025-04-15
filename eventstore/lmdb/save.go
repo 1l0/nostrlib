@@ -6,7 +6,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
-	bin "fiatjaf.com/nostr/eventstore/internal/binary"
+	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
@@ -45,14 +45,14 @@ func (b *LMDBBackend) SaveEvent(evt nostr.Event) error {
 
 func (b *LMDBBackend) save(txn *lmdb.Txn, evt nostr.Event) error {
 	// encode to binary form so we'll save it
-	bin, err := bin.Marshal(evt)
-	if err != nil {
+	buf := make([]byte, betterbinary.Measure(evt))
+	if err := betterbinary.Marshal(evt, buf); err != nil {
 		return err
 	}
 
 	idx := b.Serial()
 	// raw event store
-	if err := txn.Put(b.rawEventStore, idx, bin, 0); err != nil {
+	if err := txn.Put(b.rawEventStore, idx, buf, 0); err != nil {
 		return err
 	}
 

@@ -1,9 +1,7 @@
 package mmm
 
 import (
-	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"runtime"
@@ -11,73 +9,15 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
-	"fiatjaf.com/nostr/eventstore/mmm/betterbinary"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (b *MultiMmapManager) StoreGlobal(ctx context.Context, evt *nostr.Event) (stored bool, err error) {
-	someoneWantsIt := false
+func (il *IndexingLayer) SaveEvent(evt nostr.Event) error {
+	il.mmmm.writeMutex.Lock()
+	defer il.mmmm.writeMutex.Unlock()
 
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	// do this just so it's cleaner, we're already locking the thread and the mutex anyway
-	mmmtxn, err := b.lmdbEnv.BeginTxn(nil, 0)
-	if err != nil {
-		return false, fmt.Errorf("failed to begin global transaction: %w", err)
-	}
-	mmmtxn.RawRead = true
-
-	iltxns := make([]*lmdb.Txn, 0, len(b.layers))
-	ils := make([]*IndexingLayer, 0, len(b.layers))
-
-	// ask if any of the indexing layers want this
-	for _, il := range b.layers {
-		if il.ShouldIndex != nil && il.ShouldIndex(ctx, evt) {
-			someoneWantsIt = true
-
-			iltxn, err := il.lmdbEnv.BeginTxn(nil, 0)
-			if err != nil {
-				mmmtxn.Abort()
-				for _, txn := range iltxns {
-					txn.Abort()
-				}
-				return false, fmt.Errorf("failed to start txn on %s: %w", il.name, err)
-			}
-
-			ils = append(ils, il)
-			iltxns = append(iltxns, iltxn)
-		}
-	}
-
-	if !someoneWantsIt {
-		// no one wants it
-		mmmtxn.Abort()
-		return false, fmt.Errorf("not wanted")
-	}
-
-	stored, err = b.storeOn(mmmtxn, ils, iltxns, evt)
-	if stored {
-		mmmtxn.Commit()
-		for _, txn := range iltxns {
-			txn.Commit()
-		}
-	} else {
-		mmmtxn.Abort()
-		for _, txn := range iltxns {
-			txn.Abort()
-		}
-	}
-
-	return stored, err
-}
-
-func (il *IndexingLayer) SaveEvent(ctx context.Context, evt *nostr.Event) error {
-	il.mmmm.mutex.Lock()
-	defer il.mmmm.mutex.Unlock()
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -111,7 +51,7 @@ func (b *MultiMmapManager) storeOn(
 	mmmtxn *lmdb.Txn,
 	ils []*IndexingLayer,
 	iltxns []*lmdb.Txn,
-	evt *nostr.Event,
+	evt nostr.Event,
 ) (stored bool, err error) {
 	// sanity checking
 	if evt.CreatedAt > maxuint32 || evt.Kind > maxuint16 {
@@ -119,8 +59,7 @@ func (b *MultiMmapManager) storeOn(
 	}
 
 	// check if we already have this id
-	idPrefix8, _ := hex.DecodeString(evt.ID[0 : 8*2])
-	val, err := mmmtxn.Get(b.indexId, idPrefix8)
+	val, err := mmmtxn.Get(b.indexId, evt.ID[0:8])
 	if err == nil {
 		// we found the event, now check if it is already indexed by the layers that want to store it
 		for i := len(ils) - 1; i >= 0; i-- {
@@ -149,7 +88,7 @@ func (b *MultiMmapManager) storeOn(
 
 	// get event binary size
 	pos := position{
-		size: uint32(betterbinary.Measure(*evt)),
+		size: uint32(betterbinary.Measure(evt)),
 	}
 	if pos.size >= 1<<16 {
 		return false, fmt.Errorf("event too large to store, max %d, got %d", 1<<16, pos.size)
@@ -193,7 +132,7 @@ func (b *MultiMmapManager) storeOn(
 	}
 
 	// write to the mmap
-	if err := betterbinary.Marshal(*evt, b.mmapf[pos.start:]); err != nil {
+	if err := betterbinary.Marshal(evt, b.mmapf[pos.start:]); err != nil {
 		return false, fmt.Errorf("error marshaling to %d: %w", pos.start, err)
 	}
 
@@ -219,8 +158,8 @@ func (b *MultiMmapManager) storeOn(
 	}
 
 	// store the id index with the refcounts
-	if err := mmmtxn.Put(b.indexId, idPrefix8, val, 0); err != nil {
-		panic(fmt.Errorf("failed to store %x by id: %w", idPrefix8, err))
+	if err := mmmtxn.Put(b.indexId, evt.ID[0:8], val, 0); err != nil {
+		panic(fmt.Errorf("failed to store %x by id: %w", evt.ID[:], err))
 	}
 
 	// msync

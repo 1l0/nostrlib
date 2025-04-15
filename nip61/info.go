@@ -4,12 +4,12 @@ import (
 	"context"
 	"slices"
 
-	"github.com/elnosh/gonuts/cashu"
 	"fiatjaf.com/nostr"
+	"github.com/elnosh/gonuts/cashu"
 )
 
 type Info struct {
-	PublicKey string
+	PublicKey nostr.PubKey
 	Mints     []string
 	Relays    []string
 }
@@ -25,8 +25,8 @@ func (zi *Info) ToEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) e
 	for _, url := range zi.Relays {
 		evt.Tags = append(evt.Tags, nostr.Tag{"relay", url})
 	}
-	if zi.PublicKey != "" {
-		evt.Tags = append(evt.Tags, nostr.Tag{"pubkey", zi.PublicKey})
+	if zi.PublicKey != nostr.ZeroPK {
+		evt.Tags = append(evt.Tags, nostr.Tag{"pubkey", zi.PublicKey.Hex()})
 	}
 
 	if err := kr.SignEvent(ctx, evt); err != nil {
@@ -52,8 +52,8 @@ func (zi *Info) ParseEvent(evt *nostr.Event) error {
 		case "relay":
 			zi.Relays = append(zi.Relays, tag[1])
 		case "pubkey":
-			if nostr.IsValidPublicKey(tag[1]) {
-				zi.PublicKey = tag[1]
+			if pk, err := nostr.PubKeyFromHex(tag[1]); err == nil {
+				zi.PublicKey = pk
 			}
 		}
 	}
