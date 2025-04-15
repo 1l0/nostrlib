@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func (pool *SimplePool) PaginatorWithInterval(
+func (pool *Pool) PaginatorWithInterval(
 	interval time.Duration,
 ) func(ctx context.Context, urls []string, filter Filter, opts ...SubscriptionOption) chan RelayEvent {
 	return func(ctx context.Context, urls []string, filter Filter, opts ...SubscriptionOption) chan RelayEvent {

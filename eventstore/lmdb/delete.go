@@ -1,29 +1,39 @@
 package lmdb
 
 import (
-	"context"
-	"encoding/hex"
 	"fmt"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (b *LMDBBackend) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
+func (b *LMDBBackend) DeleteEvent(id nostr.ID) error {
 	return b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
-		return b.delete(txn, evt)
+		return b.delete(txn, id)
 	})
 }
 
-func (b *LMDBBackend) delete(txn *lmdb.Txn, evt *nostr.Event) error {
-	idPrefix8, _ := hex.DecodeString(evt.ID[0 : 8*2])
-	idx, err := txn.Get(b.indexId, idPrefix8)
+func (b *LMDBBackend) delete(txn *lmdb.Txn, id nostr.ID) error {
+	// check if we have this actually
+	idx, err := txn.Get(b.indexId, id[0:8])
 	if lmdb.IsNotFound(err) {
 		// we already do not have this
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("failed to get current idx for deleting %x: %w", evt.ID[0:8*2], err)
+		return fmt.Errorf("failed to get current idx for deleting %x: %w", id[0:8], err)
+	}
+
+	// if we do, get it so we can compute the indexes
+	buf, err := txn.Get(b.rawEventStore, idx)
+	if err != nil {
+		return fmt.Errorf("failed to get raw event %x to delete: %w", id, err)
+	}
+
+	var evt nostr.Event
+	if err := betterbinary.Unmarshal(buf, &evt); err != nil {
+		return fmt.Errorf("failed to unmarshal raw event %x to delete: %w", id, err)
 	}
 
 	// calculate all index keys we have for this event and delete them

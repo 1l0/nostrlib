@@ -14,13 +14,13 @@ func FetchIDsOnly(
 	url string,
 	filter nostr.Filter,
 ) (<-chan nostr.ID, error) {
-	id := "go-nostr-tmp" // for now we can't have more than one subscription in the same connection
+	id := "nl-tmp" // for now we can't have more than one subscription in the same connection
 
 	neg := negentropy.New(empty.Empty{}, 1024*1024)
 	result := make(chan error)
 
 	var r *nostr.Relay
-	r, err := nostr.RelayConnect(ctx, url, nostr.WithCustomHandler(func(data string) {
+	r, err := nostr.RelayConnect(ctx, url, nostr.RelayOptions{CustomHandler: func(data string) {
 		envelope := ParseNegMessage(data)
 		if envelope == nil {
 			return
@@ -44,7 +44,7 @@ func FetchIDsOnly(
 				r.Write(msgb)
 			}
 		}
-	}))
+	}})
 	if err != nil {
 		return nil, err
 	}

@@ -51,7 +51,7 @@ type writeRequest struct {
 }
 
 // NewRelay returns a new relay. It takes a context that, when canceled, will close the relay connection.
-func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
+func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 	ctx, cancel := context.WithCancelCause(ctx)
 	r := &Relay{
 		URL:                           NormalizeURL(url),
@@ -64,10 +64,6 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 		requestHeader:                 nil,
 	}
 
-	for _, opt := range opts {
-		opt.ApplyRelayOption(r)
-	}
-
 	return r
 }
 
@@ -77,44 +73,23 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 //
 // The ongoing relay connection uses a background context. To close the connection, call r.Close().
 // If you need fine grained long-term connection contexts, use NewRelay() instead.
-func RelayConnect(ctx context.Context, url string, opts ...RelayOption) (*Relay, error) {
-	r := NewRelay(context.Background(), url, opts...)
+func RelayConnect(ctx context.Context, url string, opts RelayOptions) (*Relay, error) {
+	r := NewRelay(context.Background(), url, opts)
 	err := r.Connect(ctx)
 	return r, err
 }
 
-// RelayOption is the type of the argument passed when instantiating relay connections.
-type RelayOption interface {
-	ApplyRelayOption(*Relay)
-}
+type RelayOptions struct {
+	// NoticeHandler just takes notices and is expected to do something with them.
+	// When not given defaults to logging the notices.
+	NoticeHandler func(notice string)
 
-var (
-	_ RelayOption = (WithNoticeHandler)(nil)
-	_ RelayOption = (WithCustomHandler)(nil)
-	_ RelayOption = (WithRequestHeader)(nil)
-)
+	// CustomHandler, if given, must be a function that handles any relay message
+	// that couldn't be parsed as a standard envelope.
+	CustomHandler func(data string)
 
-// WithNoticeHandler just takes notices and is expected to do something with them.
-// when not given, defaults to logging the notices.
-type WithNoticeHandler func(notice string)
-
-func (nh WithNoticeHandler) ApplyRelayOption(r *Relay) {
-	r.noticeHandler = nh
-}
-
-// WithCustomHandler must be a function that handles any relay message that couldn't be
-// parsed as a standard envelope.
-type WithCustomHandler func(data string)
-
-func (ch WithCustomHandler) ApplyRelayOption(r *Relay) {
-	r.customHandler = ch
-}
-
-// WithRequestHeader sets the HTTP request header of the websocket preflight request.
-type WithRequestHeader http.Header
-
-func (ch WithRequestHeader) ApplyRelayOption(r *Relay) {
-	r.requestHeader = http.Header(ch)
+	// RequestHeader sets the HTTP request header of the websocket preflight request
+	RequestHeader http.Header
 }
 
 // String just returns the relay URL.
@@ -273,21 +248,21 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 					continue
 				} else {
 					// check if the event matches the desired filter, ignore otherwise
-					if !sub.match(&env.Event) {
-						InfoLogger.Printf("{%s} filter does not match: %v ~ %v\n", r.URL, sub.Filters, env.Event)
+					if !sub.match(env.Event) {
+						InfoLogger.Printf("{%s} filter does not match: %v ~ %v\n", r.URL, sub.Filter, env.Event)
 						continue
 					}
 
 					// check signature, ignore invalid, except from trusted (AssumeValid) relays
 					if !r.AssumeValid {
-						if ok, _ := env.Event.CheckSignature(); !ok {
+						if !env.Event.VerifySignature() {
 							InfoLogger.Printf("{%s} bad signature on %s\n", r.URL, env.Event.ID)
 							continue
 						}
 					}
 
 					// dispatch this to the internal .events channel of the subscription
-					sub.dispatchEvent(&env.Event)
+					sub.dispatchEvent(env.Event)
 				}
 			case *EOSEEnvelope:
 				if subscription, ok := r.Subscriptions.Load(subIdToSerial(string(*env))); ok {
@@ -334,7 +309,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) error {
 //
 // You don't have to build the AUTH event yourself, this function takes a function to which the
 // event that must be signed will be passed, so it's only necessary to sign that.
-func (r *Relay) Auth(ctx context.Context, sign func(event *Event) error) error {
+func (r *Relay) Auth(ctx context.Context, sign func(context.Context, *Event) error) error {
 	authEvent := Event{
 		CreatedAt: Now(),
 		Kind:      KindClientAuthentication,
@@ -344,7 +319,7 @@ func (r *Relay) Auth(ctx context.Context, sign func(event *Event) error) error {
 		},
 		Content: "",
 	}
-	if err := sign(&authEvent); err != nil {
+	if err := sign(ctx, &authEvent); err != nil {
 		return fmt.Errorf("error signing auth event: %w", err)
 	}
 
@@ -404,15 +379,15 @@ func (r *Relay) publish(ctx context.Context, id ID, env Envelope) error {
 //
 // Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.
 // Failure to do that will result in a huge number of halted goroutines being created.
-func (r *Relay) Subscribe(ctx context.Context, filters Filters, opts ...SubscriptionOption) (*Subscription, error) {
-	sub := r.PrepareSubscription(ctx, filters, opts...)
+func (r *Relay) Subscribe(ctx context.Context, filter Filter, opts SubscriptionOptions) (*Subscription, error) {
+	sub := r.PrepareSubscription(ctx, filter, opts)
 
 	if r.Connection == nil {
 		return nil, fmt.Errorf("not connected to %s", r.URL)
 	}
 
 	if err := sub.Fire(); err != nil {
-		return nil, fmt.Errorf("couldn't subscribe to %v at %s: %w", filters, r.URL, err)
+		return nil, fmt.Errorf("couldn't subscribe to %v at %s: %w", filter, r.URL, err)
 	}
 
 	return sub, nil
@@ -422,7 +397,7 @@ func (r *Relay) Subscribe(ctx context.Context, filters Filters, opts ...Subscrip
 //
 // Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.
 // Failure to do that will result in a huge number of halted goroutines being created.
-func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts ...SubscriptionOption) *Subscription {
+func (r *Relay) PrepareSubscription(ctx context.Context, filter Filter, opts SubscriptionOptions) *Subscription {
 	current := subscriptionIDCounter.Add(1)
 	ctx, cancel := context.WithCancelCause(ctx)
 
@@ -431,30 +406,21 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		Context:           ctx,
 		cancel:            cancel,
 		counter:           current,
-		Events:            make(chan *Event),
+		Events:            make(chan Event),
 		EndOfStoredEvents: make(chan struct{}, 1),
 		ClosedReason:      make(chan string, 1),
-		Filters:           filters,
-		match:             filters.Match,
+		Filter:            filter,
+		match:             filter.Matches,
 	}
 
-	label := ""
-	for _, opt := range opts {
-		switch o := opt.(type) {
-		case WithLabel:
-			label = string(o)
-		case WithCheckDuplicate:
-			sub.checkDuplicate = o
-		case WithCheckDuplicateReplaceable:
-			sub.checkDuplicateReplaceable = o
-		}
-	}
+	sub.checkDuplicate = opts.CheckDuplicate
+	sub.checkDuplicateReplaceable = opts.CheckDuplicateReplaceable
 
 	// subscription id computation
 	buf := subIdPool.Get().([]byte)[:0]
 	buf = strconv.AppendInt(buf, sub.counter, 10)
 	buf = append(buf, ':')
-	buf = append(buf, label...)
+	buf = append(buf, opts.Label...)
 	defer subIdPool.Put(buf)
 	sub.id = string(buf)
 
@@ -467,63 +433,13 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 	return sub
 }
 
-// QueryEvents subscribes to events matching the given filter and returns a channel of events.
-//
-// In most cases it's better to use SimplePool instead of this method.
-func (r *Relay) QueryEvents(ctx context.Context, filter Filter) (chan *Event, error) {
-	sub, err := r.Subscribe(ctx, Filters{filter})
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		for {
-			select {
-			case <-sub.ClosedReason:
-			case <-sub.EndOfStoredEvents:
-			case <-ctx.Done():
-			case <-r.Context().Done():
-			}
-			sub.unsub(errors.New("QueryEvents() ended"))
-			return
-		}
-	}()
-
-	return sub.Events, nil
-}
-
-// QuerySync subscribes to events matching the given filter and returns a slice of events.
-// This method blocks until all events are received or the context is canceled.
-//
-// In most cases it's better to use SimplePool instead of this method.
-func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) {
-	if _, ok := ctx.Deadline(); !ok {
-		// if no timeout is set, force it to 7 seconds
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeoutCause(ctx, 7*time.Second, errors.New("QuerySync() took too long"))
-		defer cancel()
-	}
-
-	events := make([]*Event, 0, max(filter.Limit, 250))
-	ch, err := r.QueryEvents(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	for evt := range ch {
-		events = append(events, evt)
-	}
-
-	return events, nil
-}
-
 // Count sends a "COUNT" command to the relay and returns the count of events matching the filters.
 func (r *Relay) Count(
 	ctx context.Context,
-	filters Filters,
-	opts ...SubscriptionOption,
+	filter Filter,
+	opts SubscriptionOptions,
 ) (int64, []byte, error) {
-	v, err := r.countInternal(ctx, filters, opts...)
+	v, err := r.countInternal(ctx, filter, opts)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -531,8 +447,8 @@ func (r *Relay) Count(
 	return *v.Count, v.HyperLogLog, nil
 }
 
-func (r *Relay) countInternal(ctx context.Context, filters Filters, opts ...SubscriptionOption) (CountEnvelope, error) {
-	sub := r.PrepareSubscription(ctx, filters, opts...)
+func (r *Relay) countInternal(ctx context.Context, filter Filter, opts SubscriptionOptions) (CountEnvelope, error) {
+	sub := r.PrepareSubscription(ctx, filter, opts)
 	sub.countResult = make(chan CountEnvelope)
 
 	if err := sub.Fire(); err != nil {

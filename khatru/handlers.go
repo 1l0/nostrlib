@@ -12,8 +12,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/bep/debounce"
-	"github.com/fasthttp/websocket"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip42"
 	"fiatjaf.com/nostr/nip45"
@@ -21,6 +19,8 @@ import (
 	"fiatjaf.com/nostr/nip70"
 	"fiatjaf.com/nostr/nip77"
 	"fiatjaf.com/nostr/nip77/negentropy"
+	"github.com/bep/debounce"
+	"github.com/fasthttp/websocket"
 	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/rs/cors"
 )
@@ -53,8 +53,8 @@ func (rl *Relay) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
-	for _, reject := range rl.RejectConnection {
-		if reject(r) {
+	if rl.RejectConnection == nil {
+		if rl.RejectConnection(r) {
 			w.WriteHeader(429) // Too many requests
 			return
 		}
@@ -92,8 +92,8 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 	)
 
 	kill := func() {
-		for _, ondisconnect := range rl.OnDisconnect {
-			ondisconnect(ctx)
+		if rl.OnDisconnect == nil {
+			rl.OnDisconnect(ctx)
 		}
 
 		ticker.Stop()
@@ -114,8 +114,8 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 			return nil
 		})
 
-		for _, onconnect := range rl.OnConnect {
-			onconnect(ctx)
+		if rl.OnConnect == nil {
+			rl.OnConnect(ctx)
 		}
 
 		smp := nostr.NewMessageParser()
@@ -169,10 +169,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 					// check signature
-					if ok, err := env.Event.CheckSignature(); err != nil {
-						ws.WriteJSON(nostr.OKEnvelope{EventID: env.Event.ID, OK: false, Reason: "error: failed to verify signature"})
-						return
-					} else if !ok {
+					if !env.Event.VerifySignature() {
 						ws.WriteJSON(nostr.OKEnvelope{EventID: env.Event.ID, OK: false, Reason: "invalid: signature is invalid"})
 						return
 					}
@@ -228,9 +225,6 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					var reason string
 					if writeErr == nil {
 						ok = true
-						for _, ovw := range srl.OverwriteResponseEvent {
-							ovw(ctx, &env.Event)
-						}
 						if !skipBroadcast {
 							n := srl.notifyListeners(&env.Event)
 

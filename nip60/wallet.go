@@ -50,7 +50,7 @@ type Wallet struct {
 func LoadWallet(
 	ctx context.Context,
 	kr nostr.Keyer,
-	pool *nostr.SimplePool,
+	pool *nostr.Pool,
 	relays []string,
 ) *Wallet {
 	return loadWalletFromPool(ctx, kr, pool, relays, false)
@@ -59,7 +59,7 @@ func LoadWallet(
 func LoadWalletWithHistory(
 	ctx context.Context,
 	kr nostr.Keyer,
-	pool *nostr.SimplePool,
+	pool *nostr.Pool,
 	relays []string,
 ) *Wallet {
 	return loadWalletFromPool(ctx, kr, pool, relays, true)
@@ -68,7 +68,7 @@ func LoadWalletWithHistory(
 func loadWalletFromPool(
 	ctx context.Context,
 	kr nostr.Keyer,
-	pool *nostr.SimplePool,
+	pool *nostr.Pool,
 	relays []string,
 	withHistory bool,
 ) *Wallet {

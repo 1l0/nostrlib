@@ -1,18 +1,16 @@
 package lmdb
 
 import (
-	"context"
-	"encoding/hex"
 	"fmt"
 	"math"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
+	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
 	bin "fiatjaf.com/nostr/eventstore/internal/binary"
-	"fiatjaf.com/nostr"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (b *LMDBBackend) SaveEvent(ctx context.Context, evt *nostr.Event) error {
+func (b *LMDBBackend) SaveEvent(evt nostr.Event) error {
 	// sanity checking
 	if evt.CreatedAt > math.MaxUint32 || evt.Kind > math.MaxUint16 {
 		return fmt.Errorf("event with values out of expected boundaries")
@@ -35,8 +33,7 @@ func (b *LMDBBackend) SaveEvent(ctx context.Context, evt *nostr.Event) error {
 		}
 
 		// check if we already have this id
-		id, _ := hex.DecodeString(evt.ID)
-		_, err := txn.Get(b.indexId, id)
+		_, err := txn.Get(b.indexId, evt.ID[0:8])
 		if operr, ok := err.(*lmdb.OpError); ok && operr.Errno != lmdb.NotFound {
 			// we will only proceed if we get a NotFound
 			return eventstore.ErrDupEvent
@@ -46,7 +43,7 @@ func (b *LMDBBackend) SaveEvent(ctx context.Context, evt *nostr.Event) error {
 	})
 }
 
-func (b *LMDBBackend) save(txn *lmdb.Txn, evt *nostr.Event) error {
+func (b *LMDBBackend) save(txn *lmdb.Txn, evt nostr.Event) error {
 	// encode to binary form so we'll save it
 	bin, err := bin.Marshal(evt)
 	if err != nil {

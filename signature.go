@@ -4,31 +4,30 @@ package nostr
 
 import (
 	"crypto/sha256"
-	"fmt"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 )
 
-// CheckSignature checks if the event signature is valid for the given event.
+// Verify checks if the event signature is valid for the given event.
 // It won't look at the ID field, instead it will recompute the id from the entire event body.
-// If the signature is invalid bool will be false and err will be set.
-func (evt Event) CheckSignature() (bool, error) {
+// Returns true if the signature is valid, false otherwise.
+func (evt Event) VerifySignature() bool {
 	// read and check pubkey
 	pubkey, err := schnorr.ParsePubKey(evt.PubKey[:])
 	if err != nil {
-		return false, fmt.Errorf("event has invalid pubkey '%s': %w", evt.PubKey, err)
+		return false
 	}
 
 	// read signature
 	sig, err := schnorr.ParseSignature(evt.Sig[:])
 	if err != nil {
-		return false, fmt.Errorf("failed to parse signature: %w", err)
+		return false
 	}
 
 	// check signature
 	hash := sha256.Sum256(evt.Serialize())
-	return sig.Verify(hash[:], pubkey), nil
+	return sig.Verify(hash[:], pubkey)
 }
 
 // Sign signs an event with a given privateKey.

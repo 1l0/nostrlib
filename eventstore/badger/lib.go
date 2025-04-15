@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/dgraph-io/badger/v4"
-	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
+	"github.com/dgraph-io/badger/v4"
 )
 
 const (
@@ -32,9 +32,9 @@ type BadgerBackend struct {
 	BadgerOptionsModifier func(badger.Options) badger.Options
 
 	// Experimental
-	SkipIndexingTag func(event *nostr.Event, tagName string, tagValue string) bool
+	SkipIndexingTag func(event nostr.Event, tagName string, tagValue string) bool
 	// Experimental
-	IndexLongerTag func(event *nostr.Event, tagName string, tagValue string) bool
+	IndexLongerTag func(event nostr.Event, tagName string, tagValue string) bool
 
 	*badger.DB
 

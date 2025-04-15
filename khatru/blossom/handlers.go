@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liamg/magic"
 	"fiatjaf.com/nostr"
+	"github.com/liamg/magic"
 )
 
 func (bs BlossomServer) handleUploadCheck(w http.ResponseWriter, r *http.Request) {
@@ -40,8 +40,8 @@ func (bs BlossomServer) handleUploadCheck(w http.ResponseWriter, r *http.Request
 	// get the file size from the incoming header
 	size, _ := strconv.Atoi(r.Header.Get("X-Content-Length"))
 
-	for _, rb := range bs.RejectUpload {
-		reject, reason, code := rb(r.Context(), auth, size, ext)
+	if bs.RejectUpload != nil {
+		reject, reason, code := bs.RejectUpload(r.Context(), auth, size, ext)
 		if reject {
 			blossomError(w, reason, code)
 			return
@@ -336,13 +336,13 @@ func (bs BlossomServer) handleReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var evt *nostr.Event
-	if err := json.Unmarshal(body, evt); err != nil {
+	var evt nostr.Event
+	if err := json.Unmarshal(body, &evt); err != nil {
 		blossomError(w, "can't parse event", 400)
 		return
 	}
 
-	if isValid, _ := evt.CheckSignature(); !isValid {
+	if !evt.VerifySignature() {
 		blossomError(w, "invalid report event is provided", 400)
 		return
 	}
@@ -352,8 +352,8 @@ func (bs BlossomServer) handleReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, rr := range bs.ReceiveReport {
-		if err := rr(r.Context(), evt); err != nil {
+	if bs.ReceiveReport != nil {
+		if err := bs.ReceiveReport(r.Context(), evt); err != nil {
 			blossomError(w, "failed to receive report: "+err.Error(), 500)
 			return
 		}

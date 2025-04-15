@@ -2,7 +2,6 @@ package hyperloglog
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 )
 
@@ -51,8 +50,8 @@ func (hll *HyperLogLog) Clear() {
 }
 
 // Add takes a Nostr event pubkey which will be used as the item "key" (that combined with the offset)
-func (hll *HyperLogLog) Add(pubkey string) {
-	x, _ := hex.DecodeString(pubkey[hll.offset*2 : hll.offset*2+8*2])
+func (hll *HyperLogLog) Add(pubkey [32]byte) {
+	x := pubkey[hll.offset : hll.offset+8]
 	j := x[0] // register address (first 8 bits, i.e. first byte)
 
 	w := binary.BigEndian.Uint64(x) // number that we will use
@@ -64,7 +63,7 @@ func (hll *HyperLogLog) Add(pubkey string) {
 }
 
 // AddBytes is like Add, but takes pubkey as bytes instead of as string
-func (hll *HyperLogLog) AddBytes(pubkey []byte) {
+func (hll *HyperLogLog) AddBytes(pubkey [32]byte) {
 	x := pubkey[hll.offset : hll.offset+8]
 	j := x[0] // register address (first 8 bits, i.e. first byte)
 

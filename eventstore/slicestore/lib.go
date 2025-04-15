@@ -1,14 +1,15 @@
 package slicestore
 
 import (
-	"context"
+	"bytes"
+	"cmp"
 	"fmt"
-	"strings"
+	"iter"
 	"sync"
 
+	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/internal"
-	"fiatjaf.com/nostr"
 	"golang.org/x/exp/slices"
 )
 
@@ -16,13 +17,13 @@ var _ eventstore.Store = (*SliceStore)(nil)
 
 type SliceStore struct {
 	sync.Mutex
-	internal []*nostr.Event
+	internal []nostr.Event
 
 	MaxLimit int
 }
 
 func (b *SliceStore) Init() error {
-	b.internal = make([]*nostr.Event, 0, 5000)
+	b.internal = make([]nostr.Event, 0, 5000)
 	if b.MaxLimit == 0 {
 		b.MaxLimit = 500
 	}
@@ -31,50 +32,44 @@ func (b *SliceStore) Init() error {
 
 func (b *SliceStore) Close() {}
 
-func (b *SliceStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
-	ch := make(chan *nostr.Event)
-	if filter.Limit > b.MaxLimit || (filter.Limit == 0 && !filter.LimitZero) {
-		filter.Limit = b.MaxLimit
-	}
+func (b *SliceStore) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
+	return func(yield func(nostr.Event) bool) {
+		if filter.Limit > b.MaxLimit || (filter.Limit == 0 && !filter.LimitZero) {
+			filter.Limit = b.MaxLimit
+		}
 
-	// efficiently determine where to start and end
-	start := 0
-	end := len(b.internal)
-	if filter.Until != nil {
-		start, _ = slices.BinarySearchFunc(b.internal, *filter.Until, eventTimestampComparator)
-	}
-	if filter.Since != nil {
-		end, _ = slices.BinarySearchFunc(b.internal, *filter.Since, eventTimestampComparator)
-	}
+		// efficiently determine where to start and end
+		start := 0
+		end := len(b.internal)
+		if filter.Until != nil {
+			start, _ = slices.BinarySearchFunc(b.internal, *filter.Until, eventTimestampComparator)
+		}
+		if filter.Since != nil {
+			end, _ = slices.BinarySearchFunc(b.internal, *filter.Since, eventTimestampComparator)
+		}
 
-	// ham
-	if end < start {
-		close(ch)
-		return ch, nil
-	}
+		// ham
+		if end < start {
+			return
+		}
 
-	count := 0
-	go func() {
+		count := 0
 		for _, event := range b.internal[start:end] {
 			if count == filter.Limit {
 				break
 			}
 
 			if filter.Matches(event) {
-				select {
-				case ch <- event:
-				case <-ctx.Done():
+				if !yield(event) {
 					return
 				}
 				count++
 			}
 		}
-		close(ch)
-	}()
-	return ch, nil
+	}
 }
 
-func (b *SliceStore) CountEvents(ctx context.Context, filter nostr.Filter) (int64, error) {
+func (b *SliceStore) CountEvents(filter nostr.Filter) (int64, error) {
 	var val int64
 	for _, event := range b.internal {
 		if filter.Matches(event) {
@@ -84,7 +79,7 @@ func (b *SliceStore) CountEvents(ctx context.Context, filter nostr.Filter) (int6
 	return val, nil
 }
 
-func (b *SliceStore) SaveEvent(ctx context.Context, evt *nostr.Event) error {
+func (b *SliceStore) SaveEvent(evt nostr.Event) error {
 	idx, found := slices.BinarySearchFunc(b.internal, evt, eventComparator)
 	if found {
 		return eventstore.ErrDupEvent
@@ -97,8 +92,8 @@ func (b *SliceStore) SaveEvent(ctx context.Context, evt *nostr.Event) error {
 	return nil
 }
 
-func (b *SliceStore) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
-	idx, found := slices.BinarySearchFunc(b.internal, evt, eventComparator)
+func (b *SliceStore) DeleteEvent(id nostr.ID) error {
+	idx, found := slices.BinarySearchFunc(b.internal, id, eventIDComparator)
 	if !found {
 		// we don't have this event
 		return nil
@@ -110,24 +105,19 @@ func (b *SliceStore) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
 	return nil
 }
 
-func (b *SliceStore) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {
+func (b *SliceStore) ReplaceEvent(evt nostr.Event) error {
 	b.Lock()
 	defer b.Unlock()
 
-	filter := nostr.Filter{Limit: 1, Kinds: []int{evt.Kind}, Authors: []string{evt.PubKey}}
+	filter := nostr.Filter{Limit: 1, Kinds: []uint16{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
 	if nostr.IsAddressableKind(evt.Kind) {
 		filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}
 	}
 
-	ch, err := b.QueryEvents(ctx, filter)
-	if err != nil {
-		return fmt.Errorf("failed to query before replacing: %w", err)
-	}
-
 	shouldStore := true
-	for previous := range ch {
+	for previous := range b.QueryEvents(filter) {
 		if internal.IsOlder(previous, evt) {
-			if err := b.DeleteEvent(ctx, previous); err != nil {
+			if err := b.DeleteEvent(previous.ID); err != nil {
 				return fmt.Errorf("failed to delete event for replacing: %w", err)
 			}
 		} else {
@@ -136,7 +126,7 @@ func (b *SliceStore) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {
 	}
 
 	if shouldStore {
-		if err := b.SaveEvent(ctx, evt); err != nil && err != eventstore.ErrDupEvent {
+		if err := b.SaveEvent(evt); err != nil && err != eventstore.ErrDupEvent {
 			return fmt.Errorf("failed to save: %w", err)
 		}
 	}
@@ -144,14 +134,18 @@ func (b *SliceStore) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {
 	return nil
 }
 
-func eventTimestampComparator(e *nostr.Event, t nostr.Timestamp) int {
+func eventTimestampComparator(e nostr.Event, t nostr.Timestamp) int {
 	return int(t) - int(e.CreatedAt)
 }
 
-func eventComparator(a *nostr.Event, b *nostr.Event) int {
-	c := int(b.CreatedAt) - int(a.CreatedAt)
+func eventIDComparator(e nostr.Event, i nostr.ID) int {
+	return bytes.Compare(i[:], e.ID[:])
+}
+
+func eventComparator(a nostr.Event, b nostr.Event) int {
+	c := cmp.Compare(b.CreatedAt, a.CreatedAt)
 	if c != 0 {
 		return c
 	}
-	return strings.Compare(b.ID, a.ID)
+	return bytes.Compare(b.ID[:], a.ID[:])
 }

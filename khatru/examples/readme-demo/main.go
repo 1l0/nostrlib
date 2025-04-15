@@ -6,9 +6,9 @@ import (
 	"log"
 	"net/http"
 
+	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr/khatru/policies"
-	"fiatjaf.com/nostr"
 )
 
 func main() {

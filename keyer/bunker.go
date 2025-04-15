@@ -25,12 +25,12 @@ func NewBunkerSignerFromBunkerClient(bc *nip46.BunkerClient) BunkerSigner {
 
 // GetPublicKey retrieves the public key from the remote bunker.
 // It uses a timeout to prevent hanging indefinitely.
-func (bs BunkerSigner) GetPublicKey(ctx context.Context) (string, error) {
+func (bs BunkerSigner) GetPublicKey(ctx context.Context) (nostr.PubKey, error) {
 	ctx, cancel := context.WithTimeoutCause(ctx, time.Second*30, errors.New("get_public_key took too long"))
 	defer cancel()
 	pk, err := bs.bunker.GetPublicKey(ctx)
 	if err != nil {
-		return "", err
+		return nostr.ZeroPK, err
 	}
 	return pk, nil
 }
@@ -44,11 +44,11 @@ func (bs BunkerSigner) SignEvent(ctx context.Context, evt *nostr.Event) error {
 }
 
 // Encrypt encrypts a plaintext message for a recipient using the remote bunker.
-func (bs BunkerSigner) Encrypt(ctx context.Context, plaintext string, recipient string) (string, error) {
+func (bs BunkerSigner) Encrypt(ctx context.Context, plaintext string, recipient nostr.PubKey) (string, error) {
 	return bs.bunker.NIP44Encrypt(ctx, recipient, plaintext)
 }
 
 // Decrypt decrypts a base64-encoded ciphertext from a sender using the remote bunker.
-func (bs BunkerSigner) Decrypt(ctx context.Context, base64ciphertext string, sender string) (plaintext string, err error) {
+func (bs BunkerSigner) Decrypt(ctx context.Context, base64ciphertext string, sender nostr.PubKey) (plaintext string, err error) {
 	return bs.bunker.NIP44Encrypt(ctx, sender, base64ciphertext)
 }

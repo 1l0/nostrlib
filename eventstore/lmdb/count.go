@@ -2,19 +2,18 @@ package lmdb
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"encoding/hex"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
-	bin "fiatjaf.com/nostr/eventstore/internal/binary"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
 	"fiatjaf.com/nostr/nip45"
 	"fiatjaf.com/nostr/nip45/hyperloglog"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 	"golang.org/x/exp/slices"
 )
 
-func (b *LMDBBackend) CountEvents(ctx context.Context, filter nostr.Filter) (int64, error) {
+func (b *LMDBBackend) CountEvents(filter nostr.Filter) (int64, error) {
 	var count int64 = 0
 
 	queries, extraAuthors, extraKinds, extraTagKey, extraTagValues, since, err := b.prepareQueries(filter)
@@ -72,7 +71,7 @@ func (b *LMDBBackend) CountEvents(ctx context.Context, filter nostr.Filter) (int
 					}
 
 					evt := &nostr.Event{}
-					if err := bin.Unmarshal(val, evt); err != nil {
+					if err := betterbinary.Unmarshal(val, evt); err != nil {
 						it.next()
 						continue
 					}
@@ -94,8 +93,9 @@ func (b *LMDBBackend) CountEvents(ctx context.Context, filter nostr.Filter) (int
 	return count, err
 }
 
-// CountEventsHLL is like CountEvents, but it will build a hyperloglog value while iterating through results, following NIP-45
-func (b *LMDBBackend) CountEventsHLL(ctx context.Context, filter nostr.Filter, offset int) (int64, *hyperloglog.HyperLogLog, error) {
+// CountEventsHLL is like CountEvents, but it will build a hyperloglog value while iterating through results,
+// following NIP-45
+func (b *LMDBBackend) CountEventsHLL(filter nostr.Filter, offset int) (int64, *hyperloglog.HyperLogLog, error) {
 	if useCache, _ := b.EnableHLLCacheFor(filter.Kinds[0]); useCache {
 		return b.countEventsHLLCached(filter)
 	}
@@ -147,7 +147,7 @@ func (b *LMDBBackend) CountEventsHLL(ctx context.Context, filter nostr.Filter, o
 				if extraKinds == nil && extraTagValues == nil {
 					// nothing extra to check
 					count++
-					hll.AddBytes(val[32:64])
+					hll.AddBytes(nostr.PubKey(val[32:64]))
 				} else {
 					// check it against kinds without decoding the entire thing
 					if !slices.Contains(extraKinds, [2]byte(val[132:134])) {
@@ -156,7 +156,7 @@ func (b *LMDBBackend) CountEventsHLL(ctx context.Context, filter nostr.Filter, o
 					}
 
 					evt := &nostr.Event{}
-					if err := bin.Unmarshal(val, evt); err != nil {
+					if err := betterbinary.Unmarshal(val, evt); err != nil {
 						it.next()
 						continue
 					}
@@ -211,7 +211,7 @@ func (b *LMDBBackend) countEventsHLLCached(filter nostr.Filter) (int64, *hyperlo
 	return count, hll, err
 }
 
-func (b *LMDBBackend) updateHyperLogLogCachedValues(txn *lmdb.Txn, evt *nostr.Event) error {
+func (b *LMDBBackend) updateHyperLogLogCachedValues(txn *lmdb.Txn, evt nostr.Event) error {
 	cacheKey := make([]byte, 2+8)
 	binary.BigEndian.PutUint16(cacheKey[0:2], uint16(evt.Kind))
 

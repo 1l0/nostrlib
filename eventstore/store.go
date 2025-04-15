@@ -1,7 +1,7 @@
 package eventstore
 
 import (
-	"context"
+	"iter"
 
 	"fiatjaf.com/nostr"
 )
@@ -15,18 +15,19 @@ type Store interface {
 	// Close must be called after you're done using the store, to free up resources and so on.
 	Close()
 
-	// QueryEvents should return a channel with the events as they're recovered from a database.
-	//   the channel should be closed after the events are all delivered.
-	QueryEvents(context.Context, nostr.Filter) (chan *nostr.Event, error)
-	// DeleteEvent just deletes an event, no side-effects.
-	DeleteEvent(context.Context, *nostr.Event) error
+	// QueryEvents returns events that match the filter
+	QueryEvents(nostr.Filter) iter.Seq[nostr.Event]
+
+	// DeleteEvent deletes an event atomically by ID
+	DeleteEvent(nostr.ID) error
+
 	// SaveEvent just saves an event, no side-effects.
-	SaveEvent(context.Context, *nostr.Event) error
+	SaveEvent(nostr.Event) error
+
 	// ReplaceEvent atomically replaces a replaceable or addressable event.
 	// Conceptually it is like a Query->Delete->Save, but streamlined.
-	ReplaceEvent(context.Context, *nostr.Event) error
-}
+	ReplaceEvent(nostr.Event) error
 
-type Counter interface {
-	CountEvents(context.Context, nostr.Filter) (int64, error)
+	// CountEvents counts all events that match a given filter
+	CountEvents(nostr.Filter) (int64, error)
 }

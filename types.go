@@ -6,6 +6,12 @@ import (
 	"unsafe"
 )
 
+// RelayEvent represents an event received from a specific relay.
+type RelayEvent struct {
+	Event
+	Relay *Relay
+}
+
 var (
 	ZeroID = [32]byte{}
 	ZeroPK = [32]byte{}
@@ -14,6 +20,7 @@ var (
 type PubKey [32]byte
 
 func (pk PubKey) String() string { return hex.EncodeToString(pk[:]) }
+func (pk PubKey) Hex() string    { return hex.EncodeToString(pk[:]) }
 
 func PubKeyFromHex(pkh string) (PubKey, error) {
 	pk := PubKey{}
@@ -49,9 +56,19 @@ func MustPubKeyFromHex(pkh string) PubKey {
 	return pk
 }
 
+func ContainsPubKey(haystack []PubKey, needle PubKey) bool {
+	for _, cand := range haystack {
+		if cand == needle {
+			return true
+		}
+	}
+	return false
+}
+
 type ID [32]byte
 
 func (id ID) String() string { return hex.EncodeToString(id[:]) }
+func (id ID) Hex() string    { return hex.EncodeToString(id[:]) }
 
 func IDFromHex(idh string) (ID, error) {
 	id := ID{}

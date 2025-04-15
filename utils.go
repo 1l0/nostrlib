@@ -46,39 +46,3 @@ func CompareEventReverse(b, a Event) int {
 	}
 	return cmp.Compare(a.CreatedAt, b.CreatedAt)
 }
-
-// CompareEventPtr is meant to to be used with slices.Sort
-func CompareEventPtr(a, b *Event) int {
-	if a == nil {
-		if b == nil {
-			return 0
-		} else {
-			return -1
-		}
-	} else if b == nil {
-		return 1
-	}
-
-	if a.CreatedAt == b.CreatedAt {
-		return bytes.Compare(a.ID[:], b.ID[:])
-	}
-	return cmp.Compare(a.CreatedAt, b.CreatedAt)
-}
-
-// CompareEventPtrReverse is meant to to be used with slices.Sort
-func CompareEventPtrReverse(b, a *Event) int {
-	if a == nil {
-		if b == nil {
-			return 0
-		} else {
-			return -1
-		}
-	} else if b == nil {
-		return 1
-	}
-
-	if a.CreatedAt == b.CreatedAt {
-		return bytes.Compare(a.ID[:], b.ID[:])
-	}
-	return cmp.Compare(a.CreatedAt, b.CreatedAt)
-}

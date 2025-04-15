@@ -4,21 +4,21 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/mailru/easyjson"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip44"
+	"github.com/mailru/easyjson"
 )
 
 // GiftWrap takes a 'rumor', encrypts it with our own key, making a 'seal', then encrypts that with a nonce key and
 // signs that (after potentially applying a modify function, which can be nil otherwise), yielding a 'gift-wrap'.
 func GiftWrap(
 	rumor nostr.Event,
-	recipient string,
+	recipient nostr.PubKey,
 	encrypt func(plaintext string) (string, error),
 	sign func(*nostr.Event) error,
 	modify func(*nostr.Event),
 ) (nostr.Event, error) {
-	rumor.Sig = ""
+	rumor.Sig = [64]byte{}
 
 	rumorCiphertext, err := encrypt(rumor.String())
 	if err != nil {
@@ -51,7 +51,7 @@ func GiftWrap(
 		Content:   sealCiphertext,
 		CreatedAt: nostr.Now() - nostr.Timestamp(60*rand.Int63n(600) /* up to 6 hours in the past */),
 		Tags: nostr.Tags{
-			nostr.Tag{"p", recipient},
+			nostr.Tag{"p", recipient.Hex()},
 		},
 	}
 	if modify != nil {
@@ -66,7 +66,7 @@ func GiftWrap(
 
 func GiftUnwrap(
 	gw nostr.Event,
-	decrypt func(otherpubkey, ciphertext string) (string, error),
+	decrypt func(otherpubkey nostr.PubKey, ciphertext string) (string, error),
 ) (rumor nostr.Event, err error) {
 	jseal, err := decrypt(gw.PubKey, gw.Content)
 	if err != nil {
@@ -79,7 +79,7 @@ func GiftUnwrap(
 		return rumor, fmt.Errorf("seal is invalid json: %w", err)
 	}
 
-	if ok, _ := seal.CheckSignature(); !ok {
+	if !seal.VerifySignature() {
 		return rumor, fmt.Errorf("seal signature is invalid")
 	}
 

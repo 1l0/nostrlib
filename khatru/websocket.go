@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sync"
 
+	"fiatjaf.com/nostr"
 	"github.com/fasthttp/websocket"
 	"github.com/puzpuzpuz/xsync/v3"
 )
@@ -22,7 +23,7 @@ type WebSocket struct {
 
 	// nip42
 	Challenge       string
-	AuthedPublicKey string
+	AuthedPublicKey nostr.PubKey
 	Authed          chan struct{}
 
 	// nip77

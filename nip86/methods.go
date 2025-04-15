@@ -16,10 +16,15 @@ func DecodeRequest(req Request) (MethodParams, error) {
 		if len(req.Params) == 0 {
 			return nil, fmt.Errorf("invalid number of params for '%s'", req.Method)
 		}
-		pk, ok := req.Params[0].(string)
-		if !ok || !nostr.IsValidPublicKey(pk) {
+		pkh, ok := req.Params[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing pubkey param for '%s'", req.Method)
+		}
+		pk, err := nostr.PubKeyFromHex(pkh)
+		if err != nil {
 			return nil, fmt.Errorf("invalid pubkey param for '%s'", req.Method)
 		}
+
 		var reason string
 		if len(req.Params) >= 2 {
 			reason, _ = req.Params[1].(string)
@@ -31,10 +36,15 @@ func DecodeRequest(req Request) (MethodParams, error) {
 		if len(req.Params) == 0 {
 			return nil, fmt.Errorf("invalid number of params for '%s'", req.Method)
 		}
-		pk, ok := req.Params[0].(string)
-		if !ok || !nostr.IsValidPublicKey(pk) {
+		pkh, ok := req.Params[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing pubkey param for '%s'", req.Method)
+		}
+		pk, err := nostr.PubKeyFromHex(pkh)
+		if err != nil {
 			return nil, fmt.Errorf("invalid pubkey param for '%s'", req.Method)
 		}
+
 		var reason string
 		if len(req.Params) >= 2 {
 			reason, _ = req.Params[1].(string)
@@ -48,10 +58,15 @@ func DecodeRequest(req Request) (MethodParams, error) {
 		if len(req.Params) == 0 {
 			return nil, fmt.Errorf("invalid number of params for '%s'", req.Method)
 		}
-		id, ok := req.Params[0].(string)
-		if !ok || !nostr.IsValid32ByteHex(id) {
+		idh, ok := req.Params[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing id param for '%s'", req.Method)
+		}
+		id, err := nostr.IDFromHex(idh)
+		if err != nil {
 			return nil, fmt.Errorf("invalid id param for '%s'", req.Method)
 		}
+
 		var reason string
 		if len(req.Params) >= 2 {
 			reason, _ = req.Params[1].(string)
@@ -61,10 +76,15 @@ func DecodeRequest(req Request) (MethodParams, error) {
 		if len(req.Params) == 0 {
 			return nil, fmt.Errorf("invalid number of params for '%s'", req.Method)
 		}
-		id, ok := req.Params[0].(string)
-		if !ok || !nostr.IsValid32ByteHex(id) {
+		idh, ok := req.Params[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing id param for '%s'", req.Method)
+		}
+		id, err := nostr.IDFromHex(idh)
+		if err != nil {
 			return nil, fmt.Errorf("invalid id param for '%s'", req.Method)
 		}
+
 		var reason string
 		if len(req.Params) >= 2 {
 			reason, _ = req.Params[1].(string)
@@ -149,11 +169,19 @@ func DecodeRequest(req Request) (MethodParams, error) {
 			return nil, fmt.Errorf("invalid number of params for '%s'", req.Method)
 		}
 
-		pubkey := req.Params[0].(string)
+		pkh, ok := req.Params[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing pubkey param for '%s'", req.Method)
+		}
+		pk, err := nostr.PubKeyFromHex(pkh)
+		if err != nil {
+			return nil, fmt.Errorf("invalid pubkey param for '%s'", req.Method)
+		}
+
 		allowedMethods := req.Params[1].([]string)
 
 		return GrantAdmin{
-			Pubkey:       pubkey,
+			Pubkey:       pk,
 			AllowMethods: allowedMethods,
 		}, nil
 	case "revokeadmin":
@@ -161,11 +189,19 @@ func DecodeRequest(req Request) (MethodParams, error) {
 			return nil, fmt.Errorf("invalid number of params for '%s'", req.Method)
 		}
 
-		pubkey := req.Params[0].(string)
+		pkh, ok := req.Params[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing pubkey param for '%s'", req.Method)
+		}
+		pk, err := nostr.PubKeyFromHex(pkh)
+		if err != nil {
+			return nil, fmt.Errorf("invalid pubkey param for '%s'", req.Method)
+		}
+
 		disallowedMethods := req.Params[1].([]string)
 
 		return RevokeAdmin{
-			Pubkey:          pubkey,
+			Pubkey:          pk,
 			DisallowMethods: disallowedMethods,
 		}, nil
 	case "stats":
@@ -210,7 +246,7 @@ type SupportedMethods struct{}
 func (SupportedMethods) MethodName() string { return "supportedmethods" }
 
 type BanPubKey struct {
-	PubKey string
+	PubKey nostr.PubKey
 	Reason string
 }
 
@@ -221,7 +257,7 @@ type ListBannedPubKeys struct{}
 func (ListBannedPubKeys) MethodName() string { return "listbannedpubkeys" }
 
 type AllowPubKey struct {
-	PubKey string
+	PubKey nostr.PubKey
 	Reason string
 }
 
@@ -236,14 +272,14 @@ type ListEventsNeedingModeration struct{}
 func (ListEventsNeedingModeration) MethodName() string { return "listeventsneedingmoderation" }
 
 type AllowEvent struct {
-	ID     string
+	ID     nostr.ID
 	Reason string
 }
 
 func (AllowEvent) MethodName() string { return "allowevent" }
 
 type BanEvent struct {
-	ID     string
+	ID     nostr.ID
 	Reason string
 }
 
@@ -314,14 +350,14 @@ type ListDisallowedKinds struct{}
 func (ListDisallowedKinds) MethodName() string { return "listdisallowedkinds" }
 
 type GrantAdmin struct {
-	Pubkey       string
+	Pubkey       nostr.PubKey
 	AllowMethods []string
 }
 
 func (GrantAdmin) MethodName() string { return "grantadmin" }
 
 type RevokeAdmin struct {
-	Pubkey          string
+	Pubkey          nostr.PubKey
 	DisallowMethods []string
 }
 

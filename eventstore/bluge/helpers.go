@@ -1,6 +1,8 @@
 package bluge
 
-import "encoding/hex"
+import (
+	"fiatjaf.com/nostr"
+)
 
 const (
 	contentField   = "c"
@@ -9,7 +11,7 @@ const (
 	pubkeyField    = "p"
 )
 
-type eventIdentifier string
+type eventIdentifier nostr.ID
 
 const idField = "i"
 
@@ -18,6 +20,5 @@ func (id eventIdentifier) Field() string {
 }
 
 func (id eventIdentifier) Term() []byte {
-	v, _ := hex.DecodeString(string(id))
-	return v
+	return id[:]
 }

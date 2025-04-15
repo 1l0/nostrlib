@@ -1,23 +1,22 @@
 package badger
 
 import (
-	"context"
 	"fmt"
 	"math"
 
-	"github.com/dgraph-io/badger/v4"
-	"fiatjaf.com/nostr/eventstore/internal"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"github.com/dgraph-io/badger/v4"
 )
 
-func (b *BadgerBackend) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {
+func (b *BadgerBackend) ReplaceEvent(evt nostr.Event) error {
 	// sanity checking
 	if evt.CreatedAt > math.MaxUint32 || evt.Kind > math.MaxUint16 {
 		return fmt.Errorf("event with values out of expected boundaries")
 	}
 
 	return b.Update(func(txn *badger.Txn) error {
-		filter := nostr.Filter{Limit: 1, Kinds: []int{evt.Kind}, Authors: []string{evt.PubKey}}
+		filter := nostr.Filter{Limit: 1, Kinds: []uint16{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
 		if nostr.IsAddressableKind(evt.Kind) {
 			// when addressable, add the "d" tag to the filter
 			filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}
@@ -32,7 +31,7 @@ func (b *BadgerBackend) ReplaceEvent(ctx context.Context, evt *nostr.Event) erro
 		shouldStore := true
 		for _, previous := range results {
 			if internal.IsOlder(previous.Event, evt) {
-				if _, err := b.delete(txn, previous.Event); err != nil {
+				if _, err := b.delete(txn, previous.Event.ID); err != nil {
 					return fmt.Errorf("failed to delete event %s for replacing: %w", previous.Event.ID, err)
 				}
 			} else {

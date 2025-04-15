@@ -1,17 +1,16 @@
 package badger
 
 import (
-	"context"
 	"encoding/binary"
 	"log"
 
-	"github.com/dgraph-io/badger/v4"
-	bin "fiatjaf.com/nostr/eventstore/internal/binary"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
 	"fiatjaf.com/nostr/nip45/hyperloglog"
+	"github.com/dgraph-io/badger/v4"
 )
 
-func (b *BadgerBackend) CountEvents(ctx context.Context, filter nostr.Filter) (int64, error) {
+func (b *BadgerBackend) CountEvents(filter nostr.Filter) (int64, error) {
 	var count int64 = 0
 
 	queries, extraFilter, since, err := prepareQueries(filter)
@@ -62,8 +61,8 @@ func (b *BadgerBackend) CountEvents(ctx context.Context, filter nostr.Filter) (i
 					}
 
 					err = item.Value(func(val []byte) error {
-						evt := &nostr.Event{}
-						if err := bin.Unmarshal(val, evt); err != nil {
+						evt := nostr.Event{}
+						if err := betterbinary.Unmarshal(val, &evt); err != nil {
 							return err
 						}
 
@@ -87,7 +86,7 @@ func (b *BadgerBackend) CountEvents(ctx context.Context, filter nostr.Filter) (i
 	return count, err
 }
 
-func (b *BadgerBackend) CountEventsHLL(ctx context.Context, filter nostr.Filter, offset int) (int64, *hyperloglog.HyperLogLog, error) {
+func (b *BadgerBackend) CountEventsHLL(filter nostr.Filter, offset int) (int64, *hyperloglog.HyperLogLog, error) {
 	var count int64 = 0
 
 	queries, extraFilter, since, err := prepareQueries(filter)
@@ -138,13 +137,13 @@ func (b *BadgerBackend) CountEventsHLL(ctx context.Context, filter nostr.Filter,
 
 				err = item.Value(func(val []byte) error {
 					if extraFilter == nil {
-						hll.AddBytes(val[32:64])
+						hll.AddBytes([32]byte(val[32:64]))
 						count++
 						return nil
 					}
 
-					evt := &nostr.Event{}
-					if err := bin.Unmarshal(val, evt); err != nil {
+					evt := nostr.Event{}
+					if err := betterbinary.Unmarshal(val, &evt); err != nil {
 						return err
 					}
 					if extraFilter.Matches(evt) {

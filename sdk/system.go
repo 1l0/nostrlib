@@ -41,7 +41,7 @@ type System struct {
 	FollowSetsCache       cache.Cache32[GenericSets[ProfileRef]]
 	TopicSetsCache        cache.Cache32[GenericSets[Topic]]
 	Hints                 hints.HintsDB
-	Pool                  *nostr.SimplePool
+	Pool                  *nostr.Pool
 	RelayListRelays       *RelayStream
 	FollowListRelays      *RelayStream
 	MetadataRelays        *RelayStream
@@ -118,7 +118,7 @@ func NewSystem(mods ...SystemModifier) *System {
 		Hints: memoryh.NewHintDB(),
 	}
 
-	sys.Pool = nostr.NewSimplePool(context.Background(),
+	sys.Pool = nostr.NewPool(context.Background(),
 		nostr.WithAuthorKindQueryMiddleware(sys.TrackQueryAttempts),
 		nostr.WithEventMiddleware(sys.TrackEventHintsAndRelays),
 		nostr.WithDuplicateMiddleware(sys.TrackEventRelaysD),

@@ -25,24 +25,24 @@ func (evt Event) String() string {
 }
 
 // GetID serializes and returns the event ID as a string.
-func (evt *Event) GetID() ID {
+func (evt Event) GetID() ID {
 	return sha256.Sum256(evt.Serialize())
 }
 
 // CheckID checks if the implied ID matches the given ID more efficiently.
-func (evt *Event) CheckID() bool {
+func (evt Event) CheckID() bool {
 	return evt.GetID() == evt.ID
 }
 
 // Serialize outputs a byte array that can be hashed to produce the canonical event "id".
-func (evt *Event) Serialize() []byte {
+func (evt Event) Serialize() []byte {
 	// the serialization process is just putting everything into a JSON array
 	// so the order is kept. See NIP-01
 	dst := make([]byte, 0, 100+len(evt.Content)+len(evt.Tags)*80)
 	return serializeEventInto(evt, dst)
 }
 
-func serializeEventInto(evt *Event, dst []byte) []byte {
+func serializeEventInto(evt Event, dst []byte) []byte {
 	// the header portion is easy to serialize
 	// [0,"pubkey",created_at,kind,[
 	dst = append(dst, `[0,"`...)

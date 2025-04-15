@@ -2,14 +2,15 @@ package nip46
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"net/url"
 	"strconv"
 	"sync/atomic"
+	"unsafe"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/nip04"
 	"fiatjaf.com/nostr/nip44"
 	"github.com/mailru/easyjson"
 	"github.com/puzpuzpuz/xsync/v3"
@@ -17,9 +18,9 @@ import (
 
 type BunkerClient struct {
 	serial          atomic.Uint64
-	clientSecretKey string
-	pool            *nostr.SimplePool
-	target          string
+	clientSecretKey [32]byte
+	pool            *nostr.Pool
+	target          nostr.PubKey
 	relays          []string
 	conversationKey [32]byte // nip44
 	listeners       *xsync.MapOf[string, chan Response]
@@ -28,7 +29,7 @@ type BunkerClient struct {
 	onAuth          func(string)
 
 	// memoized
-	getPublicKeyResponse string
+	getPublicKeyResponse nostr.PubKey
 
 	// SkipSignatureCheck can be set if you don't want to double-check incoming signatures
 	SkipSignatureCheck bool
@@ -40,7 +41,7 @@ func ConnectBunker(
 	ctx context.Context,
 	clientSecretKey nostr.PubKey,
 	bunkerURLOrNIP05 string,
-	pool *nostr.SimplePool,
+	pool *nostr.Pool,
 	onAuth func(string),
 ) (*BunkerClient, error) {
 	parsed, err := url.Parse(bunkerURLOrNIP05)
@@ -79,7 +80,7 @@ func ConnectBunker(
 		pool,
 		onAuth,
 	)
-	_, err = bunker.RPC(ctx, "connect", []string{targetPublicKey, secret})
+	_, err = bunker.RPC(ctx, "connect", []string{hex.EncodeToString(targetPublicKey[:]), secret})
 	return bunker, err
 }
 
@@ -88,11 +89,11 @@ func NewBunker(
 	clientSecretKey [32]byte,
 	targetPublicKey nostr.PubKey,
 	relays []string,
-	pool *nostr.SimplePool,
+	pool *nostr.Pool,
 	onAuth func(string),
 ) *BunkerClient {
 	if pool == nil {
-		pool = nostr.NewSimplePool(ctx)
+		pool = nostr.NewPool(nostr.PoolOptions{})
 	}
 
 	clientPublicKey := nostr.GetPublicKey(clientSecretKey)
@@ -113,11 +114,13 @@ func NewBunker(
 	go func() {
 		now := nostr.Now()
 		events := pool.SubscribeMany(ctx, relays, nostr.Filter{
-			Tags:      nostr.TagMap{"p": []string{clientPublicKey}},
-			Kinds:     []int{nostr.KindNostrConnect},
+			Tags:      nostr.TagMap{"p": []string{clientPublicKey.Hex()}},
+			Kinds:     []uint16{nostr.KindNostrConnect},
 			Since:     &now,
 			LimitZero: true,
-		}, nostr.WithLabel("bunker46client"))
+		}, nostr.SubscriptionOptions{
+			Label: "bunker46client",
+		})
 		for ie := range events {
 			if ie.Kind != nostr.KindNostrConnect {
 				continue
@@ -126,10 +129,7 @@ func NewBunker(
 			var resp Response
 			plain, err := nip44.Decrypt(ie.Content, conversationKey)
 			if err != nil {
-				plain, err = nip04.Decrypt(ie.Content, sharedSecret)
-				if err != nil {
-					continue
-				}
+				continue
 			}
 
 			err = json.Unmarshal([]byte(plain), &resp)
@@ -164,13 +164,22 @@ func (bunker *BunkerClient) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (bunker *BunkerClient) GetPublicKey(ctx context.Context) (string, error) {
-	if bunker.getPublicKeyResponse != "" {
+func (bunker *BunkerClient) GetPublicKey(ctx context.Context) (nostr.PubKey, error) {
+	if bunker.getPublicKeyResponse != nostr.ZeroPK {
 		return bunker.getPublicKeyResponse, nil
 	}
 	resp, err := bunker.RPC(ctx, "get_public_key", []string{})
-	bunker.getPublicKeyResponse = resp
-	return resp, err
+	if err != nil {
+		return nostr.ZeroPK, err
+	}
+
+	pk, err := nostr.PubKeyFromHex(resp)
+	if err != nil {
+		return nostr.ZeroPK, err
+	}
+
+	bunker.getPublicKeyResponse = pk
+	return pk, nil
 }
 
 func (bunker *BunkerClient) SignEvent(ctx context.Context, evt *nostr.Event) error {
@@ -179,7 +188,7 @@ func (bunker *BunkerClient) SignEvent(ctx context.Context, evt *nostr.Event) err
 		return err
 	}
 
-	err = easyjson.Unmarshal([]byte(resp), evt)
+	err = easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(resp), len(resp)), evt)
 	if err != nil {
 		return err
 	}
@@ -188,7 +197,7 @@ func (bunker *BunkerClient) SignEvent(ctx context.Context, evt *nostr.Event) err
 		if ok := evt.CheckID(); !ok {
 			return fmt.Errorf("sign_event response from bunker has invalid id")
 		}
-		if ok, _ := evt.CheckSignature(); !ok {
+		if !evt.VerifySignature() {
 			return fmt.Errorf("sign_event response from bunker has invalid signature")
 		}
 	}
@@ -198,34 +207,34 @@ func (bunker *BunkerClient) SignEvent(ctx context.Context, evt *nostr.Event) err
 
 func (bunker *BunkerClient) NIP44Encrypt(
 	ctx context.Context,
-	targetPublicKey string,
+	targetPublicKey nostr.PubKey,
 	plaintext string,
 ) (string, error) {
-	return bunker.RPC(ctx, "nip44_encrypt", []string{targetPublicKey, plaintext})
+	return bunker.RPC(ctx, "nip44_encrypt", []string{targetPublicKey.Hex(), plaintext})
 }
 
 func (bunker *BunkerClient) NIP44Decrypt(
 	ctx context.Context,
-	targetPublicKey string,
+	targetPublicKey nostr.PubKey,
 	ciphertext string,
 ) (string, error) {
-	return bunker.RPC(ctx, "nip44_decrypt", []string{targetPublicKey, ciphertext})
+	return bunker.RPC(ctx, "nip44_decrypt", []string{targetPublicKey.Hex(), ciphertext})
 }
 
 func (bunker *BunkerClient) NIP04Encrypt(
 	ctx context.Context,
-	targetPublicKey string,
+	targetPublicKey nostr.PubKey,
 	plaintext string,
 ) (string, error) {
-	return bunker.RPC(ctx, "nip04_encrypt", []string{targetPublicKey, plaintext})
+	return bunker.RPC(ctx, "nip04_encrypt", []string{targetPublicKey.Hex(), plaintext})
 }
 
 func (bunker *BunkerClient) NIP04Decrypt(
 	ctx context.Context,
-	targetPublicKey string,
+	targetPublicKey nostr.PubKey,
 	ciphertext string,
 ) (string, error) {
-	return bunker.RPC(ctx, "nip04_decrypt", []string{targetPublicKey, ciphertext})
+	return bunker.RPC(ctx, "nip04_decrypt", []string{targetPublicKey.Hex(), ciphertext})
 }
 
 func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []string) (string, error) {
@@ -248,7 +257,7 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 		Content:   content,
 		CreatedAt: nostr.Now(),
 		Kind:      nostr.KindNostrConnect,
-		Tags:      nostr.Tags{{"p", bunker.target}},
+		Tags:      nostr.Tags{{"p", bunker.target.Hex()}},
 	}
 	if err := evt.Sign(bunker.clientSecretKey); err != nil {
 		return "", fmt.Errorf("failed to sign request event: %w", err)

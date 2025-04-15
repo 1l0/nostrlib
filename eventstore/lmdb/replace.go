@@ -1,23 +1,22 @@
 package lmdb
 
 import (
-	"context"
 	"fmt"
 	"math"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
-	"fiatjaf.com/nostr/eventstore/internal"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (b *LMDBBackend) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {
+func (b *LMDBBackend) ReplaceEvent(evt nostr.Event) error {
 	// sanity checking
 	if evt.CreatedAt > math.MaxUint32 || evt.Kind > math.MaxUint16 {
 		return fmt.Errorf("event with values out of expected boundaries")
 	}
 
 	return b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
-		filter := nostr.Filter{Limit: 1, Kinds: []int{evt.Kind}, Authors: []string{evt.PubKey}}
+		filter := nostr.Filter{Limit: 1, Kinds: []uint16{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
 		if nostr.IsAddressableKind(evt.Kind) {
 			// when addressable, add the "d" tag to the filter
 			filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}

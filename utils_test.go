@@ -53,23 +53,23 @@ func TestEventsCompare(t *testing.T) {
 }
 
 func TestEventsComparePtr(t *testing.T) {
-	list := []*Event{
+	list := []Event{
 		{CreatedAt: 12},
 		{CreatedAt: 8},
 		{CreatedAt: 26},
 		{CreatedAt: 1},
 	}
 
-	slices.SortFunc(list, CompareEventPtr)
-	require.Equal(t, []*Event{
+	slices.SortFunc(list, CompareEvent)
+	require.Equal(t, []Event{
 		{CreatedAt: 1},
 		{CreatedAt: 8},
 		{CreatedAt: 12},
 		{CreatedAt: 26},
 	}, list)
 
-	slices.SortFunc(list, CompareEventPtrReverse)
-	require.Equal(t, []*Event{
+	slices.SortFunc(list, CompareEventReverse)
+	require.Equal(t, []Event{
 		{CreatedAt: 26},
 		{CreatedAt: 12},
 		{CreatedAt: 8},

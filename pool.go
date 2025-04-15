@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -20,22 +19,22 @@ const (
 	seenAlreadyDropTick = time.Minute
 )
 
-// SimplePool manages connections to multiple relays, ensures they are reopened when necessary and not duplicated.
-type SimplePool struct {
+// Pool manages connections to multiple relays, ensures they are reopened when necessary and not duplicated.
+type Pool struct {
 	Relays  *xsync.MapOf[string, *Relay]
 	Context context.Context
 
-	authHandler func(context.Context, RelayEvent) error
+	authHandler func(context.Context, *Event) error
 	cancel      context.CancelCauseFunc
 
 	eventMiddleware     func(RelayEvent)
 	duplicateMiddleware func(relay string, id ID)
 	queryMiddleware     func(relay string, pubkey PubKey, kind uint16)
+	relayOptions        RelayOptions
 
 	// custom things not often used
 	penaltyBoxMu sync.Mutex
 	penaltyBox   map[string][2]float64
-	relayOptions []RelayOption
 }
 
 // DirectedFilter combines a Filter with a specific relay URL.
@@ -44,64 +43,58 @@ type DirectedFilter struct {
 	Relay string
 }
 
-// RelayEvent represents an event received from a specific relay.
-type RelayEvent struct {
-	*Event
-	Relay *Relay
-}
-
 func (ie RelayEvent) String() string { return fmt.Sprintf("[%s] >> %s", ie.Relay.URL, ie.Event) }
 
-// PoolOption is an interface for options that can be applied to a SimplePool.
-type PoolOption interface {
-	ApplyPoolOption(*SimplePool)
-}
+// NewPool creates a new Pool with the given context and options.
+func NewPool(opts PoolOptions) *Pool {
+	ctx, cancel := context.WithCancelCause(context.Background())
 
-// NewSimplePool creates a new SimplePool with the given context and options.
-func NewSimplePool(ctx context.Context, opts ...PoolOption) *SimplePool {
-	ctx, cancel := context.WithCancelCause(ctx)
-
-	pool := &SimplePool{
+	pool := &Pool{
 		Relays: xsync.NewMapOf[string, *Relay](),
 
 		Context: ctx,
 		cancel:  cancel,
+
+		authHandler:         opts.AuthHandler,
+		eventMiddleware:     opts.EventMiddleware,
+		duplicateMiddleware: opts.DuplicateMiddleware,
+		queryMiddleware:     opts.AuthorKindQueryMiddleware,
+		relayOptions:        opts.RelayOptions,
 	}
 
-	for _, opt := range opts {
-		opt.ApplyPoolOption(pool)
+	if opts.PenaltyBox {
+		go pool.startPenaltyBox()
 	}
 
 	return pool
 }
 
-// WithRelayOptions sets options that will be used on every relay instance created by this pool.
-func WithRelayOptions(ropts ...RelayOption) withRelayOptionsOpt {
-	return ropts
+type PoolOptions struct {
+	// AuthHandler, if given, must be a function that signs the auth event when called.
+	// it will be called whenever any relay in the pool returns a `CLOSED` message
+	// with the "auth-required:" prefix, only once for each relay
+	AuthHandler func(context.Context, *Event) error
+
+	// PenaltyBox just sets the penalty box mechanism so relays that fail to connect
+	// or that disconnect will be ignored for a while and we won't attempt to connect again.
+	PenaltyBox bool
+
+	// EventMiddleware is a function that will be called with all events received.
+	EventMiddleware func(RelayEvent)
+
+	// DuplicateMiddleware is a function that will be called with all duplicate ids received.
+	DuplicateMiddleware func(relay string, id ID)
+
+	// AuthorKindQueryMiddleware is a function that will be called with every combination of
+	// relay+pubkey+kind queried in a .SubscribeMany*() call -- when applicable (i.e. when the query
+	// contains a pubkey and a kind).
+	AuthorKindQueryMiddleware func(relay string, pubkey PubKey, kind uint16)
+
+	// RelayOptions are any options that should be passed to Relays instantiated by this pool
+	RelayOptions RelayOptions
 }
 
-type withRelayOptionsOpt []RelayOption
-
-func (h withRelayOptionsOpt) ApplyPoolOption(pool *SimplePool) {
-	pool.relayOptions = h
-}
-
-// WithAuthHandler must be a function that signs the auth event when called.
-// it will be called whenever any relay in the pool returns a `CLOSED` message
-// with the "auth-required:" prefix, only once for each relay
-type WithAuthHandler func(ctx context.Context, authEvent RelayEvent) error
-
-func (h WithAuthHandler) ApplyPoolOption(pool *SimplePool) {
-	pool.authHandler = h
-}
-
-// WithPenaltyBox just sets the penalty box mechanism so relays that fail to connect
-// or that disconnect will be ignored for a while and we won't attempt to connect again.
-func WithPenaltyBox() withPenaltyBoxOpt { return withPenaltyBoxOpt{} }
-
-type withPenaltyBoxOpt struct{}
-
-func (h withPenaltyBoxOpt) ApplyPoolOption(pool *SimplePool) {
+func (pool *Pool) startPenaltyBox() {
 	pool.penaltyBox = make(map[string][2]float64)
 	go func() {
 		sleep := 30.0
@@ -131,38 +124,9 @@ func (h withPenaltyBoxOpt) ApplyPoolOption(pool *SimplePool) {
 	}()
 }
 
-// WithEventMiddleware is a function that will be called with all events received.
-type WithEventMiddleware func(RelayEvent)
-
-func (h WithEventMiddleware) ApplyPoolOption(pool *SimplePool) {
-	pool.eventMiddleware = h
-}
-
-// WithDuplicateMiddleware is a function that will be called with all duplicate ids received.
-type WithDuplicateMiddleware func(relay string, id ID)
-
-func (h WithDuplicateMiddleware) ApplyPoolOption(pool *SimplePool) {
-	pool.duplicateMiddleware = h
-}
-
-// WithAuthorKindQueryMiddleware is a function that will be called with every combination of relay+pubkey+kind queried
-// in a .SubMany*() call -- when applicable (i.e. when the query contains a pubkey and a kind).
-type WithAuthorKindQueryMiddleware func(relay string, pubkey PubKey, kind uint16)
-
-func (h WithAuthorKindQueryMiddleware) ApplyPoolOption(pool *SimplePool) {
-	pool.queryMiddleware = h
-}
-
-var (
-	_ PoolOption = (WithAuthHandler)(nil)
-	_ PoolOption = (WithEventMiddleware)(nil)
-	_ PoolOption = WithPenaltyBox()
-	_ PoolOption = WithRelayOptions(WithRequestHeader(http.Header{}))
-)
-
 // EnsureRelay ensures that a relay connection exists and is active.
 // If the relay is not connected, it attempts to connect.
-func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
+func (pool *Pool) EnsureRelay(url string) (*Relay, error) {
 	nm := NormalizeURL(url)
 	defer namedLock(nm)()
 
@@ -190,7 +154,7 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	)
 	defer cancel()
 
-	relay = NewRelay(context.Background(), url, pool.relayOptions...)
+	relay = NewRelay(pool.Context, url, pool.relayOptions)
 	if err := relay.Connect(ctx); err != nil {
 		if pool.penaltyBox != nil {
 			// putting relay in penalty box
@@ -214,7 +178,7 @@ type PublishResult struct {
 }
 
 // PublishMany publishes an event to multiple relays and returns a channel of results emitted as they're received.
-func (pool *SimplePool) PublishMany(ctx context.Context, urls []string, evt Event) chan PublishResult {
+func (pool *Pool) PublishMany(ctx context.Context, urls []string, evt Event) chan PublishResult {
 	ch := make(chan PublishResult, len(urls))
 
 	wg := sync.WaitGroup{}
@@ -235,9 +199,7 @@ func (pool *SimplePool) PublishMany(ctx context.Context, urls []string, evt Even
 					ch <- PublishResult{nil, url, relay}
 				} else if strings.HasPrefix(err.Error(), "msg: auth-required:") && pool.authHandler != nil {
 					// try to authenticate if we can
-					if authErr := relay.Auth(ctx, func(event *Event) error {
-						return pool.authHandler(ctx, RelayEvent{Event: event, Relay: relay})
-					}); authErr == nil {
+					if authErr := relay.Auth(ctx, pool.authHandler); authErr == nil {
 						if err := relay.Publish(ctx, evt); err == nil {
 							// success after auth
 							ch <- PublishResult{nil, url, relay}
@@ -265,36 +227,46 @@ func (pool *SimplePool) PublishMany(ctx context.Context, urls []string, evt Even
 
 // SubscribeMany opens a subscription with the given filter to multiple relays
 // the subscriptions ends when the context is canceled or when all relays return a CLOSED.
-func (pool *SimplePool) SubscribeMany(
+func (pool *Pool) SubscribeMany(
 	ctx context.Context,
 	urls []string,
 	filter Filter,
-	opts ...SubscriptionOption,
+	opts SubscriptionOptions,
 ) chan RelayEvent {
-	return pool.subMany(ctx, urls, filter, nil, opts...)
+	return pool.subMany(ctx, urls, filter, nil, opts)
 }
 
 // FetchMany opens a subscription, much like SubscribeMany, but it ends as soon as all Relays
 // return an EOSE message.
-func (pool *SimplePool) FetchMany(
+func (pool *Pool) FetchMany(
 	ctx context.Context,
 	urls []string,
 	filter Filter,
-	opts ...SubscriptionOption,
+	opts SubscriptionOptions,
 ) chan RelayEvent {
-	return pool.SubManyEose(ctx, urls, filter, opts...)
+	seenAlready := xsync.NewMapOf[ID, struct{}]()
+
+	opts.CheckDuplicate = func(id ID, relay string) bool {
+		_, exists := seenAlready.LoadOrStore(id, struct{}{})
+		if exists && pool.duplicateMiddleware != nil {
+			pool.duplicateMiddleware(relay, id)
+		}
+		return exists
+	}
+
+	return pool.subManyEoseNonOverwriteCheckDuplicate(ctx, urls, filter, opts)
 }
 
 // SubscribeManyNotifyEOSE is like SubscribeMany, but takes a channel that is closed when
 // all subscriptions have received an EOSE
-func (pool *SimplePool) SubscribeManyNotifyEOSE(
+func (pool *Pool) SubscribeManyNotifyEOSE(
 	ctx context.Context,
 	urls []string,
 	filter Filter,
 	eoseChan chan struct{},
-	opts ...SubscriptionOption,
+	opts SubscriptionOptions,
 ) chan RelayEvent {
-	return pool.subMany(ctx, urls, filter, eoseChan, opts...)
+	return pool.subMany(ctx, urls, filter, eoseChan, opts)
 }
 
 type ReplaceableKey struct {
@@ -304,21 +276,21 @@ type ReplaceableKey struct {
 
 // FetchManyReplaceable is like FetchMany, but deduplicates replaceable and addressable events and returns
 // only the latest for each "d" tag.
-func (pool *SimplePool) FetchManyReplaceable(
+func (pool *Pool) FetchManyReplaceable(
 	ctx context.Context,
 	urls []string,
 	filter Filter,
-	opts ...SubscriptionOption,
-) *xsync.MapOf[ReplaceableKey, *Event] {
+	opts SubscriptionOptions,
+) *xsync.MapOf[ReplaceableKey, Event] {
 	ctx, cancel := context.WithCancelCause(ctx)
 
-	results := xsync.NewMapOf[ReplaceableKey, *Event]()
+	results := xsync.NewMapOf[ReplaceableKey, Event]()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(urls))
 
 	seenAlreadyLatest := xsync.NewMapOf[ReplaceableKey, Timestamp]()
-	opts = append(opts, WithCheckDuplicateReplaceable(func(rk ReplaceableKey, ts Timestamp) bool {
+	opts.CheckDuplicateReplaceable = func(rk ReplaceableKey, ts Timestamp) bool {
 		updated := false
 		seenAlreadyLatest.Compute(rk, func(latest Timestamp, _ bool) (newValue Timestamp, delete bool) {
 			if ts > latest {
@@ -328,7 +300,7 @@ func (pool *SimplePool) FetchManyReplaceable(
 			return latest, false // the one we had was already more recent
 		})
 		return updated
-	}))
+	}
 
 	for _, url := range urls {
 		go func(nm string) {
@@ -353,7 +325,7 @@ func (pool *SimplePool) FetchManyReplaceable(
 			hasAuthed := false
 
 		subscribe:
-			sub, err := relay.Subscribe(ctx, filter, opts...)
+			sub, err := relay.Subscribe(ctx, filter, opts)
 			if err != nil {
 				debugLogf("error subscribing to %s with %v: %s", relay, filter, err)
 				return
@@ -368,9 +340,7 @@ func (pool *SimplePool) FetchManyReplaceable(
 				case reason := <-sub.ClosedReason:
 					if strings.HasPrefix(reason, "auth-required:") && pool.authHandler != nil && !hasAuthed {
 						// relay is requesting auth. if we can we will perform auth and try again
-						err := relay.Auth(ctx, func(event *Event) error {
-							return pool.authHandler(ctx, RelayEvent{Event: event, Relay: relay})
-						})
+						err := relay.Auth(ctx, pool.authHandler)
 						if err == nil {
 							hasAuthed = true // so we don't keep doing AUTH again and again
 							goto subscribe
@@ -401,12 +371,12 @@ func (pool *SimplePool) FetchManyReplaceable(
 	return results
 }
 
-func (pool *SimplePool) subMany(
+func (pool *Pool) subMany(
 	ctx context.Context,
 	urls []string,
 	filter Filter,
 	eoseChan chan struct{},
-	opts ...SubscriptionOption,
+	opts SubscriptionOptions,
 ) chan RelayEvent {
 	ctx, cancel := context.WithCancelCause(ctx)
 	_ = cancel // do this so `go vet` will stop complaining
@@ -421,6 +391,14 @@ func (pool *SimplePool) subMany(
 			eoseWg.Wait()
 			close(eoseChan)
 		}()
+	}
+
+	opts.CheckDuplicate = func(id ID, relay string) bool {
+		_, exists := seenAlready.Load(id)
+		if exists && pool.duplicateMiddleware != nil {
+			pool.duplicateMiddleware(relay, id)
+		}
+		return exists
 	}
 
 	pending := xsync.NewCounter()
@@ -485,15 +463,7 @@ func (pool *SimplePool) subMany(
 				hasAuthed = false
 
 			subscribe:
-				sub, err = relay.Subscribe(ctx, filter, append(opts,
-					WithCheckDuplicate(func(id ID, relay string) bool {
-						_, exists := seenAlready.Load(id)
-						if exists && pool.duplicateMiddleware != nil {
-							pool.duplicateMiddleware(relay, id)
-						}
-						return exists
-					}),
-				)...)
+				sub, err = relay.Subscribe(ctx, filter, opts)
 				if err != nil {
 					debugLogf("%s reconnecting because subscription died\n", nm)
 					goto reconnect
@@ -546,9 +516,7 @@ func (pool *SimplePool) subMany(
 					case reason := <-sub.ClosedReason:
 						if strings.HasPrefix(reason, "auth-required:") && pool.authHandler != nil && !hasAuthed {
 							// relay is requesting auth. if we can we will perform auth and try again
-							err := relay.Auth(ctx, func(event *Event) error {
-								return pool.authHandler(ctx, RelayEvent{Event: event, Relay: relay})
-							})
+							err := relay.Auth(ctx, pool.authHandler)
 							if err == nil {
 								hasAuthed = true // so we don't keep doing AUTH again and again
 								goto subscribe
@@ -575,40 +543,17 @@ func (pool *SimplePool) subMany(
 	return events
 }
 
-// Deprecated: SubManyEose is deprecated: use FetchMany instead.
-func (pool *SimplePool) SubManyEose(
+func (pool *Pool) subManyEoseNonOverwriteCheckDuplicate(
 	ctx context.Context,
 	urls []string,
 	filter Filter,
-	opts ...SubscriptionOption,
-) chan RelayEvent {
-	seenAlready := xsync.NewMapOf[ID, struct{}]()
-	return pool.subManyEoseNonOverwriteCheckDuplicate(ctx, urls, filter,
-		WithCheckDuplicate(func(id ID, relay string) bool {
-			_, exists := seenAlready.LoadOrStore(id, struct{}{})
-			if exists && pool.duplicateMiddleware != nil {
-				pool.duplicateMiddleware(relay, id)
-			}
-			return exists
-		}),
-		opts...,
-	)
-}
-
-func (pool *SimplePool) subManyEoseNonOverwriteCheckDuplicate(
-	ctx context.Context,
-	urls []string,
-	filter Filter,
-	wcd WithCheckDuplicate,
-	opts ...SubscriptionOption,
+	opts SubscriptionOptions,
 ) chan RelayEvent {
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	events := make(chan RelayEvent)
 	wg := sync.WaitGroup{}
 	wg.Add(len(urls))
-
-	opts = append(opts, wcd)
 
 	go func() {
 		// this will happen when all subscriptions get an eose (or when they die)
@@ -640,7 +585,7 @@ func (pool *SimplePool) subManyEoseNonOverwriteCheckDuplicate(
 			hasAuthed := false
 
 		subscribe:
-			sub, err := relay.Subscribe(ctx, filter, opts...)
+			sub, err := relay.Subscribe(ctx, filter, opts)
 			if err != nil {
 				debugLogf("error subscribing to %s with %v: %s", relay, filter, err)
 				return
@@ -655,9 +600,7 @@ func (pool *SimplePool) subManyEoseNonOverwriteCheckDuplicate(
 				case reason := <-sub.ClosedReason:
 					if strings.HasPrefix(reason, "auth-required:") && pool.authHandler != nil && !hasAuthed {
 						// relay is requesting auth. if we can we will perform auth and try again
-						err := relay.Auth(ctx, func(event *Event) error {
-							return pool.authHandler(ctx, RelayEvent{Event: event, Relay: relay})
-						})
+						err := relay.Auth(ctx, pool.authHandler)
 						if err == nil {
 							hasAuthed = true // so we don't keep doing AUTH again and again
 							goto subscribe
@@ -689,11 +632,11 @@ func (pool *SimplePool) subManyEoseNonOverwriteCheckDuplicate(
 }
 
 // CountMany aggregates count results from multiple relays using NIP-45 HyperLogLog
-func (pool *SimplePool) CountMany(
+func (pool *Pool) CountMany(
 	ctx context.Context,
 	urls []string,
 	filter Filter,
-	opts []SubscriptionOption,
+	opts SubscriptionOptions,
 ) int {
 	hll := hyperloglog.New(0) // offset is irrelevant here
 
@@ -706,7 +649,7 @@ func (pool *SimplePool) CountMany(
 			if err != nil {
 				return
 			}
-			ce, err := relay.countInternal(ctx, filter, opts...)
+			ce, err := relay.countInternal(ctx, filter, opts)
 			if err != nil {
 				return
 			}
@@ -722,14 +665,14 @@ func (pool *SimplePool) CountMany(
 }
 
 // QuerySingle returns the first event returned by the first relay, cancels everything else.
-func (pool *SimplePool) QuerySingle(
+func (pool *Pool) QuerySingle(
 	ctx context.Context,
 	urls []string,
 	filter Filter,
-	opts ...SubscriptionOption,
+	opts SubscriptionOptions,
 ) *RelayEvent {
 	ctx, cancel := context.WithCancelCause(ctx)
-	for ievt := range pool.SubManyEose(ctx, urls, filter, opts...) {
+	for ievt := range pool.FetchMany(ctx, urls, filter, opts) {
 		cancel(errors.New("got the first event and ended successfully"))
 		return &ievt
 	}
@@ -738,28 +681,30 @@ func (pool *SimplePool) QuerySingle(
 }
 
 // BatchedSubManyEose performs batched subscriptions to multiple relays with different filters.
-func (pool *SimplePool) BatchedSubManyEose(
+func (pool *Pool) BatchedSubManyEose(
 	ctx context.Context,
 	dfs []DirectedFilter,
-	opts ...SubscriptionOption,
+	opts SubscriptionOptions,
 ) chan RelayEvent {
 	res := make(chan RelayEvent)
 	wg := sync.WaitGroup{}
 	wg.Add(len(dfs))
 	seenAlready := xsync.NewMapOf[ID, struct{}]()
 
+	opts.CheckDuplicate = func(id ID, relay string) bool {
+		_, exists := seenAlready.LoadOrStore(id, struct{}{})
+		if exists && pool.duplicateMiddleware != nil {
+			pool.duplicateMiddleware(relay, id)
+		}
+		return exists
+	}
+
 	for _, df := range dfs {
 		go func(df DirectedFilter) {
 			for ie := range pool.subManyEoseNonOverwriteCheckDuplicate(ctx,
 				[]string{df.Relay},
 				df.Filter,
-				WithCheckDuplicate(func(id ID, relay string) bool {
-					_, exists := seenAlready.LoadOrStore(id, struct{}{})
-					if exists && pool.duplicateMiddleware != nil {
-						pool.duplicateMiddleware(relay, id)
-					}
-					return exists
-				}), opts...,
+				opts,
 			) {
 				select {
 				case res <- ie:
@@ -781,6 +726,6 @@ func (pool *SimplePool) BatchedSubManyEose(
 }
 
 // Close closes the pool with the given reason.
-func (pool *SimplePool) Close(reason string) {
+func (pool *Pool) Close(reason string) {
 	pool.cancel(fmt.Errorf("pool closed with reason: '%s'", reason))
 }

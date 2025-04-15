@@ -1,18 +1,18 @@
 package internal
 
 import (
+	"bytes"
 	"cmp"
 	"math"
 	"slices"
-	"strings"
 
 	mergesortedslices "fiatjaf.com/lib/merge-sorted-slices"
 	"fiatjaf.com/nostr"
 )
 
-func IsOlder(previous, next *nostr.Event) bool {
+func IsOlder(previous, next nostr.Event) bool {
 	return previous.CreatedAt < next.CreatedAt ||
-		(previous.CreatedAt == next.CreatedAt && previous.ID > next.ID)
+		(previous.CreatedAt == next.CreatedAt && bytes.Compare(previous.ID[:], next.ID[:]) == 1)
 }
 
 func ChooseNarrowestTag(filter nostr.Filter) (key string, values []string, goodness int) {
@@ -80,7 +80,7 @@ func CopyMapWithoutKey[K comparable, V any](originalMap map[K]V, key K) map[K]V 
 }
 
 type IterEvent struct {
-	*nostr.Event
+	nostr.Event
 	Q int
 }
 
@@ -166,18 +166,18 @@ func SwapDelete[A any](arr []A, i int) []A {
 }
 
 func compareIterEvent(a, b IterEvent) int {
-	if a.Event == nil {
-		if b.Event == nil {
+	if a.Event.ID == nostr.ZeroID {
+		if b.Event.ID == nostr.ZeroID {
 			return 0
 		} else {
 			return -1
 		}
-	} else if b.Event == nil {
+	} else if b.Event.ID == nostr.ZeroID {
 		return 1
 	}
 
 	if a.CreatedAt == b.CreatedAt {
-		return strings.Compare(a.ID, b.ID)
+		return slices.Compare(a.ID[:], b.ID[:])
 	}
 	return cmp.Compare(a.CreatedAt, b.CreatedAt)
 }

@@ -21,7 +21,7 @@ type Subscription struct {
 
 	// the Events channel emits all EVENTs that come in a Subscription
 	// will be closed when the subscription ends
-	Events chan *Event
+	Events chan Event
 	mu     sync.Mutex
 
 	// the EndOfStoredEvents channel gets closed when an EOSE comes for that subscription
@@ -41,7 +41,7 @@ type Subscription struct {
 	// if it returns true that event will not be processed further.
 	checkDuplicateReplaceable func(rk ReplaceableKey, ts Timestamp) bool
 
-	match  func(*Event) bool // this will be either Filters.Match or Filters.MatchIgnoringTimestampConstraints
+	match  func(Event) bool // this will be either Filters.Match or Filters.MatchIgnoringTimestampConstraints
 	live   atomic.Bool
 	eosed  atomic.Bool
 	cancel context.CancelCauseFunc
@@ -51,32 +51,18 @@ type Subscription struct {
 	storedwg sync.WaitGroup
 }
 
-// SubscriptionOption is the type of the argument passed when instantiating relay connections.
-// Some examples are WithLabel.
-type SubscriptionOption interface {
-	IsSubscriptionOption()
+// All SubscriptionOptions fields are optional
+type SubscriptionOptions struct {
+	// Label puts a label on the subscription (it is prepended to the automatic id) that is sent to relays.
+	Label string
+
+	// CheckDuplicate is a function that, when present, is ran on events before they're parsed.
+	// if it returns true the event will be discarded and not processed further.
+	CheckDuplicate func(id ID, relay string) bool
+
+	// CheckDuplicateReplaceable is like CheckDuplicate, but runs on replaceable/addressable events
+	CheckDuplicateReplaceable func(rk ReplaceableKey, ts Timestamp) bool
 }
-
-// WithLabel puts a label on the subscription (it is prepended to the automatic id) that is sent to relays.
-type WithLabel string
-
-func (_ WithLabel) IsSubscriptionOption() {}
-
-// WithCheckDuplicate sets checkDuplicate on the subscription
-type WithCheckDuplicate func(id ID, relay string) bool
-
-func (_ WithCheckDuplicate) IsSubscriptionOption() {}
-
-// WithCheckDuplicateReplaceable sets checkDuplicateReplaceable on the subscription
-type WithCheckDuplicateReplaceable func(rk ReplaceableKey, ts Timestamp) bool
-
-func (_ WithCheckDuplicateReplaceable) IsSubscriptionOption() {}
-
-var (
-	_ SubscriptionOption = (WithLabel)("")
-	_ SubscriptionOption = (WithCheckDuplicate)(nil)
-	_ SubscriptionOption = (WithCheckDuplicateReplaceable)(nil)
-)
 
 func (sub *Subscription) start() {
 	<-sub.Context.Done()
@@ -93,7 +79,7 @@ func (sub *Subscription) start() {
 // GetID returns the subscription ID.
 func (sub *Subscription) GetID() string { return sub.id }
 
-func (sub *Subscription) dispatchEvent(evt *Event) {
+func (sub *Subscription) dispatchEvent(evt Event) {
 	added := false
 	if !sub.eosed.Load() {
 		sub.storedwg.Add(1)

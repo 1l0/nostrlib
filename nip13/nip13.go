@@ -37,11 +37,11 @@ func CommittedDifficulty(event *nostr.Event) int {
 }
 
 // Difficulty counts the number of leading zero bits in an event ID.
-func Difficulty(id string) int {
+func Difficulty(id nostr.ID) int {
 	var zeros int
 	var b [1]byte
-	for i := 0; i < 64; i += 2 {
-		if id[i:i+2] == "00" {
+	for i := 0; i < 32; i += 2 {
+		if id[i] == 0 {
 			zeros += 8
 			continue
 		}
@@ -70,8 +70,8 @@ func difficultyBytes(id [32]byte) int {
 // Check reports whether the event ID demonstrates a sufficient proof of work difficulty.
 // Note that Check performs no validation other than counting leading zero bits
 // in an event ID. It is up to the callers to verify the event with other methods,
-// such as [nostr.Event.CheckSignature].
-func Check(id string, minDifficulty int) error {
+// such as [nostr.Event.VerifySignature].
+func Check(id nostr.ID, minDifficulty int) error {
 	if Difficulty(id) < minDifficulty {
 		return ErrDifficultyTooLow
 	}
@@ -82,7 +82,7 @@ func Check(id string, minDifficulty int) error {
 // nonce (as a nostr.Tag) that yields the required work.
 // Returns an error if the context expires before that.
 func DoWork(ctx context.Context, event nostr.Event, targetDifficulty int) (nostr.Tag, error) {
-	if event.PubKey == "" {
+	if event.PubKey == nostr.ZeroPK {
 		return nil, ErrMissingPubKey
 	}
 

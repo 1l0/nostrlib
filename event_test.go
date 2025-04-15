@@ -25,7 +25,7 @@ func TestEventParsingAndVerifying(t *testing.T) {
 
 		assert.Equal(t, ev.ID, ev.GetID())
 
-		ok, _ := ev.CheckSignature()
+		ok := ev.VerifySignature()
 		assert.True(t, ok, "signature verification failed when it should have succeeded")
 
 		asJSON, err := json.Marshal(ev)

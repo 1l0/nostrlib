@@ -19,7 +19,7 @@ func SendNutzap(
 	ctx context.Context,
 	kr nostr.Keyer,
 	w *nip60.Wallet,
-	pool *nostr.SimplePool,
+	pool *nostr.Pool,
 	targetUserPublickey string,
 	getUserReadRelays func(context.Context, string, int) []string,
 	relays []string,

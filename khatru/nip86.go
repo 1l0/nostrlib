@@ -20,13 +20,13 @@ import (
 type RelayManagementAPI struct {
 	RejectAPICall []func(ctx context.Context, mp nip86.MethodParams) (reject bool, msg string)
 
-	BanPubKey                   func(ctx context.Context, pubkey string, reason string) error
+	BanPubKey                   func(ctx context.Context, pubkey nostr.PubKey, reason string) error
 	ListBannedPubKeys           func(ctx context.Context) ([]nip86.PubKeyReason, error)
-	AllowPubKey                 func(ctx context.Context, pubkey string, reason string) error
+	AllowPubKey                 func(ctx context.Context, pubkey nostr.PubKey, reason string) error
 	ListAllowedPubKeys          func(ctx context.Context) ([]nip86.PubKeyReason, error)
 	ListEventsNeedingModeration func(ctx context.Context) ([]nip86.IDReason, error)
-	AllowEvent                  func(ctx context.Context, id string, reason string) error
-	BanEvent                    func(ctx context.Context, id string, reason string) error
+	AllowEvent                  func(ctx context.Context, id nostr.ID, reason string) error
+	BanEvent                    func(ctx context.Context, id nostr.ID, reason string) error
 	ListBannedEvents            func(ctx context.Context) ([]nip86.IDReason, error)
 	ListAllowedEvents           func(ctx context.Context) ([]nip86.IDReason, error)
 	ChangeRelayName             func(ctx context.Context, name string) error
@@ -40,8 +40,8 @@ type RelayManagementAPI struct {
 	UnblockIP                   func(ctx context.Context, ip net.IP, reason string) error
 	ListBlockedIPs              func(ctx context.Context) ([]nip86.IPReason, error)
 	Stats                       func(ctx context.Context) (nip86.Response, error)
-	GrantAdmin                  func(ctx context.Context, pubkey string, methods []string) error
-	RevokeAdmin                 func(ctx context.Context, pubkey string, methods []string) error
+	GrantAdmin                  func(ctx context.Context, pubkey nostr.PubKey, methods []string) error
+	RevokeAdmin                 func(ctx context.Context, pubkey nostr.PubKey, methods []string) error
 	Generic                     func(ctx context.Context, request nip86.Request) (nip86.Response, error)
 }
 
@@ -81,7 +81,7 @@ func (rl *Relay) HandleNIP86(w http.ResponseWriter, r *http.Request) {
 			resp.Error = "invalid auth event json"
 			goto respond
 		}
-		if ok, _ := evt.CheckSignature(); !ok {
+		if !evt.VerifySignature() {
 			resp.Error = "invalid auth event"
 			goto respond
 		}

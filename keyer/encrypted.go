@@ -16,26 +16,23 @@ var _ nostr.Keyer = (*EncryptedKeySigner)(nil)
 // when needed for operations.
 type EncryptedKeySigner struct {
 	ncryptsec string
-	pk        string
+	pk        nostr.PubKey
 	callback  func(context.Context) string
 }
 
 // GetPublicKey returns the public key associated with this signer.
 // If the public key is not cached, it will decrypt the private key using the password
 // callback to derive the public key.
-func (es *EncryptedKeySigner) GetPublicKey(ctx context.Context) (string, error) {
-	if es.pk != "" {
+func (es *EncryptedKeySigner) GetPublicKey(ctx context.Context) (nostr.PubKey, error) {
+	if es.pk != nostr.ZeroPK {
 		return es.pk, nil
 	}
 	password := es.callback(ctx)
 	key, err := nip49.Decrypt(es.ncryptsec, password)
 	if err != nil {
-		return "", err
+		return nostr.ZeroPK, err
 	}
-	pk, err := nostr.GetPublicKey(key)
-	if err != nil {
-		return "", err
-	}
+	pk := nostr.GetPublicKey(key)
 	es.pk = pk
 	return pk, nil
 }
@@ -54,7 +51,7 @@ func (es *EncryptedKeySigner) SignEvent(ctx context.Context, evt *nostr.Event) e
 
 // Encrypt encrypts a plaintext message for a recipient using NIP-44.
 // It first decrypts the private key using the password callback.
-func (es EncryptedKeySigner) Encrypt(ctx context.Context, plaintext string, recipient string) (c64 string, err error) {
+func (es EncryptedKeySigner) Encrypt(ctx context.Context, plaintext string, recipient nostr.PubKey) (c64 string, err error) {
 	password := es.callback(ctx)
 	sk, err := nip49.Decrypt(es.ncryptsec, password)
 	if err != nil {
@@ -69,7 +66,7 @@ func (es EncryptedKeySigner) Encrypt(ctx context.Context, plaintext string, reci
 
 // Decrypt decrypts a base64-encoded ciphertext from a sender using NIP-44.
 // It first decrypts the private key using the password callback.
-func (es EncryptedKeySigner) Decrypt(ctx context.Context, base64ciphertext string, sender string) (plaintext string, err error) {
+func (es EncryptedKeySigner) Decrypt(ctx context.Context, base64ciphertext string, sender nostr.PubKey) (plaintext string, err error) {
 	password := es.callback(ctx)
 	sk, err := nip49.Decrypt(es.ncryptsec, password)
 	if err != nil {

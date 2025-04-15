@@ -31,14 +31,14 @@ func GetConnection(ctx context.Context) *WebSocket {
 	return nil
 }
 
-func GetAuthed(ctx context.Context) string {
+func GetAuthed(ctx context.Context) (nostr.PubKey, bool) {
 	if conn := GetConnection(ctx); conn != nil {
-		return conn.AuthedPublicKey
+		return conn.AuthedPublicKey, true
 	}
 	if nip86Auth := ctx.Value(nip86HeaderAuthKey); nip86Auth != nil {
-		return nip86Auth.(string)
+		return nip86Auth.(nostr.PubKey), true
 	}
-	return ""
+	return nostr.ZeroPK, false
 }
 
 // IsInternalCall returns true when a call to QueryEvents, for example, is being made because of a deletion

@@ -2,7 +2,6 @@ package nip49
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"math"
 
@@ -21,15 +20,7 @@ const (
 	ClientDoesNotTrackThisData          KeySecurityByte = 0x02
 )
 
-func Encrypt(secretKey string, password string, logn uint8, ksb KeySecurityByte) (b32code string, err error) {
-	skb, err := hex.DecodeString(secretKey)
-	if err != nil || len(skb) != 32 {
-		return "", fmt.Errorf("invalid secret key")
-	}
-	return EncryptBytes(skb, password, logn, ksb)
-}
-
-func EncryptBytes(secretKey []byte, password string, logn uint8, ksb KeySecurityByte) (b32code string, err error) {
+func Encrypt(secretKey [32]byte, password string, logn uint8, ksb KeySecurityByte) (b32code string, err error) {
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("failed to read salt: %w", err)
@@ -53,7 +44,7 @@ func EncryptBytes(secretKey []byte, password string, logn uint8, ksb KeySecurity
 	if err != nil {
 		return "", fmt.Errorf("failed to start xchacha20poly1305: %w", err)
 	}
-	ciphertext := c2p1.Seal(nil, concat[2+16:2+16+24], secretKey, ad)
+	ciphertext := c2p1.Seal(nil, concat[2+16:2+16+24], secretKey[:], ad)
 	copy(concat[2+16+24+1:], ciphertext)
 
 	bits5, err := bech32.ConvertBits(concat, 8, 5, true)
@@ -63,9 +54,9 @@ func EncryptBytes(secretKey []byte, password string, logn uint8, ksb KeySecurity
 	return bech32.Encode("ncryptsec", bits5)
 }
 
-func Decrypt(bech32string string, password string) (secretKey string, err error) {
+func Decrypt(bech32string string, password string) (secretKey [32]byte, err error) {
 	secb, err := DecryptToBytes(bech32string, password)
-	return hex.EncodeToString(secb), err
+	return [32]byte(secb), err
 }
 
 func DecryptToBytes(bech32string string, password string) (secretKey []byte, err error) {

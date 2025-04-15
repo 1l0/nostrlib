@@ -40,14 +40,13 @@ func getTagIndexPrefix(tagValue string) ([]byte, int) {
 	return k, offset
 }
 
-func (b *BadgerBackend) getIndexKeysForEvent(evt *nostr.Event, idx []byte) iter.Seq[[]byte] {
+func (b *BadgerBackend) getIndexKeysForEvent(evt nostr.Event, idx []byte) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
 		{
 			// ~ by id
-			idPrefix8, _ := hex.DecodeString(evt.ID[0 : 8*2])
 			k := make([]byte, 1+8+4)
 			k[0] = indexIdPrefix
-			copy(k[1:], idPrefix8)
+			copy(k[1:], evt.ID[0:8])
 			copy(k[1+8:], idx)
 			if !yield(k) {
 				return
@@ -56,10 +55,9 @@ func (b *BadgerBackend) getIndexKeysForEvent(evt *nostr.Event, idx []byte) iter.
 
 		{
 			// ~ by pubkey+date
-			pubkeyPrefix8, _ := hex.DecodeString(evt.PubKey[0 : 8*2])
 			k := make([]byte, 1+8+4+4)
 			k[0] = indexPubkeyPrefix
-			copy(k[1:], pubkeyPrefix8)
+			copy(k[1:], evt.PubKey[0:8])
 			binary.BigEndian.PutUint32(k[1+8:], uint32(evt.CreatedAt))
 			copy(k[1+8+4:], idx)
 			if !yield(k) {
@@ -81,10 +79,9 @@ func (b *BadgerBackend) getIndexKeysForEvent(evt *nostr.Event, idx []byte) iter.
 
 		{
 			// ~ by pubkey+kind+date
-			pubkeyPrefix8, _ := hex.DecodeString(evt.PubKey[0 : 8*2])
 			k := make([]byte, 1+8+2+4+4)
 			k[0] = indexPubkeyKindPrefix
-			copy(k[1:], pubkeyPrefix8)
+			copy(k[1:], evt.PubKey[0:8])
 			binary.BigEndian.PutUint16(k[1+8:], uint16(evt.Kind))
 			binary.BigEndian.PutUint32(k[1+8+2:], uint32(evt.CreatedAt))
 			copy(k[1+8+2+4:], idx)
@@ -152,7 +149,7 @@ func getAddrTagElements(tagValue string) (kind uint16, pkb []byte, d string) {
 	return 0, nil, ""
 }
 
-func filterMatchesTags(ef *nostr.Filter, event *nostr.Event) bool {
+func filterMatchesTags(ef nostr.Filter, event nostr.Event) bool {
 	for f, v := range ef.Tags {
 		if v != nil && !event.Tags.ContainsAny(f, v) {
 			return false

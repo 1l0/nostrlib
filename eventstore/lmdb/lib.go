@@ -6,8 +6,8 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
 	"fiatjaf.com/nostr/eventstore"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
 var _ eventstore.Store = (*LMDBBackend)(nil)
@@ -34,7 +34,7 @@ type LMDBBackend struct {
 	indexPTagKind   lmdb.DBI
 
 	hllCache          lmdb.DBI
-	EnableHLLCacheFor func(kind int) (useCache bool, skipSavingActualEvent bool)
+	EnableHLLCacheFor func(kind uint16) (useCache bool, skipSavingActualEvent bool)
 
 	lastId atomic.Uint32
 }

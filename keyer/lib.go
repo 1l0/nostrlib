@@ -53,7 +53,7 @@ type SignerOptions struct {
 // The context is used for operations that may require network access.
 // The pool is used for relay connections when needed.
 // Options are used for additional pieces required for EncryptedKeySigner and BunkerSigner.
-func New(ctx context.Context, pool *nostr.SimplePool, input string, opts *SignerOptions) (nostr.Keyer, error) {
+func New(ctx context.Context, pool *nostr.Pool, input string, opts *SignerOptions) (nostr.Keyer, error) {
 	if opts == nil {
 		opts = &SignerOptions{}
 	}
@@ -69,7 +69,7 @@ func New(ctx context.Context, pool *nostr.SimplePool, input string, opts *Signer
 			}
 			return nil, fmt.Errorf("failed to decrypt with given password: %w", err)
 		}
-		pk, _ := nostr.GetPublicKey(sec)
+		pk := nostr.GetPublicKey(sec)
 		return KeySigner{sec, pk, xsync.NewMapOf[string, [32]byte]()}, nil
 	} else if nip46.IsValidBunkerURL(input) || nip05.IsValidIdentifier(input) {
 		bcsk := nostr.GeneratePrivateKey()

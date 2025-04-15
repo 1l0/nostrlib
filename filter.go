@@ -27,7 +27,7 @@ func (ef Filter) String() string {
 	return string(j)
 }
 
-func (ef Filter) Matches(event *Event) bool {
+func (ef Filter) Matches(event Event) bool {
 	if !ef.MatchesIgnoringTimestampConstraints(event) {
 		return false
 	}
@@ -43,11 +43,7 @@ func (ef Filter) Matches(event *Event) bool {
 	return true
 }
 
-func (ef Filter) MatchesIgnoringTimestampConstraints(event *Event) bool {
-	if event == nil {
-		return false
-	}
-
+func (ef Filter) MatchesIgnoringTimestampConstraints(event Event) bool {
 	if ef.IDs != nil && !slices.Contains(ef.IDs, event.ID) {
 		return false
 	}

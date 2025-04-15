@@ -9,7 +9,7 @@ import (
 	"fiatjaf.com/nostr/nip59"
 )
 
-func GetDMRelays(ctx context.Context, pubkey string, pool *nostr.SimplePool, relaysToQuery []string) []string {
+func GetDMRelays(ctx context.Context, pubkey string, pool *nostr.Pool, relaysToQuery []string) []string {
 	ie := pool.QuerySingle(ctx, relaysToQuery, nostr.Filter{
 		Authors: []string{pubkey},
 		Kinds:   []int{nostr.KindDMRelayList},
@@ -35,7 +35,7 @@ func PublishMessage(
 	ctx context.Context,
 	content string,
 	tags nostr.Tags,
-	pool *nostr.SimplePool,
+	pool *nostr.Pool,
 	ourRelays []string,
 	theirRelays []string,
 	kr nostr.Keyer,
@@ -137,7 +137,7 @@ func PrepareMessage(
 // ListenForMessages returns a channel with the rumors already decrypted and checked
 func ListenForMessages(
 	ctx context.Context,
-	pool *nostr.SimplePool,
+	pool *nostr.Pool,
 	kr nostr.Keyer,
 	ourRelays []string,
 	since nostr.Timestamp,

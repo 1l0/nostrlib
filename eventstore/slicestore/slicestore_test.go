@@ -1,14 +1,12 @@
 package slicestore
 
 import (
-	"context"
 	"testing"
 
 	"fiatjaf.com/nostr"
 )
 
 func TestBasicStuff(t *testing.T) {
-	ctx := context.Background()
 	ss := &SliceStore{}
 	ss.Init()
 	defer ss.Close()
@@ -22,12 +20,11 @@ func TestBasicStuff(t *testing.T) {
 		if i%3 == 0 {
 			kind = 12
 		}
-		ss.SaveEvent(ctx, &nostr.Event{CreatedAt: nostr.Timestamp(v), Kind: kind})
+		ss.SaveEvent(nostr.Event{CreatedAt: nostr.Timestamp(v), Kind: uint16(kind)})
 	}
 
-	ch, _ := ss.QueryEvents(ctx, nostr.Filter{})
-	list := make([]*nostr.Event, 0, 20)
-	for event := range ch {
+	list := make([]nostr.Event, 0, 20)
+	for event := range ss.QueryEvents(nostr.Filter{}) {
 		list = append(list, event)
 	}
 
@@ -39,9 +36,8 @@ func TestBasicStuff(t *testing.T) {
 	}
 
 	until := nostr.Timestamp(9999)
-	ch, _ = ss.QueryEvents(ctx, nostr.Filter{Limit: 15, Until: &until, Kinds: []int{11}})
-	list = make([]*nostr.Event, 0, 7)
-	for event := range ch {
+	list = make([]nostr.Event, 0, 7)
+	for event := range ss.QueryEvents(nostr.Filter{Limit: 15, Until: &until, Kinds: []uint16{11}}) {
 		list = append(list, event)
 	}
 	if len(list) != 7 {
@@ -49,9 +45,8 @@ func TestBasicStuff(t *testing.T) {
 	}
 
 	since := nostr.Timestamp(10009)
-	ch, _ = ss.QueryEvents(ctx, nostr.Filter{Since: &since})
-	list = make([]*nostr.Event, 0, 5)
-	for event := range ch {
+	list = make([]nostr.Event, 0, 5)
+	for event := range ss.QueryEvents(nostr.Filter{Since: &since}) {
 		list = append(list, event)
 	}
 	if len(list) != 5 {

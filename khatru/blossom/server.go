@@ -6,23 +6,23 @@ import (
 	"net/http"
 	"strings"
 
-	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/khatru"
 )
 
 type BlossomServer struct {
 	ServiceURL string
 	Store      BlobIndex
 
-	StoreBlob     []func(ctx context.Context, sha256 string, body []byte) error
-	LoadBlob      []func(ctx context.Context, sha256 string) (io.ReadSeeker, error)
-	DeleteBlob    []func(ctx context.Context, sha256 string) error
-	ReceiveReport []func(ctx context.Context, reportEvt *nostr.Event) error
+	StoreBlob     func(ctx context.Context, sha256 string, body []byte) error
+	LoadBlob      func(ctx context.Context, sha256 string) (io.ReadSeeker, error)
+	DeleteBlob    func(ctx context.Context, sha256 string) error
+	ReceiveReport func(ctx context.Context, reportEvt nostr.Event) error
 
-	RejectUpload []func(ctx context.Context, auth *nostr.Event, size int, ext string) (bool, string, int)
-	RejectGet    []func(ctx context.Context, auth *nostr.Event, sha256 string) (bool, string, int)
-	RejectList   []func(ctx context.Context, auth *nostr.Event, pubkey string) (bool, string, int)
-	RejectDelete []func(ctx context.Context, auth *nostr.Event, sha256 string) (bool, string, int)
+	RejectUpload func(ctx context.Context, auth *nostr.Event, size int, ext string) (bool, string, int)
+	RejectGet    func(ctx context.Context, auth *nostr.Event, sha256 string) (bool, string, int)
+	RejectList   func(ctx context.Context, auth *nostr.Event, pubkey string) (bool, string, int)
+	RejectDelete func(ctx context.Context, auth *nostr.Event, sha256 string) (bool, string, int)
 }
 
 func New(rl *khatru.Relay, serviceURL string) *BlossomServer {

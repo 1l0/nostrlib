@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
 	"fiatjaf.com/nostr"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 	"golang.org/x/exp/slices"
 )
 
@@ -52,13 +52,11 @@ func (b *LMDBBackend) keyName(key key) string {
 	return fmt.Sprintf("<dbi=%s key=%x>", b.dbiName(key.dbi), key.key)
 }
 
-func (b *LMDBBackend) getIndexKeysForEvent(evt *nostr.Event) iter.Seq[key] {
+func (b *LMDBBackend) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 	return func(yield func(key) bool) {
 		{
 			// ~ by id
-			k := make([]byte, 8)
-			hex.Decode(k[0:8], []byte(evt.ID[0:8*2]))
-			if !yield(key{dbi: b.indexId, key: k[0:8]}) {
+			if !yield(key{dbi: b.indexId, key: evt.ID[0:8]}) {
 				return
 			}
 		}
