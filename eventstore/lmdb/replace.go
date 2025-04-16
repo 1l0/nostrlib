@@ -31,7 +31,7 @@ func (b *LMDBBackend) ReplaceEvent(evt nostr.Event) error {
 		shouldStore := true
 		for _, previous := range results {
 			if internal.IsOlder(previous.Event, evt) {
-				if err := b.delete(txn, previous.Event); err != nil {
+				if err := b.delete(txn, previous.Event.ID); err != nil {
 					return fmt.Errorf("failed to delete event %s for replacing: %w", previous.Event.ID, err)
 				}
 			} else {

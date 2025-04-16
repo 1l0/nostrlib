@@ -13,8 +13,8 @@ import (
 type direction struct {
 	label  string
 	items  chan nostr.ID
-	source nostr.RelayStore
-	target nostr.RelayStore
+	source nostr.QuerierPublisher
+	target nostr.QuerierPublisher
 }
 
 type Direction int
@@ -27,21 +27,21 @@ const (
 
 func NegentropySync(
 	ctx context.Context,
-	store nostr.RelayStore,
+	store nostr.QuerierPublisher,
 	url string,
 	filter nostr.Filter,
 	dir Direction,
 ) error {
-	id := "go-nostr-tmp" // for now we can't have more than one subscription in the same connection
-
-	data, err := store.QuerySync(ctx, filter)
-	if err != nil {
-		return fmt.Errorf("failed to query our local store: %w", err)
-	}
+	id := "nl-tmp" // for now we can't have more than one subscription in the same connection
 
 	vec := vector.New()
 	neg := negentropy.New(vec, 1024*1024)
-	for _, evt := range data {
+	ch, err := store.QueryEvents(ctx, filter)
+	if err != nil {
+		return err
+	}
+
+	for evt := range ch {
 		vec.Insert(evt.CreatedAt, evt.ID)
 	}
 	vec.Seal()
@@ -49,31 +49,33 @@ func NegentropySync(
 	result := make(chan error)
 
 	var r *nostr.Relay
-	r, err = nostr.RelayConnect(ctx, url, nostr.WithCustomHandler(func(data string) {
-		envelope := ParseNegMessage(data)
-		if envelope == nil {
-			return
-		}
-		switch env := envelope.(type) {
-		case *OpenEnvelope, *CloseEnvelope:
-			result <- fmt.Errorf("unexpected %s received from relay", env.Label())
-			return
-		case *ErrorEnvelope:
-			result <- fmt.Errorf("relay returned a %s: %s", env.Label(), env.Reason)
-			return
-		case *MessageEnvelope:
-			nextmsg, err := neg.Reconcile(env.Message)
-			if err != nil {
-				result <- fmt.Errorf("failed to reconcile: %w", err)
+	r, err = nostr.RelayConnect(ctx, url, nostr.RelayOptions{
+		CustomHandler: func(data string) {
+			envelope := ParseNegMessage(data)
+			if envelope == nil {
 				return
 			}
+			switch env := envelope.(type) {
+			case *OpenEnvelope, *CloseEnvelope:
+				result <- fmt.Errorf("unexpected %s received from relay", env.Label())
+				return
+			case *ErrorEnvelope:
+				result <- fmt.Errorf("relay returned a %s: %s", env.Label(), env.Reason)
+				return
+			case *MessageEnvelope:
+				nextmsg, err := neg.Reconcile(env.Message)
+				if err != nil {
+					result <- fmt.Errorf("failed to reconcile: %w", err)
+					return
+				}
 
-			if nextmsg != "" {
-				msgb, _ := MessageEnvelope{id, nextmsg}.MarshalJSON()
-				r.Write(msgb)
+				if nextmsg != "" {
+					msgb, _ := MessageEnvelope{id, nextmsg}.MarshalJSON()
+					r.Write(msgb)
+				}
 			}
-		}
-	}))
+		},
+	})
 	if err != nil {
 		return err
 	}
@@ -122,7 +124,7 @@ func NegentropySync(
 					return
 				}
 				for evt := range evtch {
-					dir.target.Publish(ctx, *evt)
+					dir.target.Publish(ctx, evt)
 				}
 			}
 

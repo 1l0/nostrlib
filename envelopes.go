@@ -157,7 +157,7 @@ func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
 type CountEnvelope struct {
 	SubscriptionID string
 	Filter
-	Count       *int64
+	Count       *uint32
 	HyperLogLog []byte
 }
 
@@ -176,8 +176,8 @@ func (v *CountEnvelope) FromJSON(data string) error {
 	v.SubscriptionID = string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str)))
 
 	var countResult struct {
-		Count *int64 `json:"count"`
-		HLL   string `json:"hll"`
+		Count *uint32
+		HLL   string
 	}
 	if err := json.Unmarshal(unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw)), &countResult); err == nil && countResult.Count != nil {
 		v.Count = countResult.Count
@@ -205,7 +205,7 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	w.RawString(`"`)
 	if v.Count != nil {
 		w.RawString(`{"count":`)
-		w.RawString(strconv.FormatInt(*v.Count, 10))
+		w.RawString(strconv.FormatUint(uint64(*v.Count), 10))
 		if v.HyperLogLog != nil {
 			w.RawString(`,"hll":"`)
 			hllHex := make([]byte, 512)

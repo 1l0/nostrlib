@@ -35,7 +35,7 @@ func GiftWrap(
 		return nostr.Event{}, err
 	}
 
-	nonceKey := nostr.GeneratePrivateKey()
+	nonceKey := nostr.Generate()
 	temporaryConversationKey, err := nip44.GenerateConversationKey(recipient, nonceKey)
 	if err != nil {
 		return nostr.Event{}, err

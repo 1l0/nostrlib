@@ -13,8 +13,8 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func (b *LMDBBackend) CountEvents(filter nostr.Filter) (int64, error) {
-	var count int64 = 0
+func (b *LMDBBackend) CountEvents(filter nostr.Filter) (uint32, error) {
+	var count uint32 = 0
 
 	queries, extraAuthors, extraKinds, extraTagKey, extraTagValues, since, err := b.prepareQueries(filter)
 	if err != nil {
@@ -95,12 +95,12 @@ func (b *LMDBBackend) CountEvents(filter nostr.Filter) (int64, error) {
 
 // CountEventsHLL is like CountEvents, but it will build a hyperloglog value while iterating through results,
 // following NIP-45
-func (b *LMDBBackend) CountEventsHLL(filter nostr.Filter, offset int) (int64, *hyperloglog.HyperLogLog, error) {
+func (b *LMDBBackend) CountEventsHLL(filter nostr.Filter, offset int) (uint32, *hyperloglog.HyperLogLog, error) {
 	if useCache, _ := b.EnableHLLCacheFor(filter.Kinds[0]); useCache {
 		return b.countEventsHLLCached(filter)
 	}
 
-	var count int64 = 0
+	var count uint32 = 0
 
 	// this is different than CountEvents because some of these extra checks are not applicable in HLL-valid filters
 	queries, _, extraKinds, extraTagKey, extraTagValues, since, err := b.prepareQueries(filter)
@@ -180,7 +180,7 @@ func (b *LMDBBackend) CountEventsHLL(filter nostr.Filter, offset int) (int64, *h
 }
 
 // countEventsHLLCached will just return a cached value from disk (and presumably we don't even have the events required to compute this anymore).
-func (b *LMDBBackend) countEventsHLLCached(filter nostr.Filter) (int64, *hyperloglog.HyperLogLog, error) {
+func (b *LMDBBackend) countEventsHLLCached(filter nostr.Filter) (uint32, *hyperloglog.HyperLogLog, error) {
 	cacheKey := make([]byte, 2+8)
 	binary.BigEndian.PutUint16(cacheKey[0:2], uint16(filter.Kinds[0]))
 	switch filter.Kinds[0] {
@@ -192,7 +192,7 @@ func (b *LMDBBackend) countEventsHLLCached(filter nostr.Filter) (int64, *hyperlo
 		hex.Decode(cacheKey[2:2+8], []byte(filter.Tags["E"][0][0:8*2]))
 	}
 
-	var count int64
+	var count uint32
 	var hll *hyperloglog.HyperLogLog
 
 	err := b.lmdbEnv.View(func(txn *lmdb.Txn) error {
@@ -204,7 +204,7 @@ func (b *LMDBBackend) countEventsHLLCached(filter nostr.Filter) (int64, *hyperlo
 			return err
 		}
 		hll = hyperloglog.NewWithRegisters(val, 0) // offset doesn't matter here
-		count = int64(hll.Count())
+		count = uint32(hll.Count())
 		return nil
 	})
 

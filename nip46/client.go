@@ -39,7 +39,7 @@ type BunkerClient struct {
 // pool can be passed to reuse an existing pool, otherwise a new pool will be created.
 func ConnectBunker(
 	ctx context.Context,
-	clientSecretKey nostr.PubKey,
+	clientSecretKey nostr.SecretKey,
 	bunkerURLOrNIP05 string,
 	pool *nostr.Pool,
 	onAuth func(string),

@@ -29,5 +29,5 @@ type Store interface {
 	ReplaceEvent(nostr.Event) error
 
 	// CountEvents counts all events that match a given filter
-	CountEvents(nostr.Filter) (int64, error)
+	CountEvents(nostr.Filter) (uint32, error)
 }

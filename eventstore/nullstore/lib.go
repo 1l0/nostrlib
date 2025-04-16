@@ -1,10 +1,10 @@
 package nullstore
 
 import (
-	"context"
+	"iter"
 
-	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
 )
 
 var _ eventstore.Store = NullStore{}
@@ -17,20 +17,22 @@ func (b NullStore) Init() error {
 
 func (b NullStore) Close() {}
 
-func (b NullStore) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
+func (b NullStore) DeleteEvent(id nostr.ID) error {
 	return nil
 }
 
-func (b NullStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
-	ch := make(chan *nostr.Event)
-	close(ch)
-	return ch, nil
+func (b NullStore) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
+	return func(yield func(nostr.Event) bool) {}
 }
 
-func (b NullStore) SaveEvent(ctx context.Context, evt *nostr.Event) error {
+func (b NullStore) SaveEvent(evt nostr.Event) error {
 	return nil
 }
 
-func (b NullStore) ReplaceEvent(ctx context.Context, evt *nostr.Event) error {
+func (b NullStore) ReplaceEvent(evt nostr.Event) error {
 	return nil
+}
+
+func (b NullStore) CountEvents(filter nostr.Filter) (uint32, error) {
+	return 0, nil
 }

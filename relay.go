@@ -433,12 +433,39 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filter Filter, opts Sub
 	return sub
 }
 
+// implement Querier interface
+func (r *Relay) QueryEvents(ctx context.Context, filter Filter) (chan Event, error) {
+	sub, err := r.Subscribe(ctx, filter, SubscriptionOptions{Label: "queryevents"})
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan Event)
+
+	go func() {
+		for {
+			select {
+			case evt := <-sub.Events:
+				ch <- evt
+			case <-sub.EndOfStoredEvents:
+				return
+			case <-sub.ClosedReason:
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return ch, nil
+}
+
 // Count sends a "COUNT" command to the relay and returns the count of events matching the filters.
 func (r *Relay) Count(
 	ctx context.Context,
 	filter Filter,
 	opts SubscriptionOptions,
-) (int64, []byte, error) {
+) (uint32, []byte, error) {
 	v, err := r.countInternal(ctx, filter, opts)
 	if err != nil {
 		return 0, nil, err

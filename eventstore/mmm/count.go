@@ -10,8 +10,8 @@ import (
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (il *IndexingLayer) CountEvents(filter nostr.Filter) (int64, error) {
-	var count int64 = 0
+func (il *IndexingLayer) CountEvents(filter nostr.Filter) (uint32, error) {
+	var count uint32 = 0
 
 	queries, extraAuthors, extraKinds, extraTagKey, extraTagValues, since, err := il.prepareQueries(filter)
 	if err != nil {

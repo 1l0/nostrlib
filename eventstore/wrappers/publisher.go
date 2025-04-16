@@ -1,17 +1,20 @@
-package eventstore
+package wrappers
 
 import (
 	"context"
 	"fmt"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
 )
 
-type RelayWrapper struct {
-	Store
+var _ nostr.Publisher = StorePublisher{}
+
+type StorePublisher struct {
+	eventstore.Store
 }
 
-func (w RelayWrapper) Publish(ctx context.Context, evt nostr.Event) error {
+func (w StorePublisher) Publish(ctx context.Context, evt nostr.Event) error {
 	if nostr.IsEphemeralKind(evt.Kind) {
 		// do not store ephemeral events
 		return nil
@@ -22,7 +25,7 @@ func (w RelayWrapper) Publish(ctx context.Context, evt nostr.Event) error {
 
 	if nostr.IsRegularKind(evt.Kind) {
 		// regular events are just saved directly
-		if err := w.SaveEvent(evt); err != nil && err != ErrDupEvent {
+		if err := w.SaveEvent(evt); err != nil && err != eventstore.ErrDupEvent {
 			return fmt.Errorf("failed to save: %w", err)
 		}
 		return nil

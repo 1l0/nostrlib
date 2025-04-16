@@ -10,8 +10,8 @@ import (
 	"github.com/dgraph-io/badger/v4"
 )
 
-func (b *BadgerBackend) CountEvents(filter nostr.Filter) (int64, error) {
-	var count int64 = 0
+func (b *BadgerBackend) CountEvents(filter nostr.Filter) (uint32, error) {
+	var count uint32 = 0
 
 	queries, extraFilter, since, err := prepareQueries(filter)
 	if err != nil {
@@ -86,8 +86,8 @@ func (b *BadgerBackend) CountEvents(filter nostr.Filter) (int64, error) {
 	return count, err
 }
 
-func (b *BadgerBackend) CountEventsHLL(filter nostr.Filter, offset int) (int64, *hyperloglog.HyperLogLog, error) {
-	var count int64 = 0
+func (b *BadgerBackend) CountEventsHLL(filter nostr.Filter, offset int) (uint32, *hyperloglog.HyperLogLog, error) {
+	var count uint32 = 0
 
 	queries, extraFilter, since, err := prepareQueries(filter)
 	if err != nil {

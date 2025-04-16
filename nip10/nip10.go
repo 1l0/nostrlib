@@ -12,9 +12,8 @@ func GetThreadRoot(tags nostr.Tags) *nostr.EventPointer {
 
 	firstE := tags.Find("e")
 	if firstE != nil {
-		return &nostr.EventPointer{
-			ID: firstE[1],
-		}
+		p, _ := nostr.EventPointerFromTag(firstE)
+		return &p
 	}
 
 	return nil
@@ -63,9 +62,8 @@ func GetImmediateParent(tags nostr.Tags) *nostr.EventPointer {
 	if lastE != nil {
 		// if we reached this point and we have at least one "e" we'll use that (the last)
 		// (we don't bother looking for relay or author hints because these clients don't add these anyway)
-		return &nostr.EventPointer{
-			ID: lastE[1],
-		}
+		p, _ := nostr.EventPointerFromTag(lastE)
+		return &p
 	}
 
 	return nil

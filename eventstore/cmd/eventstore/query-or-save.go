@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/urfave/cli/v3"
 	"fiatjaf.com/nostr"
+	"github.com/urfave/cli/v3"
 )
 
 // this is the default command when no subcommands are given, we will just try everything
@@ -21,16 +21,14 @@ var queryOrSave = &cli.Command{
 		re := &nostr.ReqEnvelope{}
 		e := &nostr.Event{}
 		f := &nostr.Filter{}
-		if json.Unmarshal([]byte(line), ee) == nil && ee.Event.ID != "" {
-			e = &ee.Event
-			return doSave(ctx, line, e)
+		if json.Unmarshal([]byte(line), ee) == nil && ee.Event.ID != nostr.ZeroID {
+			return doSave(ctx, line, ee.Event)
 		}
-		if json.Unmarshal([]byte(line), e) == nil && e.ID != "" {
-			return doSave(ctx, line, e)
+		if json.Unmarshal([]byte(line), e) == nil && e.ID != nostr.ZeroID {
+			return doSave(ctx, line, *e)
 		}
-		if json.Unmarshal([]byte(line), re) == nil && len(re.Filters) > 0 {
-			f = &re.Filters[0]
-			return doQuery(ctx, f)
+		if json.Unmarshal([]byte(line), re) == nil {
+			return doQuery(ctx, &re.Filter)
 		}
 		if json.Unmarshal([]byte(line), f) == nil && len(f.String()) > 2 {
 			return doQuery(ctx, f)
@@ -40,21 +38,16 @@ var queryOrSave = &cli.Command{
 	},
 }
 
-func doSave(ctx context.Context, line string, e *nostr.Event) error {
-	if err := db.SaveEvent(ctx, e); err != nil {
+func doSave(ctx context.Context, line string, evt nostr.Event) error {
+	if err := db.SaveEvent(evt); err != nil {
 		return fmt.Errorf("failed to save event '%s': %s", line, err)
 	}
-	fmt.Fprintf(os.Stderr, "saved %s", e.ID)
+	fmt.Fprintf(os.Stderr, "saved %s", evt.ID)
 	return nil
 }
 
 func doQuery(ctx context.Context, f *nostr.Filter) error {
-	ch, err := db.QueryEvents(ctx, *f)
-	if err != nil {
-		return fmt.Errorf("error querying: %w", err)
-	}
-
-	for evt := range ch {
+	for evt := range db.QueryEvents(*f) {
 		fmt.Println(evt)
 	}
 	return nil

@@ -3,8 +3,8 @@ package nip34
 import (
 	"strings"
 
-	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"fiatjaf.com/nostr"
+	"github.com/bluekeyes/go-gitdiff/gitdiff"
 )
 
 type Patch struct {
@@ -35,7 +35,7 @@ func ParsePatch(event nostr.Event) Patch {
 				continue
 			}
 			patch.Repository.Kind = nostr.KindRepositoryAnnouncement
-			patch.Repository.PublicKey = spl[1]
+			patch.Repository.PublicKey, _ = nostr.PubKeyFromHex(spl[1])
 			patch.Repository.Identifier = spl[2]
 			if len(tag) >= 3 {
 				patch.Repository.Relays = []string{tag[2]}

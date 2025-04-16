@@ -53,6 +53,6 @@ func (b *BlugeBackend) Init() error {
 	return nil
 }
 
-func (b *BlugeBackend) CountEvents(nostr.Filter) (int64, error) {
+func (b *BlugeBackend) CountEvents(nostr.Filter) (uint32, error) {
 	return 0, errors.New("not supported")
 }

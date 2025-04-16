@@ -55,7 +55,7 @@ func (s Session) MakeResponse(
 	evt.Content = ciphertext
 	evt.CreatedAt = nostr.Now()
 	evt.Kind = nostr.KindNostrConnect
-	evt.Tags = nostr.Tags{nostr.Tag{"p", requester}}
+	evt.Tags = nostr.Tags{nostr.Tag{"p", requester.Hex()}}
 
 	return resp, evt, nil
 }

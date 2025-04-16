@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/elnosh/gonuts/cashu"
-	"github.com/elnosh/gonuts/cashu/nuts/nut10"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip60/client"
+	"github.com/elnosh/gonuts/cashu"
+	"github.com/elnosh/gonuts/cashu/nuts/nut10"
 )
 
 type receiveSettings struct {

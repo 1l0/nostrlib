@@ -2,8 +2,6 @@ package sdk
 
 import (
 	"context"
-	"encoding/hex"
-	"fmt"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -16,10 +14,10 @@ const (
 	pubkeyStreamOldestPrefix = byte('O')
 )
 
-func makePubkeyStreamKey(prefix byte, pubkey string) []byte {
+func makePubkeyStreamKey(prefix byte, pubkey nostr.PubKey) []byte {
 	key := make([]byte, 1+8)
 	key[0] = prefix
-	hex.Decode(key[1:], []byte(pubkey[0:16]))
+	copy(key[1:], pubkey[0:8])
 	return key
 }
 
@@ -30,9 +28,9 @@ func makePubkeyStreamKey(prefix byte, pubkey string) []byte {
 func (sys *System) StreamLiveFeed(
 	ctx context.Context,
 	pubkeys []nostr.PubKey,
-	kinds []int,
-) (<-chan *nostr.Event, error) {
-	events := make(chan *nostr.Event)
+	kinds []uint16,
+) (<-chan nostr.Event, error) {
+	events := make(chan nostr.Event)
 
 	active := atomic.Int32{}
 	active.Add(int32(len(pubkeys)))
@@ -61,15 +59,17 @@ func (sys *System) StreamLiveFeed(
 		}
 
 		filter := nostr.Filter{
-			Authors: []string{pubkey},
+			Authors: []nostr.PubKey{pubkey},
 			Since:   since,
 			Kinds:   kinds,
 		}
 
 		go func() {
-			sub := sys.Pool.SubscribeMany(ctx, relays, filter, nostr.WithLabel("livefeed"))
+			sub := sys.Pool.SubscribeMany(ctx, relays, filter, nostr.SubscriptionOptions{
+				Label: "livefeed",
+			})
 			for evt := range sub {
-				sys.StoreRelay.Publish(ctx, *evt.Event)
+				sys.Publisher.Publish(ctx, evt.Event)
 				if latest < evt.CreatedAt {
 					latest = evt.CreatedAt
 					serial++
@@ -101,8 +101,8 @@ func (sys *System) StreamLiveFeed(
 // for events or if we should just return what we have stored locally.
 func (sys *System) FetchFeedPage(
 	ctx context.Context,
-	pubkeys []string,
-	kinds []int,
+	pubkeys []nostr.PubKey,
+	kinds []uint16,
 	until nostr.Timestamp,
 	totalLimit int,
 ) ([]*nostr.Event, error) {
@@ -123,21 +123,21 @@ func (sys *System) FetchFeedPage(
 			}
 		}
 
-		filter := nostr.Filter{Authors: []string{pubkey}, Kinds: kinds}
+		filter := nostr.Filter{Authors: []nostr.PubKey{pubkey}, Kinds: kinds}
 
 		if until > oldestTimestamp {
 			// we can use our local database
 			filter.Until = &until
-			res, err := sys.StoreRelay.QuerySync(ctx, filter)
-			if err != nil {
-				return nil, fmt.Errorf("query failure at '%s': %w", pubkey, err)
-			}
 
-			if len(res) >= limitPerKey {
-				// we got enough from the local store
-				events = append(events, res...)
-				wg.Done()
-				continue
+			count := 0
+			for evt := range sys.Store.QueryEvents(filter) {
+				events = append(events, evt)
+				count++
+				if count >= limitPerKey {
+					// we got enough from the local store
+					wg.Done()
+					continue
+				}
 			}
 		}
 

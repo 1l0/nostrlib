@@ -11,7 +11,7 @@ type Role struct {
 	Description string
 }
 
-type KindRange []int
+type KindRange []uint16
 
 var ModerationEventKinds = KindRange{
 	nostr.KindSimpleGroupPutUser,
@@ -30,7 +30,7 @@ var MetadataEventKinds = KindRange{
 	nostr.KindSimpleGroupRoles,
 }
 
-func (kr KindRange) Includes(kind int) bool {
+func (kr KindRange) Includes(kind uint16) bool {
 	_, ok := slices.BinarySearch(kr, kind)
 	return ok
 }

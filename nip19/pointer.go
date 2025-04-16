@@ -10,32 +10,24 @@ func EncodePointer(pointer nostr.Pointer) string {
 	switch v := pointer.(type) {
 	case nostr.ProfilePointer:
 		if v.Relays == nil {
-			res, _ := EncodePublicKey(v.PublicKey)
-			return res
+			return EncodeNpub(v.PublicKey)
 		} else {
-			res, _ := EncodeProfile(v.PublicKey, v.Relays)
-			return res
+			return EncodeNprofile(v.PublicKey, v.Relays)
 		}
 	case *nostr.ProfilePointer:
 		if v.Relays == nil {
-			res, _ := EncodePublicKey(v.PublicKey)
-			return res
+			return EncodeNpub(v.PublicKey)
 		} else {
-			res, _ := EncodeProfile(v.PublicKey, v.Relays)
-			return res
+			return EncodeNprofile(v.PublicKey, v.Relays)
 		}
 	case nostr.EventPointer:
-		res, _ := EncodeEvent(v.ID, v.Relays, v.Author)
-		return res
+		return EncodeNevent(v.ID, v.Relays, v.Author)
 	case *nostr.EventPointer:
-		res, _ := EncodeEvent(v.ID, v.Relays, v.Author)
-		return res
+		return EncodeNevent(v.ID, v.Relays, v.Author)
 	case nostr.EntityPointer:
-		res, _ := EncodeEntity(v.PublicKey, v.Kind, v.Identifier, v.Relays)
-		return res
+		return EncodeNaddr(v.PublicKey, v.Kind, v.Identifier, v.Relays)
 	case *nostr.EntityPointer:
-		res, _ := EncodeEntity(v.PublicKey, v.Kind, v.Identifier, v.Relays)
-		return res
+		return EncodeNaddr(v.PublicKey, v.Kind, v.Identifier, v.Relays)
 	}
 	return ""
 }
@@ -48,13 +40,13 @@ func ToPointer(code string) (nostr.Pointer, error) {
 
 	switch prefix {
 	case "npub":
-		return nostr.ProfilePointer{PublicKey: data.(string)}, nil
+		return nostr.ProfilePointer{PublicKey: data.([32]byte)}, nil
 	case "nprofile":
 		return data.(nostr.ProfilePointer), nil
 	case "nevent":
 		return data.(nostr.EventPointer), nil
 	case "note":
-		return nostr.EventPointer{ID: data.(string)}, nil
+		return nostr.EventPointer{ID: data.([32]byte)}, nil
 	case "naddr":
 		return data.(nostr.EntityPointer), nil
 	default:

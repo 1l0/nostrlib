@@ -25,7 +25,7 @@ var (
 // SignerOptions contains configuration options for creating a new signer.
 type SignerOptions struct {
 	// BunkerClientSecretKey is the secret key used for the bunker client
-	BunkerClientSecretKey string
+	BunkerClientSecretKey nostr.SecretKey
 
 	// BunkerSignTimeout is the timeout duration for bunker signing operations
 	BunkerSignTimeout time.Duration
@@ -60,7 +60,7 @@ func New(ctx context.Context, pool *nostr.Pool, input string, opts *SignerOption
 
 	if strings.HasPrefix(input, "ncryptsec") {
 		if opts.PasswordHandler != nil {
-			return &EncryptedKeySigner{input, "", opts.PasswordHandler}, nil
+			return &EncryptedKeySigner{input, nostr.ZeroPK, opts.PasswordHandler}, nil
 		}
 		sec, err := nip49.Decrypt(input, opts.Password)
 		if err != nil {
@@ -70,12 +70,12 @@ func New(ctx context.Context, pool *nostr.Pool, input string, opts *SignerOption
 			return nil, fmt.Errorf("failed to decrypt with given password: %w", err)
 		}
 		pk := nostr.GetPublicKey(sec)
-		return KeySigner{sec, pk, xsync.NewMapOf[string, [32]byte]()}, nil
+		return KeySigner{sec, pk, xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
 	} else if nip46.IsValidBunkerURL(input) || nip05.IsValidIdentifier(input) {
-		bcsk := nostr.GeneratePrivateKey()
+		bcsk := nostr.Generate()
 		oa := func(url string) { println("auth_url received but not handled") }
 
-		if opts.BunkerClientSecretKey != "" {
+		if opts.BunkerClientSecretKey != [32]byte{} {
 			bcsk = opts.BunkerClientSecretKey
 		}
 		if opts.BunkerAuthHandler != nil {
@@ -88,13 +88,15 @@ func New(ctx context.Context, pool *nostr.Pool, input string, opts *SignerOption
 		}
 		return BunkerSigner{bunker}, nil
 	} else if prefix, parsed, err := nip19.Decode(input); err == nil && prefix == "nsec" {
-		sec := parsed.(string)
-		pk, _ := nostr.GetPublicKey(sec)
-		return KeySigner{sec, pk, xsync.NewMapOf[string, [32]byte]()}, nil
+		sec := parsed.(nostr.SecretKey)
+		pk := nostr.GetPublicKey(sec)
+		return KeySigner{sec, pk, xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
 	} else if _, err := hex.DecodeString(input); err == nil && len(input) <= 64 {
-		input = strings.Repeat("0", 64-len(input)) + input // if the key is like '01', fill all the left zeroes
-		pk, _ := nostr.GetPublicKey(input)
-		return KeySigner{input, pk, xsync.NewMapOf[string, [32]byte]()}, nil
+		input := nostr.MustSecretKeyFromHex(
+			strings.Repeat("0", 64-len(input)) + input, // if the key is like '01', fill all the left zeroes
+		)
+		pk := nostr.GetPublicKey(input)
+		return KeySigner{input, pk, xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
 	}
 
 	return nil, fmt.Errorf("unsupported input '%s'", input)

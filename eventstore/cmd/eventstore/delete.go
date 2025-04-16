@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/urfave/cli/v3"
 	"fiatjaf.com/nostr"
+	"github.com/urfave/cli/v3"
 )
 
 var delete_ = &cli.Command{
@@ -17,17 +17,15 @@ var delete_ = &cli.Command{
 	Action: func(ctx context.Context, c *cli.Command) error {
 		hasError := false
 		for line := range getStdinLinesOrFirstArgument(c) {
-			f := nostr.Filter{IDs: []string{line}}
-			ch, err := db.QueryEvents(ctx, f)
+			id, err := nostr.IDFromHex(line)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error querying for %s: %s\n", f, err)
+				fmt.Fprintf(os.Stderr, "invalid id '%s': %s\n", line, err)
 				hasError = true
 			}
-			for evt := range ch {
-				if err := db.DeleteEvent(ctx, evt); err != nil {
-					fmt.Fprintf(os.Stderr, "error deleting %s: %s\n", evt, err)
-					hasError = true
-				}
+
+			if err := db.DeleteEvent(id); err != nil {
+				fmt.Fprintf(os.Stderr, "error deleting '%s': %s\n", id.Hex(), err)
+				hasError = true
 			}
 		}
 

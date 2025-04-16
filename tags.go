@@ -4,52 +4,9 @@ import (
 	"errors"
 	"iter"
 	"slices"
-	"strings"
 )
 
 type Tag []string
-
-// Deprecated: this is too cumbersome for no reason when what we actually want is
-// the simpler logic present in Find and FindWithValue.
-func (tag Tag) StartsWith(prefix []string) bool {
-	prefixLen := len(prefix)
-
-	if prefixLen > len(tag) {
-		return false
-	}
-	// check initial elements for equality
-	for i := 0; i < prefixLen-1; i++ {
-		if prefix[i] != tag[i] {
-			return false
-		}
-	}
-	// check last element just for a prefix
-	return strings.HasPrefix(tag[prefixLen-1], prefix[prefixLen-1])
-}
-
-// Deprecated: write these inline instead
-func (tag Tag) Key() string {
-	if len(tag) > 0 {
-		return tag[0]
-	}
-	return ""
-}
-
-// Deprecated: write these inline instead
-func (tag Tag) Value() string {
-	if len(tag) > 1 {
-		return tag[1]
-	}
-	return ""
-}
-
-// Deprecated: write these inline instead
-func (tag Tag) Relay() string {
-	if len(tag) > 2 && (tag[0] == "e" || tag[0] == "p") {
-		return NormalizeURL(tag[2])
-	}
-	return ""
-}
 
 type Tags []Tag
 
@@ -61,89 +18,6 @@ func (tags Tags) GetD() string {
 		}
 	}
 	return ""
-}
-
-// Deprecated: use Find or FindWithValue instead
-func (tags Tags) GetFirst(tagPrefix []string) *Tag {
-	for _, v := range tags {
-		if v.StartsWith(tagPrefix) {
-			return &v
-		}
-	}
-	return nil
-}
-
-// Deprecated: use FindLast or FindLastWithValue instead
-func (tags Tags) GetLast(tagPrefix []string) *Tag {
-	for i := len(tags) - 1; i >= 0; i-- {
-		v := tags[i]
-		if v.StartsWith(tagPrefix) {
-			return &v
-		}
-	}
-	return nil
-}
-
-// Deprecated: use FindAll instead
-func (tags Tags) GetAll(tagPrefix []string) Tags {
-	result := make(Tags, 0, len(tags))
-	for _, v := range tags {
-		if v.StartsWith(tagPrefix) {
-			result = append(result, v)
-		}
-	}
-	return result
-}
-
-// Deprecated: use FindAll instead
-func (tags Tags) All(tagPrefix []string) iter.Seq2[int, Tag] {
-	return func(yield func(int, Tag) bool) {
-		for i, v := range tags {
-			if v.StartsWith(tagPrefix) {
-				if !yield(i, v) {
-					break
-				}
-			}
-		}
-	}
-}
-
-// Deprecated: this is useless, write your own
-func (tags Tags) FilterOut(tagPrefix []string) Tags {
-	filtered := make(Tags, 0, len(tags))
-	for _, v := range tags {
-		if !v.StartsWith(tagPrefix) {
-			filtered = append(filtered, v)
-		}
-	}
-	return filtered
-}
-
-// Deprecated: this is useless, write your own
-func (tags *Tags) FilterOutInPlace(tagPrefix []string) {
-	for i := 0; i < len(*tags); i++ {
-		tag := (*tags)[i]
-		if tag.StartsWith(tagPrefix) {
-			// remove this by swapping the last tag into this place
-			last := len(*tags) - 1
-			(*tags)[i] = (*tags)[last]
-			*tags = (*tags)[0:last]
-			i-- // this is so we can match this just swapped item in the next iteration
-		}
-	}
-}
-
-// Deprecated: write your own instead with Find() and append()
-func (tags Tags) AppendUnique(tag Tag) Tags {
-	n := len(tag)
-	if n > 2 {
-		n = 2
-	}
-
-	if tags.GetFirst(tag[:n]) == nil {
-		return append(tags, tag)
-	}
-	return tags
 }
 
 // Find returns the first tag with the given key/tagName that also has one value (i.e. at least 2 items)

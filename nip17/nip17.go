@@ -9,11 +9,11 @@ import (
 	"fiatjaf.com/nostr/nip59"
 )
 
-func GetDMRelays(ctx context.Context, pubkey string, pool *nostr.Pool, relaysToQuery []string) []string {
+func GetDMRelays(ctx context.Context, pubkey nostr.PubKey, pool *nostr.Pool, relaysToQuery []string) []string {
 	ie := pool.QuerySingle(ctx, relaysToQuery, nostr.Filter{
-		Authors: []string{pubkey},
-		Kinds:   []int{nostr.KindDMRelayList},
-	})
+		Authors: []nostr.PubKey{pubkey},
+		Kinds:   []uint16{nostr.KindDMRelayList},
+	}, nostr.SubscriptionOptions{Label: "dm-relays"})
 	if ie == nil {
 		return nil
 	}
@@ -39,7 +39,7 @@ func PublishMessage(
 	ourRelays []string,
 	theirRelays []string,
 	kr nostr.Keyer,
-	recipientPubKey string,
+	recipientPubKey nostr.PubKey,
 	modify func(*nostr.Event),
 ) error {
 	toUs, toThem, err := PrepareMessage(ctx, content, tags, kr, recipientPubKey, modify)
@@ -56,7 +56,7 @@ func PublishMessage(
 
 		err = r.Publish(ctx, event)
 		if err != nil && strings.HasPrefix(err.Error(), "auth-required:") {
-			authErr := r.Auth(ctx, func(ae *nostr.Event) error { return kr.SignEvent(ctx, ae) })
+			authErr := r.Auth(ctx, kr.SignEvent)
 			if authErr == nil {
 				err = r.Publish(ctx, event)
 			}
@@ -92,7 +92,7 @@ func PrepareMessage(
 	content string,
 	tags nostr.Tags,
 	kr nostr.Keyer,
-	recipientPubKey string,
+	recipientPubKey nostr.PubKey,
 	modify func(*nostr.Event),
 ) (toUs nostr.Event, toThem nostr.Event, err error) {
 	ourPubkey, err := kr.GetPublicKey(ctx)
@@ -103,7 +103,7 @@ func PrepareMessage(
 	rumor := nostr.Event{
 		Kind:      nostr.KindDirectMessage,
 		Content:   content,
-		Tags:      append(tags, nostr.Tag{"p", recipientPubKey}),
+		Tags:      append(tags, nostr.Tag{"p", recipientPubKey.Hex()}),
 		CreatedAt: nostr.Now(),
 		PubKey:    ourPubkey,
 	}
@@ -154,13 +154,15 @@ func ListenForMessages(
 		}
 
 		for ie := range pool.SubscribeMany(ctx, ourRelays, nostr.Filter{
-			Kinds: []int{nostr.KindGiftWrap},
-			Tags:  nostr.TagMap{"p": []string{pk}},
+			Kinds: []uint16{nostr.KindGiftWrap},
+			Tags:  nostr.TagMap{"p": []string{pk.Hex()}},
 			Since: &since,
-		}) {
+		}, nostr.SubscriptionOptions{Label: "mydms"}) {
 			rumor, err := nip59.GiftUnwrap(
-				*ie.Event,
-				func(otherpubkey, ciphertext string) (string, error) { return kr.Decrypt(ctx, ciphertext, otherpubkey) },
+				ie.Event,
+				func(otherpubkey nostr.PubKey, ciphertext string) (string, error) {
+					return kr.Decrypt(ctx, ciphertext, otherpubkey)
+				},
 			)
 			if err != nil {
 				nostr.InfoLogger.Printf("[nip17] failed to unwrap received message '%s' from %s: %s\n", ie.Event, ie.Relay.URL, err)

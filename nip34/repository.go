@@ -1,9 +1,6 @@
 package nip34
 
 import (
-	"context"
-	"fmt"
-
 	"fiatjaf.com/nostr"
 )
 
@@ -96,34 +93,4 @@ func (r Repository) ToEvent() *nostr.Event {
 		Tags:      tags,
 		CreatedAt: nostr.Now(),
 	}
-}
-
-func (repo Repository) FetchState(ctx context.Context, s nostr.RelayStore) *RepositoryState {
-	res, _ := s.QuerySync(ctx, nostr.Filter{
-		Kinds: []int{nostr.KindRepositoryState},
-		Tags: nostr.TagMap{
-			"d": []string{repo.Tags.GetD()},
-		},
-	})
-
-	if len(res) == 0 {
-		return nil
-	}
-
-	rs := ParseRepositoryState(*res[0])
-	return &rs
-}
-
-func (repo Repository) GetPatchesSync(ctx context.Context, s nostr.RelayStore) []Patch {
-	res, _ := s.QuerySync(ctx, nostr.Filter{
-		Kinds: []int{nostr.KindPatch},
-		Tags: nostr.TagMap{
-			"a": []string{fmt.Sprintf("%d:%s:%s", nostr.KindRepositoryAnnouncement, repo.Event.PubKey, repo.ID)},
-		},
-	})
-	patches := make([]Patch, len(res))
-	for i, evt := range res {
-		patches[i] = ParsePatch(*evt)
-	}
-	return patches
 }

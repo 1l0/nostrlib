@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"slices"
 
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip60/client"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elnosh/gonuts/cashu"
 	"github.com/elnosh/gonuts/cashu/nuts/nut02"
 	"github.com/elnosh/gonuts/cashu/nuts/nut10"
 	"github.com/elnosh/gonuts/cashu/nuts/nut11"
-	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/nip60/client"
 )
 
 type SendOption func(opts *sendSettings)
@@ -23,10 +23,9 @@ type sendSettings struct {
 	refundtimelock int64
 }
 
-func WithP2PK(pubkey string) SendOption {
+func WithP2PK(pubkey nostr.PubKey) SendOption {
 	return func(opts *sendSettings) {
-		pkb, _ := hex.DecodeString(pubkey)
-		opts.p2pk, _ = btcec.ParsePubKey(pkb)
+		opts.p2pk, _ = btcec.ParsePubKey(append([]byte{2}, pubkey[:]...))
 	}
 }
 
@@ -132,7 +131,7 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 		mintedAt: nostr.Now(),
 		Mint:     mintURL,
 		Proofs:   changeProofs,
-		Deleted:  make([]string, 0, len(usedTokenIndexes)),
+		Deleted:  make([]nostr.ID, 0, len(usedTokenIndexes)),
 		event:    &nostr.Event{},
 	}
 
@@ -144,7 +143,7 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 				deleteEvent := nostr.Event{
 					CreatedAt: nostr.Now(),
 					Kind:      5,
-					Tags:      nostr.Tags{{"e", token.event.ID}, {"k", "7375"}},
+					Tags:      nostr.Tags{{"e", token.event.ID.Hex()}, {"k", "7375"}},
 				}
 				w.kr.SignEvent(ctx, &deleteEvent)
 

@@ -25,7 +25,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 		if len(data) != 32 {
 			return prefix, nil, fmt.Errorf("nsec should be 32 bytes (%d)", len(data))
 		}
-		return prefix, [32]byte(data[0:32]), nil
+		return prefix, nostr.SecretKey(data[0:32]), nil
 	case "note":
 		if len(data) != 32 {
 			return prefix, nil, fmt.Errorf("note should be 32 bytes (%d)", len(data))

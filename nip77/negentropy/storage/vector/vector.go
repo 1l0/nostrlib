@@ -1,7 +1,6 @@
 package vector
 
 import (
-	"fmt"
 	"iter"
 	"slices"
 
@@ -24,10 +23,6 @@ func New() *Vector {
 }
 
 func (v *Vector) Insert(createdAt nostr.Timestamp, id nostr.ID) {
-	if len(id) != 64 {
-		panic(fmt.Errorf("bad id size for added item: expected %d bytes, got %d", 32, len(id)/2))
-	}
-
 	item := negentropy.Item{Timestamp: createdAt, ID: id}
 	v.items = append(v.items, item)
 }
@@ -39,12 +34,12 @@ func (v *Vector) Seal() {
 		panic("trying to seal an already sealed vector")
 	}
 	v.sealed = true
-	slices.SortFunc(v.items, negentropy.ItemCompare)
+	slices.SortFunc(v.items, itemCompare)
 }
 
 func (v *Vector) GetBound(idx int) negentropy.Bound {
 	if idx < len(v.items) {
-		return negentropy.Bound{Item: v.items[idx]}
+		return negentropy.Bound{Timestamp: v.items[idx].Timestamp, IDPrefix: v.items[idx].ID[:]}
 	}
 	return negentropy.InfiniteBound
 }
@@ -60,7 +55,7 @@ func (v *Vector) Range(begin, end int) iter.Seq2[int, negentropy.Item] {
 }
 
 func (v *Vector) FindLowerBound(begin, end int, bound negentropy.Bound) int {
-	idx, _ := slices.BinarySearchFunc(v.items[begin:end], bound.Item, negentropy.ItemCompare)
+	idx := searchItemWithBound(v.items[begin:end], bound)
 	return begin + idx
 }
 

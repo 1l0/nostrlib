@@ -14,7 +14,7 @@ import (
 // ProfileMetadata represents user profile information from kind 0 events.
 // It contains both the raw event and parsed metadata fields.
 type ProfileMetadata struct {
-	PubKey string       `json:"-"` // must always be set otherwise things will break
+	PubKey nostr.PubKey `json:"-"` // must always be set otherwise things will break
 	Event  *nostr.Event `json:"-"` // may be empty if a profile metadata event wasn't found
 
 	// every one of these may be empty
@@ -33,8 +33,7 @@ type ProfileMetadata struct {
 
 // Npub returns the NIP-19 npub encoding of the profile's public key.
 func (p ProfileMetadata) Npub() string {
-	v, _ := nip19.EncodePublicKey(p.PubKey)
-	return v
+	return nip19.EncodeNpub(p.PubKey)
 }
 
 // NpubShort returns a shortened version of the NIP-19 npub encoding,
@@ -47,8 +46,7 @@ func (p ProfileMetadata) NpubShort() string {
 // Nprofile returns the NIP-19 nprofile encoding of the profile,
 // including relay hints from the user's outbox.
 func (p ProfileMetadata) Nprofile(ctx context.Context, sys *System, nrelays int) string {
-	v, _ := nip19.EncodeProfile(p.PubKey, sys.FetchOutboxRelays(ctx, p.PubKey, 2))
-	return v
+	return nip19.EncodeNprofile(p.PubKey, sys.FetchOutboxRelays(ctx, p.PubKey, 2))
 }
 
 // ShortName returns the best available name for display purposes.
@@ -105,7 +103,7 @@ func (sys System) FetchProfileFromInput(ctx context.Context, nip19OrNip05Code st
 // FetchProfileMetadata fetches metadata for a given user from the local cache, or from the local store,
 // or, failing these, from the target user's defined outbox relays -- then caches the result.
 // It always returns a ProfileMetadata, even if no metadata was found (in which case only the PubKey field is set).
-func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey string) (pm ProfileMetadata) {
+func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey nostr.PubKey) (pm ProfileMetadata) {
 	if v, ok := sys.MetadataCache.Get(pubkey); ok {
 		return v
 	}

@@ -20,24 +20,24 @@ func SendNutzap(
 	kr nostr.Keyer,
 	w *nip60.Wallet,
 	pool *nostr.Pool,
-	targetUserPublickey string,
-	getUserReadRelays func(context.Context, string, int) []string,
+	targetUserPublickey nostr.PubKey,
+	getUserReadRelays func(context.Context, nostr.PubKey, int) []string,
 	relays []string,
 	eventId string, // can be "" if not targeting a specific event
 	amount uint64,
 	message string,
 ) (chan nostr.PublishResult, error) {
-	ie := pool.QuerySingle(ctx, relays, nostr.Filter{Kinds: []int{10019}, Authors: []string{targetUserPublickey}})
+	ie := pool.QuerySingle(ctx, relays, nostr.Filter{Kinds: []uint16{10019}, Authors: []nostr.PubKey{targetUserPublickey}}, nostr.SubscriptionOptions{})
 	if ie == nil {
 		return nil, NutzapsNotAccepted
 	}
 
 	info := Info{}
-	if err := info.ParseEvent(ie.Event); err != nil {
+	if err := info.ParseEvent(&ie.Event); err != nil {
 		return nil, err
 	}
 
-	if len(info.Mints) == 0 || info.PublicKey == "" {
+	if len(info.Mints) == 0 || info.PublicKey == nostr.ZeroPK {
 		return nil, NutzapsNotAccepted
 	}
 
@@ -55,7 +55,7 @@ func SendNutzap(
 		Tags:      make(nostr.Tags, 0, 8),
 	}
 
-	nutzap.Tags = append(nutzap.Tags, nostr.Tag{"p", targetUserPublickey})
+	nutzap.Tags = append(nutzap.Tags, nostr.Tag{"p", targetUserPublickey.Hex()})
 	if eventId != "" {
 		nutzap.Tags = append(nutzap.Tags, nostr.Tag{"e", eventId})
 	}

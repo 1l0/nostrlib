@@ -224,20 +224,20 @@ func (group *Group) MergeInMetadataEvent(evt *nostr.Event) error {
 	group.LastMetadataUpdate = evt.CreatedAt
 	group.Name = group.Address.ID
 
-	if tag := evt.Tags.GetFirst([]string{"name", ""}); tag != nil {
-		group.Name = (*tag)[1]
+	if tag := evt.Tags.Find("name"); tag != nil {
+		group.Name = tag[1]
 	}
-	if tag := evt.Tags.GetFirst([]string{"about", ""}); tag != nil {
-		group.About = (*tag)[1]
+	if tag := evt.Tags.Find("about"); tag != nil {
+		group.About = tag[1]
 	}
-	if tag := evt.Tags.GetFirst([]string{"picture", ""}); tag != nil {
-		group.Picture = (*tag)[1]
+	if tag := evt.Tags.Find("picture"); tag != nil {
+		group.Picture = tag[1]
 	}
 
-	if tag := evt.Tags.GetFirst([]string{"private"}); tag != nil {
+	if tag := evt.Tags.Find("private"); tag != nil {
 		group.Private = true
 	}
-	if tag := evt.Tags.GetFirst([]string{"closed"}); tag != nil {
+	if tag := evt.Tags.Find("closed"); tag != nil {
 		group.Closed = true
 	}
 

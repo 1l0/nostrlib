@@ -2,6 +2,7 @@ package khatru
 
 import (
 	"context"
+	"iter"
 	"log"
 	"net/http"
 	"os"
@@ -58,16 +59,16 @@ type Relay struct {
 	// hooks that will be called at various times
 	RejectEvent               func(ctx context.Context, event *nostr.Event) (reject bool, msg string)
 	OverwriteDeletionOutcome  func(ctx context.Context, target *nostr.Event, deletion *nostr.Event) (acceptDeletion bool, msg string)
-	StoreEvent                func(ctx context.Context, event *nostr.Event) error
-	ReplaceEvent              func(ctx context.Context, event *nostr.Event) error
-	DeleteEvent               func(ctx context.Context, event *nostr.Event) error
-	OnEventSaved              func(ctx context.Context, event *nostr.Event)
-	OnEphemeralEvent          func(ctx context.Context, event *nostr.Event)
+	StoreEvent                func(ctx context.Context, event nostr.Event) error
+	ReplaceEvent              func(ctx context.Context, event nostr.Event) error
+	DeleteEvent               func(ctx context.Context, id nostr.ID) error
+	OnEventSaved              func(ctx context.Context, event nostr.Event)
+	OnEphemeralEvent          func(ctx context.Context, event nostr.Event)
 	RejectFilter              func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
 	RejectCountFilter         func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
-	QueryEvents               func(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error)
-	CountEvents               func(ctx context.Context, filter nostr.Filter) (int64, error)
-	CountEventsHLL            func(ctx context.Context, filter nostr.Filter, offset int) (int64, *hyperloglog.HyperLogLog, error)
+	QueryEvents               func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event]
+	CountEvents               func(ctx context.Context, filter nostr.Filter) (uint32, error)
+	CountEventsHLL            func(ctx context.Context, filter nostr.Filter, offset int) (uint32, *hyperloglog.HyperLogLog, error)
 	RejectConnection          func(r *http.Request) bool
 	OnConnect                 func(ctx context.Context)
 	OnDisconnect              func(ctx context.Context)

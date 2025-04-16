@@ -14,24 +14,24 @@ var (
 
 // ReadOnlyUser is a nostr.User that has this public key
 type ReadOnlyUser struct {
-	pk string
+	pk nostr.PubKey
 }
 
-func NewReadOnlyUser(pk string) ReadOnlyUser {
+func NewReadOnlyUser(pk nostr.PubKey) ReadOnlyUser {
 	return ReadOnlyUser{pk}
 }
 
 // GetPublicKey returns the public key associated with this signer.
-func (ros ReadOnlyUser) GetPublicKey(context.Context) (string, error) {
+func (ros ReadOnlyUser) GetPublicKey(context.Context) (nostr.PubKey, error) {
 	return ros.pk, nil
 }
 
 // ReadOnlySigner is like a ReadOnlyUser, but has a fake GetPublicKey method that doesn't work.
 type ReadOnlySigner struct {
-	pk string
+	pk nostr.PubKey
 }
 
-func NewReadOnlySigner(pk string) ReadOnlySigner {
+func NewReadOnlySigner(pk nostr.PubKey) ReadOnlySigner {
 	return ReadOnlySigner{pk}
 }
 
@@ -41,6 +41,6 @@ func (ros ReadOnlySigner) SignEvent(context.Context, *nostr.Event) error {
 }
 
 // GetPublicKey returns the public key associated with this signer.
-func (ros ReadOnlySigner) GetPublicKey(context.Context) (string, error) {
+func (ros ReadOnlySigner) GetPublicKey(context.Context) (nostr.PubKey, error) {
 	return ros.pk, nil
 }

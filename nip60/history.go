@@ -20,7 +20,7 @@ type HistoryEntry struct {
 }
 
 type TokenRef struct {
-	EventID  string
+	EventID  nostr.ID
 	Created  bool
 	IsNutzap bool
 }
@@ -47,7 +47,7 @@ func (h HistoryEntry) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Ev
 
 	for _, tf := range h.TokenReferences {
 		if tf.IsNutzap {
-			evt.Tags = append(evt.Tags, nostr.Tag{"e", tf.EventID, "", "redeemed"})
+			evt.Tags = append(evt.Tags, nostr.Tag{"e", tf.EventID.Hex(), "", "redeemed"})
 			continue
 		}
 
@@ -56,7 +56,7 @@ func (h HistoryEntry) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Ev
 			marker = "created"
 		}
 
-		encryptedTags = append(encryptedTags, nostr.Tag{"e", tf.EventID, "", marker})
+		encryptedTags = append(encryptedTags, nostr.Tag{"e", tf.EventID.Hex(), "", marker})
 	}
 
 	jsonb, _ := json.Marshal(encryptedTags)
@@ -129,11 +129,12 @@ func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Eve
 			if len(tag) < 4 {
 				return fmt.Errorf("'e' tag must have at least 4 items")
 			}
-			if !nostr.IsValid32ByteHex(tag[1]) {
-				return fmt.Errorf("'e' tag has invalid event id %s", tag[1])
+			id, err := nostr.IDFromHex(tag[1])
+			if err != nil {
+				return fmt.Errorf("'e' tag has invalid event id %s: %w", tag[1])
 			}
 
-			tf := TokenRef{EventID: tag[1]}
+			tf := TokenRef{EventID: id}
 			switch tag[3] {
 			case "created":
 				tf.Created = true

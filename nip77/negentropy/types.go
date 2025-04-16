@@ -1,8 +1,6 @@
 package negentropy
 
 import (
-	"bytes"
-	"cmp"
 	"fmt"
 
 	"fiatjaf.com/nostr"
@@ -34,13 +32,6 @@ func (v Mode) String() string {
 type Item struct {
 	Timestamp nostr.Timestamp
 	ID        nostr.ID
-}
-
-func ItemCompare(a, b Item) int {
-	if a.Timestamp == b.Timestamp {
-		return bytes.Compare(a.ID[:], b.ID[:])
-	}
-	return cmp.Compare(a.Timestamp, b.Timestamp)
 }
 
 func (i Item) String() string { return fmt.Sprintf("Item<%d:%x>", i.Timestamp, i.ID[:]) }

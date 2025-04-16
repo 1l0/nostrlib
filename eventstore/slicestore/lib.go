@@ -69,8 +69,8 @@ func (b *SliceStore) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
 	}
 }
 
-func (b *SliceStore) CountEvents(filter nostr.Filter) (int64, error) {
-	var val int64
+func (b *SliceStore) CountEvents(filter nostr.Filter) (uint32, error) {
+	var val uint32
 	for _, event := range b.internal {
 		if filter.Matches(event) {
 			val++

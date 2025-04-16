@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
-	"fiatjaf.com/nostr/eventstore/internal"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/internal"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
 type query struct {
@@ -143,7 +143,7 @@ func (b *LMDBBackend) prepareQueries(filter nostr.Filter) (
 		if filter.Authors != nil {
 			extraAuthors = make([][32]byte, len(filter.Authors))
 			for i, pk := range filter.Authors {
-				hex.Decode(extraAuthors[i][:], []byte(pk))
+				extraAuthors[i] = pk
 			}
 		}
 

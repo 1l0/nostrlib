@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"fiatjaf.com/nostr"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"fiatjaf.com/nostr"
 )
 
 type Wallet struct {
@@ -19,7 +19,7 @@ type Wallet struct {
 	tokensMu sync.Mutex
 	event    *nostr.Event
 
-	pendingDeletions []string // token events that should be deleted
+	pendingDeletions []nostr.ID // token events that should be deleted
 
 	kr nostr.Keyer
 
@@ -34,7 +34,7 @@ type Wallet struct {
 	)
 
 	// Processed, if not nil, is called every time a received event is processed
-	Processed func(*nostr.Event, error)
+	Processed func(nostr.Event, error)
 
 	// Stable is closed when we have gotten an EOSE from all relays
 	Stable chan struct{}
@@ -77,7 +77,7 @@ func loadWalletFromPool(
 		return nil
 	}
 
-	kinds := []int{17375, 7375}
+	kinds := []uint16{17375, 7375}
 	if withHistory {
 		kinds = append(kinds, 7376)
 	}
@@ -86,16 +86,18 @@ func loadWalletFromPool(
 	events := pool.SubscribeManyNotifyEOSE(
 		ctx,
 		relays,
-		nostr.Filter{Kinds: kinds, Authors: []string{pk}},
+		nostr.Filter{Kinds: kinds, Authors: []nostr.PubKey{pk}},
 		eoseChanE,
+		nostr.SubscriptionOptions{},
 	)
 
 	eoseChanD := make(chan struct{})
 	deletions := pool.SubscribeManyNotifyEOSE(
 		ctx,
 		relays,
-		nostr.Filter{Kinds: []int{5}, Tags: nostr.TagMap{"k": []string{"7375"}}, Authors: []string{pk}},
+		nostr.Filter{Kinds: []uint16{5}, Tags: nostr.TagMap{"k": []string{"7375"}}, Authors: []nostr.PubKey{pk}},
 		eoseChanD,
+		nostr.SubscriptionOptions{},
 	)
 
 	eoseChan := make(chan struct{})
@@ -116,7 +118,7 @@ func loadWallet(
 	eoseChan chan struct{},
 ) *Wallet {
 	w := &Wallet{
-		pendingDeletions: make([]string, 0, 128),
+		pendingDeletions: make([]nostr.ID, 0, 128),
 		kr:               kr,
 		Stable:           make(chan struct{}),
 		Tokens:           make([]Token, 0, 128),
@@ -143,11 +145,15 @@ func loadWallet(
 			w.Lock()
 			if !eosed {
 				for tag := range ie.Event.Tags.FindAll("e") {
-					w.pendingDeletions = append(w.pendingDeletions, tag[1])
+					if id, err := nostr.IDFromHex(tag[1]); err == nil {
+						w.pendingDeletions = append(w.pendingDeletions, id)
+					}
 				}
 			} else {
 				for tag := range ie.Event.Tags.FindAll("e") {
-					w.removeDeletedToken(tag[1])
+					if id, err := nostr.IDFromHex(tag[1]); err == nil {
+						w.removeDeletedToken(id)
+					}
 				}
 			}
 			w.Unlock()
@@ -159,7 +165,7 @@ func loadWallet(
 			w.Lock()
 			switch ie.Event.Kind {
 			case 17375:
-				if err := w.parse(ctx, kr, ie.Event); err != nil {
+				if err := w.parse(ctx, kr, &ie.Event); err != nil {
 					if w.Processed != nil {
 						w.Processed(ie.Event, err)
 					}
@@ -169,11 +175,11 @@ func loadWallet(
 
 				// if this metadata is newer than what we had, update
 				if w.event == nil || ie.Event.CreatedAt > w.event.CreatedAt {
-					w.parse(ctx, kr, ie.Event) // this will either fail or set the new metadata
+					w.parse(ctx, kr, &ie.Event) // this will either fail or set the new metadata
 				}
 			case 7375: // token
 				token := Token{}
-				if err := token.parse(ctx, kr, ie.Event); err != nil {
+				if err := token.parse(ctx, kr, &ie.Event); err != nil {
 					if w.Processed != nil {
 						w.Processed(ie.Event, err)
 					}
@@ -200,7 +206,7 @@ func loadWallet(
 
 			case 7376: // history
 				he := HistoryEntry{}
-				if err := he.parse(ctx, kr, ie.Event); err != nil {
+				if err := he.parse(ctx, kr, &ie.Event); err != nil {
 					if w.Processed != nil {
 						w.Processed(ie.Event, err)
 					}
@@ -230,7 +236,7 @@ func (w *Wallet) Close() error {
 	return nil
 }
 
-func (w *Wallet) removeDeletedToken(eventId string) {
+func (w *Wallet) removeDeletedToken(eventId nostr.ID) {
 	for t := len(w.Tokens) - 1; t >= 0; t-- {
 		token := w.Tokens[t]
 		if token.event != nil && token.event.ID == eventId {

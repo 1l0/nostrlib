@@ -1,4 +1,4 @@
-package test
+package wrappers
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/slicestore"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +20,7 @@ func TestRelayWrapper(t *testing.T) {
 	s.Init()
 	defer s.Close()
 
-	w := eventstore.RelayWrapper{Store: s}
+	w := StorePublisher{Store: s}
 
 	evt1 := nostr.Event{
 		Kind:      3,

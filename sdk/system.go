@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/wrappers"
 	"fiatjaf.com/nostr/sdk/cache"
 	cache_memory "fiatjaf.com/nostr/sdk/cache/memory"
 	"fiatjaf.com/nostr/sdk/dataloader"
@@ -51,7 +52,7 @@ type System struct {
 	NoteSearchRelays      *RelayStream
 	Store                 eventstore.Store
 
-	StoreRelay nostr.RelayStore
+	Publisher wrappers.StorePublisher
 
 	replaceableLoaders []*dataloader.Loader[nostr.PubKey, *nostr.Event]
 	addressableLoaders []*dataloader.Loader[nostr.PubKey, []*nostr.Event]

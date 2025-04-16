@@ -96,7 +96,7 @@ var app = &cli.Command{
 					if err := json.Unmarshal(scanner.Bytes(), &evt); err != nil {
 						log.Printf("invalid event read at line %d: %s (`%s`)\n", i, err, scanner.Text())
 					}
-					db.SaveEvent(ctx, &evt)
+					db.SaveEvent(evt)
 					i++
 				}
 			}()

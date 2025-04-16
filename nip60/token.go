@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/elnosh/gonuts/cashu"
 	"fiatjaf.com/nostr"
+	"github.com/elnosh/gonuts/cashu"
 )
 
 type Token struct {
 	Mint    string       `json:"mint"`
 	Proofs  cashu.Proofs `json:"proofs"`
-	Deleted []string     `json:"del,omitempty"`
+	Deleted []nostr.ID   `json:"del,omitempty"`
 
 	mintedAt nostr.Timestamp
 	event    *nostr.Event
@@ -20,7 +20,7 @@ type Token struct {
 
 func (t Token) ID() string {
 	if t.event != nil {
-		return t.event.ID
+		return t.event.ID.Hex()
 	}
 
 	return "<not-published>"
