@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"iter"
 	"log"
 	"net/http"
 	"strconv"
@@ -434,19 +435,21 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filter Filter, opts Sub
 }
 
 // implement Querier interface
-func (r *Relay) QueryEvents(ctx context.Context, filter Filter) (chan Event, error) {
-	sub, err := r.Subscribe(ctx, filter, SubscriptionOptions{Label: "queryevents"})
-	if err != nil {
-		return nil, err
-	}
+func (r *Relay) QueryEvents(filter Filter) iter.Seq[Event] {
+	ctx, cancel := context.WithCancel(r.connectionContext)
 
-	ch := make(chan Event)
+	return func(yield func(Event) bool) {
+		defer cancel()
 
-	go func() {
+		sub, err := r.Subscribe(ctx, filter, SubscriptionOptions{Label: "queryevents"})
+		if err != nil {
+			return
+		}
+
 		for {
 			select {
 			case evt := <-sub.Events:
-				ch <- evt
+				yield(evt)
 			case <-sub.EndOfStoredEvents:
 				return
 			case <-sub.ClosedReason:
@@ -455,9 +458,7 @@ func (r *Relay) QueryEvents(ctx context.Context, filter Filter) (chan Event, err
 				return
 			}
 		}
-	}()
-
-	return ch, nil
+	}
 }
 
 // Count sends a "COUNT" command to the relay and returns the count of events matching the filters.

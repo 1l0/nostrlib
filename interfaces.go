@@ -2,6 +2,7 @@ package nostr
 
 import (
 	"context"
+	"iter"
 )
 
 type Publisher interface {
@@ -9,7 +10,7 @@ type Publisher interface {
 }
 
 type Querier interface {
-	QueryEvents(context.Context, Filter) (chan Event, error)
+	QueryEvents(Filter) iter.Seq[Event]
 }
 
 type QuerierPublisher interface {

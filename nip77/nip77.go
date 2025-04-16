@@ -36,18 +36,15 @@ func NegentropySync(
 
 	vec := vector.New()
 	neg := negentropy.New(vec, 1024*1024)
-	ch, err := store.QueryEvents(ctx, filter)
-	if err != nil {
-		return err
-	}
 
-	for evt := range ch {
+	for evt := range store.QueryEvents(filter) {
 		vec.Insert(evt.CreatedAt, evt.ID)
 	}
 	vec.Seal()
 
 	result := make(chan error)
 
+	var err error
 	var r *nostr.Relay
 	r, err = nostr.RelayConnect(ctx, url, nostr.RelayOptions{
 		CustomHandler: func(data string) {
@@ -118,12 +115,7 @@ func NegentropySync(
 				if len(ids) == 0 {
 					return
 				}
-				evtch, err := dir.source.QueryEvents(ctx, nostr.Filter{IDs: ids})
-				if err != nil {
-					result <- fmt.Errorf("error querying source on %s: %w", dir.label, err)
-					return
-				}
-				for evt := range evtch {
+				for evt := range dir.source.QueryEvents(nostr.Filter{IDs: ids}) {
 					dir.target.Publish(ctx, evt)
 				}
 			}
