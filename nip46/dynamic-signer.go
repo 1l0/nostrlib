@@ -40,9 +40,6 @@ func NewDynamicSigner(
 
 	// unless it is nil, this is called after every event is signed
 	onEventSigned func(event nostr.Event),
-
-	// unless it is nil, the results of this will be used in reply to get_relays
-	getRelays func(pubkey string) map[string]RelayReadWrite,
 ) DynamicSigner {
 	return DynamicSigner{
 		getHandlerSecretKey: getHandlerSecretKey,

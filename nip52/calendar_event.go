@@ -30,7 +30,7 @@ type CalendarEvent struct {
 }
 
 type Participant struct {
-	PubKey string
+	PubKey nostr.PubKey
 	Relay  string
 	Role   string
 }
@@ -77,9 +77,9 @@ func ParseCalendarEvent(event nostr.Event) CalendarEvent {
 		case "g":
 			calev.Geohashes = append(calev.Geohashes, tag[1])
 		case "p":
-			if nostr.IsValid32ByteHex(tag[1]) {
+			if pk, err := nostr.PubKeyFromHex(tag[1]); err == nil {
 				part := Participant{
-					PubKey: tag[1],
+					PubKey: pk,
 				}
 				if len(tag) > 2 {
 					part.Relay = tag[2]
@@ -129,7 +129,7 @@ func (calev CalendarEvent) ToHashtags() nostr.Tags {
 		tags = append(tags, nostr.Tag{"g", geohash})
 	}
 	for _, part := range calev.Participants {
-		tags = append(tags, nostr.Tag{"p", part.PubKey, part.Relay, part.Role})
+		tags = append(tags, nostr.Tag{"p", part.PubKey.Hex(), part.Relay, part.Role})
 	}
 	for _, reference := range calev.References {
 		tags = append(tags, nostr.Tag{"r", reference})

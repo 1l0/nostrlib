@@ -153,7 +153,7 @@ func (lh *LMDBHints) PrintScores() {
 		}
 		defer cursor.Close()
 
-		var lastPubkey string
+		var lastPubkey nostr.PubKey
 		i := 0
 
 		for k, v, err := cursor.Get(nil, nil, lmdb.First); err == nil; k, v, err = cursor.Get(nil, nil, lmdb.Next) {

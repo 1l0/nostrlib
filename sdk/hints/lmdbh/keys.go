@@ -2,7 +2,6 @@ package lmdbh
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 
 	"fiatjaf.com/nostr"
 )
@@ -14,8 +13,8 @@ func encodeKey(pubhintkey nostr.PubKey, relay string) []byte {
 	return k
 }
 
-func parseKey(k []byte) (pubkey string, relay string) {
-	pubkey = hex.EncodeToString(k[0:32])
+func parseKey(k []byte) (pubkey nostr.PubKey, relay string) {
+	pubkey = nostr.PubKey(k[0:32])
 	relay = string(k[32:])
 	return
 }
