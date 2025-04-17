@@ -2,7 +2,6 @@ package sdk
 
 import (
 	"context"
-	"encoding/hex"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip05"
@@ -12,18 +11,15 @@ import (
 // InputToProfile turns any npub/nprofile/hex/nip05 input into a ProfilePointer (or nil).
 func InputToProfile(ctx context.Context, input string) *nostr.ProfilePointer {
 	// handle if it is a hex string
-	if len(input) == 64 {
-		if _, err := hex.DecodeString(input); err == nil {
-			return &nostr.ProfilePointer{PublicKey: input}
-		}
+	if pk, err := nostr.PubKeyFromHex(input); err == nil {
+		return &nostr.ProfilePointer{PublicKey: pk}
 	}
 
 	// handle nip19 codes, if that's the case
 	prefix, data, _ := nip19.Decode(input)
 	switch prefix {
 	case "npub":
-		input = data.(string)
-		return &nostr.ProfilePointer{PublicKey: input}
+		return &nostr.ProfilePointer{PublicKey: data.(nostr.PubKey)}
 	case "nprofile":
 		pp := data.(nostr.ProfilePointer)
 		return &pp
@@ -41,19 +37,15 @@ func InputToProfile(ctx context.Context, input string) *nostr.ProfilePointer {
 // InputToEventPointer turns any note/nevent/hex input into a EventPointer (or nil).
 func InputToEventPointer(input string) *nostr.EventPointer {
 	// handle if it is a hex string
-	if len(input) == 64 {
-		if _, err := hex.DecodeString(input); err == nil {
-			return &nostr.EventPointer{ID: input}
-		}
+	if id, err := nostr.IDFromHex(input); err == nil {
+		return &nostr.EventPointer{ID: id}
 	}
 
 	// handle nip19 codes, if that's the case
 	prefix, data, _ := nip19.Decode(input)
 	switch prefix {
 	case "note":
-		if input, ok := data.(string); ok {
-			return &nostr.EventPointer{ID: input}
-		}
+		return &nostr.EventPointer{ID: data.([32]byte)}
 	case "nevent":
 		if ep, ok := data.(nostr.EventPointer); ok {
 			return &ep

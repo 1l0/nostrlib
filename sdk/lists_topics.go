@@ -11,18 +11,18 @@ type Topic string
 
 func (r Topic) Value() string { return string(r) }
 
-func (sys *System) FetchTopicList(ctx context.Context, pubkey nostr.PubKey) GenericList[Topic] {
+func (sys *System) FetchTopicList(ctx context.Context, pubkey nostr.PubKey) GenericList[string, Topic] {
 	if sys.TopicListCache == nil {
-		sys.TopicListCache = cache_memory.New[GenericList[Topic]](1000)
+		sys.TopicListCache = cache_memory.New[GenericList[string, Topic]](1000)
 	}
 
 	ml, _ := fetchGenericList(sys, ctx, pubkey, 10015, kind_10015, parseTopicString, sys.TopicListCache)
 	return ml
 }
 
-func (sys *System) FetchTopicSets(ctx context.Context, pubkey nostr.PubKey) GenericSets[Topic] {
+func (sys *System) FetchTopicSets(ctx context.Context, pubkey nostr.PubKey) GenericSets[string, Topic] {
 	if sys.TopicSetsCache == nil {
-		sys.TopicSetsCache = cache_memory.New[GenericSets[Topic]](1000)
+		sys.TopicSetsCache = cache_memory.New[GenericSets[string, Topic]](1000)
 	}
 
 	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30015, kind_30015, parseTopicString, sys.TopicSetsCache)

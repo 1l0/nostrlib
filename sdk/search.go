@@ -13,7 +13,9 @@ func (sys *System) SearchUsers(ctx context.Context, query string) []ProfileMetad
 	for ie := range sys.Pool.FetchMany(ctx, sys.UserSearchRelays.URLs, nostr.Filter{
 		Search: query,
 		Limit:  limit,
-	}, nostr.WithLabel("search")) {
+	}, nostr.SubscriptionOptions{
+		Label: "search",
+	}) {
 		m, _ := ParseMetadata(ie.Event)
 		profiles = append(profiles, m)
 	}

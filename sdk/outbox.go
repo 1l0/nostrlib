@@ -49,7 +49,7 @@ func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey nostr.PubKey, n
 
 // FetchWriteRelays just reads relays from a kind:10002, that's the only canonical place where a user reveals
 // the relays they intend to receive notifications from.
-func (sys *System) FetchInboxRelays(ctx context.Context, pubkey string, n int) []string {
+func (sys *System) FetchInboxRelays(ctx context.Context, pubkey nostr.PubKey, n int) []string {
 	rl := sys.FetchRelayList(ctx, pubkey)
 	if len(rl.Items) == 0 || len(rl.Items) > 10 {
 		return []string{"wss://relay.damus.io", "wss://nos.lol"}
@@ -70,7 +70,7 @@ func (sys *System) FetchInboxRelays(ctx context.Context, pubkey string, n int) [
 //
 // Use FetchWriteRelays when deciding where to publish on behalf of a user, but FetchOutboxRelays when deciding
 // from where to read notes authored by other users.
-func (sys *System) FetchWriteRelays(ctx context.Context, pubkey string) []string {
+func (sys *System) FetchWriteRelays(ctx context.Context, pubkey nostr.PubKey) []string {
 	rl := sys.FetchRelayList(ctx, pubkey)
 
 	relays := make([]string, 0, 7)

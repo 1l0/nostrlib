@@ -110,12 +110,11 @@ func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey nostr.PubKey
 
 	pm.PubKey = pubkey
 
-	res, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{0}, Authors: []string{pubkey}})
-	if len(res) != 0 {
+	for evt := range sys.Store.QueryEvents(nostr.Filter{Kinds: []uint16{0}, Authors: []nostr.PubKey{pubkey}}) {
 		// ok, we found something locally
-		pm, _ = ParseMetadata(res[0])
+		pm, _ = ParseMetadata(evt)
 		pm.PubKey = pubkey
-		pm.Event = res[0]
+		pm.Event = &evt
 
 		// but if we haven't tried fetching from the network recently we should do it
 		lastFetchKey := makeLastFetchKey(0, pubkey)
@@ -151,7 +150,7 @@ func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey nostr.PubKey
 	return pm
 }
 
-func (sys *System) tryFetchMetadataFromNetwork(ctx context.Context, pubkey string) *ProfileMetadata {
+func (sys *System) tryFetchMetadataFromNetwork(ctx context.Context, pubkey nostr.PubKey) *ProfileMetadata {
 	evt, err := sys.replaceableLoaders[kind_0].Load(ctx, pubkey)
 	if err != nil {
 		return nil
@@ -163,15 +162,15 @@ func (sys *System) tryFetchMetadataFromNetwork(ctx context.Context, pubkey strin
 	}
 
 	pm.PubKey = pubkey
-	pm.Event = evt
-	sys.StoreRelay.Publish(ctx, *evt)
+	pm.Event = &evt
+	sys.Publisher.Publish(ctx, evt)
 	sys.MetadataCache.SetWithTTL(pubkey, pm, time.Hour*6)
 	return &pm
 }
 
 // ParseMetadata parses a kind 0 event into a ProfileMetadata struct.
 // Returns an error if the event is not kind 0 or if the content is not valid JSON.
-func ParseMetadata(event *nostr.Event) (meta ProfileMetadata, err error) {
+func ParseMetadata(event nostr.Event) (meta ProfileMetadata, err error) {
 	if event.Kind != 0 {
 		err = fmt.Errorf("event %s is kind %d, not 0", event.ID, event.Kind)
 	} else if er := json.Unmarshal([]byte(event.Content), &meta); er != nil {
@@ -183,6 +182,6 @@ func ParseMetadata(event *nostr.Event) (meta ProfileMetadata, err error) {
 	}
 
 	meta.PubKey = event.PubKey
-	meta.Event = event
+	meta.Event = &event
 	return meta, err
 }

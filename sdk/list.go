@@ -10,15 +10,15 @@ import (
 	"fiatjaf.com/nostr/sdk/cache"
 )
 
-type GenericList[I TagItemWithValue] struct {
+type GenericList[V comparable, I TagItemWithValue[V]] struct {
 	PubKey nostr.PubKey `json:"-"` // must always be set otherwise things will break
 	Event  *nostr.Event `json:"-"` // may be empty if a contact list event wasn't found
 
 	Items []I
 }
 
-type TagItemWithValue interface {
-	Value() any
+type TagItemWithValue[V comparable] interface {
+	Value() V
 }
 
 var (
@@ -26,15 +26,15 @@ var (
 	valueWasJustCached = [60]bool{}
 )
 
-func fetchGenericList[I TagItemWithValue](
+func fetchGenericList[V comparable, I TagItemWithValue[V]](
 	sys *System,
 	ctx context.Context,
 	pubkey nostr.PubKey,
 	actualKind uint16,
 	replaceableIndex replaceableIndex,
 	parseTag func(nostr.Tag) (I, bool),
-	cache cache.Cache32[GenericList[I]],
-) (fl GenericList[I], fromInternal bool) {
+	cache cache.Cache32[GenericList[V, I]],
+) (fl GenericList[V, I], fromInternal bool) {
 	// we have 60 mutexes, so we can load up to 60 lists at the same time, but if we do the same exact
 	// call that will do it only once, the subsequent ones will wait for a result to be cached
 	// and then return it from cache -- 13 is an arbitrary index for the pubkey
@@ -55,13 +55,12 @@ func fetchGenericList[I TagItemWithValue](
 		return v, true
 	}
 
-	v := GenericList[I]{PubKey: pubkey}
+	v := GenericList[V, I]{PubKey: pubkey}
 
-	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []uint16{actualKind}, Authors: []nostr.PubKey{pubkey}})
-	if len(events) != 0 {
+	for evt := range sys.Store.QueryEvents(nostr.Filter{Kinds: []uint16{actualKind}, Authors: []nostr.PubKey{pubkey}}) {
 		// ok, we found something locally
-		items := parseItemsFromEventTags(events[0], parseTag)
-		v.Event = events[0]
+		items := parseItemsFromEventTags(evt, parseTag)
+		v.Event = &evt
 		v.Items = items
 
 		// but if we haven't tried fetching from the network recently we should do it
@@ -100,30 +99,30 @@ func fetchGenericList[I TagItemWithValue](
 	return v, false
 }
 
-func tryFetchListFromNetwork[I TagItemWithValue](
+func tryFetchListFromNetwork[V comparable, I TagItemWithValue[V]](
 	ctx context.Context,
 	sys *System,
 	pubkey nostr.PubKey,
 	replaceableIndex replaceableIndex,
 	parseTag func(nostr.Tag) (I, bool),
-) *GenericList[I] {
+) *GenericList[V, I] {
 	evt, err := sys.replaceableLoaders[replaceableIndex].Load(ctx, pubkey)
 	if err != nil {
 		return nil
 	}
 
-	v := &GenericList[I]{
+	v := &GenericList[V, I]{
 		PubKey: pubkey,
-		Event:  evt,
+		Event:  &evt,
 		Items:  parseItemsFromEventTags(evt, parseTag),
 	}
-	sys.StoreRelay.Publish(ctx, *evt)
+	sys.Publisher.Publish(ctx, evt)
 
 	return v
 }
 
-func parseItemsFromEventTags[I TagItemWithValue](
-	evt *nostr.Event,
+func parseItemsFromEventTags[V comparable, I TagItemWithValue[V]](
+	evt nostr.Event,
 	parseTag func(nostr.Tag) (I, bool),
 ) []I {
 	result := make([]I, 0, len(evt.Tags))

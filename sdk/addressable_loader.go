@@ -21,16 +21,16 @@ const (
 )
 
 func (sys *System) initializeAddressableDataloaders() {
-	sys.addressableLoaders = make([]*dataloader.Loader[nostr.PubKey, []*nostr.Event], 4)
+	sys.addressableLoaders = make([]*dataloader.Loader[nostr.PubKey, []nostr.Event], 4)
 	sys.addressableLoaders[kind_30000] = sys.createAddressableDataloader(30000)
 	sys.addressableLoaders[kind_30002] = sys.createAddressableDataloader(30002)
 	sys.addressableLoaders[kind_30015] = sys.createAddressableDataloader(30015)
 	sys.addressableLoaders[kind_30030] = sys.createAddressableDataloader(30030)
 }
 
-func (sys *System) createAddressableDataloader(kind uint16) *dataloader.Loader[nostr.PubKey, []*nostr.Event] {
+func (sys *System) createAddressableDataloader(kind uint16) *dataloader.Loader[nostr.PubKey, []nostr.Event] {
 	return dataloader.NewBatchedLoader(
-		func(ctxs []context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]dataloader.Result[[]*nostr.Event] {
+		func(ctxs []context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]dataloader.Result[[]nostr.Event] {
 			return sys.batchLoadAddressableEvents(ctxs, kind, pubkeys)
 		},
 		dataloader.Options{
@@ -44,9 +44,9 @@ func (sys *System) batchLoadAddressableEvents(
 	ctxs []context.Context,
 	kind uint16,
 	pubkeys []nostr.PubKey,
-) map[nostr.PubKey]dataloader.Result[[]*nostr.Event] {
+) map[nostr.PubKey]dataloader.Result[[]nostr.Event] {
 	batchSize := len(pubkeys)
-	results := make(map[nostr.PubKey]dataloader.Result[[]*nostr.Event], batchSize)
+	results := make(map[nostr.PubKey]dataloader.Result[[]nostr.Event], batchSize)
 	relayFilter := make([]nostr.DirectedFilter, 0, max(3, batchSize*2))
 	relayFilterIndex := make(map[string]int, max(3, batchSize*2))
 
@@ -103,7 +103,9 @@ func (sys *System) batchLoadAddressableEvents(
 	wg.Wait()
 
 	// query all relays with the prepared filters
-	multiSubs := sys.Pool.BatchedSubManyEose(aggregatedContext, relayFilter)
+	multiSubs := sys.Pool.BatchedSubManyEose(aggregatedContext, relayFilter, nostr.SubscriptionOptions{
+		Label: "loadaddrs",
+	})
 nextEvent:
 	for {
 		select {
@@ -115,7 +117,7 @@ nextEvent:
 			events := results[ie.PubKey].Data
 			if events == nil {
 				// no events found, so just add this and end
-				results[ie.PubKey] = dataloader.Result[[]*nostr.Event]{Data: []*nostr.Event{ie.Event}}
+				results[ie.PubKey] = dataloader.Result[[]nostr.Event]{Data: []nostr.Event{ie.Event}}
 				continue nextEvent
 			}
 
@@ -136,7 +138,7 @@ nextEvent:
 			}
 
 			events = append(events, ie.Event)
-			results[ie.PubKey] = dataloader.Result[[]*nostr.Event]{Data: events}
+			results[ie.PubKey] = dataloader.Result[[]nostr.Event]{Data: events}
 		case <-aggregatedContext.Done():
 			return results
 		}

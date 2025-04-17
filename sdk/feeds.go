@@ -105,9 +105,9 @@ func (sys *System) FetchFeedPage(
 	kinds []uint16,
 	until nostr.Timestamp,
 	totalLimit int,
-) ([]*nostr.Event, error) {
+) ([]nostr.Event, error) {
 	limitPerKey := PerQueryLimitInBatch(totalLimit, len(pubkeys))
-	events := make([]*nostr.Event, 0, len(pubkeys)*limitPerKey)
+	events := make([]nostr.Event, 0, len(pubkeys)*limitPerKey)
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(pubkeys))
@@ -153,8 +153,10 @@ func (sys *System) FetchFeedPage(
 		fUntil := oldestTimestamp + 1
 		filter.Until = &fUntil
 		filter.Since = nil
-		for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.WithLabel("feedpage")) {
-			sys.StoreRelay.Publish(ctx, *ie.Event)
+		for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{
+			Label: "feedpage",
+		}) {
+			sys.Publisher.Publish(ctx, ie.Event)
 
 			// we shouldn't need this check here, but against rogue relays we'll do it
 			if ie.Event.CreatedAt < oldestTimestamp {
@@ -173,7 +175,7 @@ func (sys *System) FetchFeedPage(
 	}
 
 	wg.Wait()
-	slices.SortFunc(events, nostr.CompareEventPtrReverse)
+	slices.SortFunc(events, nostr.CompareEventReverse)
 
 	return events, nil
 }

@@ -33,7 +33,7 @@ const (
 type EventResult dataloader.Result[*nostr.Event]
 
 func (sys *System) initializeReplaceableDataloaders() {
-	sys.replaceableLoaders = make([]*dataloader.Loader[nostr.PubKey, *nostr.Event], 12)
+	sys.replaceableLoaders = make([]*dataloader.Loader[nostr.PubKey, nostr.Event], 12)
 	sys.replaceableLoaders[kind_0] = sys.createReplaceableDataloader(0)
 	sys.replaceableLoaders[kind_3] = sys.createReplaceableDataloader(3)
 	sys.replaceableLoaders[kind_10000] = sys.createReplaceableDataloader(10000)
@@ -48,9 +48,9 @@ func (sys *System) initializeReplaceableDataloaders() {
 	sys.replaceableLoaders[kind_10030] = sys.createReplaceableDataloader(10030)
 }
 
-func (sys *System) createReplaceableDataloader(kind uint16) *dataloader.Loader[nostr.PubKey, *nostr.Event] {
+func (sys *System) createReplaceableDataloader(kind uint16) *dataloader.Loader[nostr.PubKey, nostr.Event] {
 	return dataloader.NewBatchedLoader(
-		func(ctxs []context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]dataloader.Result[*nostr.Event] {
+		func(ctxs []context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]dataloader.Result[nostr.Event] {
 			return sys.batchLoadReplaceableEvents(ctxs, kind, pubkeys)
 		},
 		dataloader.Options{
@@ -64,9 +64,9 @@ func (sys *System) batchLoadReplaceableEvents(
 	ctxs []context.Context,
 	kind uint16,
 	pubkeys []nostr.PubKey,
-) map[nostr.PubKey]dataloader.Result[*nostr.Event] {
+) map[nostr.PubKey]dataloader.Result[nostr.Event] {
 	batchSize := len(pubkeys)
-	results := make(map[nostr.PubKey]dataloader.Result[*nostr.Event], batchSize)
+	results := make(map[nostr.PubKey]dataloader.Result[nostr.Event], batchSize)
 	relayFilter := make([]nostr.DirectedFilter, 0, max(3, batchSize*2))
 	relayFilterIndex := make(map[string]int, max(3, batchSize*2))
 
@@ -121,9 +121,9 @@ func (sys *System) batchLoadReplaceableEvents(
 
 	// query all relays with the prepared filters
 	wg.Wait()
-	multiSubs := sys.Pool.BatchedSubManyEose(aggregatedContext, relayFilter,
-		nostr.WithLabel("repl~"+strconv.Itoa(int(kind))),
-	)
+	multiSubs := sys.Pool.BatchedSubManyEose(aggregatedContext, relayFilter, nostr.SubscriptionOptions{
+		Label: "repl~" + strconv.Itoa(int(kind)),
+	})
 	for {
 		select {
 		case ie, more := <-multiSubs:
@@ -132,8 +132,8 @@ func (sys *System) batchLoadReplaceableEvents(
 			}
 
 			// insert this event at the desired position
-			if val, ok := results[ie.PubKey]; !ok || val.Data == nil || val.Data.CreatedAt < ie.CreatedAt {
-				results[ie.PubKey] = dataloader.Result[*nostr.Event]{Data: ie.Event}
+			if val, ok := results[ie.PubKey]; !ok || val.Data.ID == nostr.ZeroID || val.Data.CreatedAt < ie.CreatedAt {
+				results[ie.PubKey] = dataloader.Result[nostr.Event]{Data: ie.Event}
 			}
 		case <-aggregatedContext.Done():
 			return results

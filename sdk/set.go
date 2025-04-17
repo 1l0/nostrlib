@@ -11,22 +11,22 @@ import (
 
 // this is similar to list.go and inherits code from that.
 
-type GenericSets[I TagItemWithValue] struct {
-	PubKey nostr.PubKey   `json:"-"`
-	Events []*nostr.Event `json:"-"`
+type GenericSets[V comparable, I TagItemWithValue[V]] struct {
+	PubKey nostr.PubKey  `json:"-"`
+	Events []nostr.Event `json:"-"`
 
 	Sets map[string][]I
 }
 
-func fetchGenericSets[I TagItemWithValue](
+func fetchGenericSets[V comparable, I TagItemWithValue[V]](
 	sys *System,
 	ctx context.Context,
 	pubkey nostr.PubKey,
 	actualKind uint16,
 	addressableIndex addressableIndex,
 	parseTag func(nostr.Tag) (I, bool),
-	cache cache.Cache32[GenericSets[I]],
-) (fl GenericSets[I], fromInternal bool) {
+	cache cache.Cache32[GenericSets[V, I]],
+) (fl GenericSets[V, I], fromInternal bool) {
 	n := pubkey[7]
 	lockIdx := (uint16(n) + actualKind) % 60
 	genericListMutexes[lockIdx].Lock()
@@ -44,9 +44,11 @@ func fetchGenericSets[I TagItemWithValue](
 		return v, true
 	}
 
-	v := GenericSets[I]{PubKey: pubkey}
+	v := GenericSets[V, I]{PubKey: pubkey}
 
-	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []uint16{actualKind}, Authors: []nostr.PubKey{pubkey}})
+	events := slices.Collect(
+		sys.Store.QueryEvents(nostr.Filter{Kinds: []uint16{actualKind}, Authors: []nostr.PubKey{pubkey}}),
+	)
 	if len(events) != 0 {
 		// ok, we found something locally
 		sets := parseSetsFromEvents(events, parseTag)
@@ -89,31 +91,31 @@ func fetchGenericSets[I TagItemWithValue](
 	return v, false
 }
 
-func tryFetchSetsFromNetwork[I TagItemWithValue](
+func tryFetchSetsFromNetwork[V comparable, I TagItemWithValue[V]](
 	ctx context.Context,
 	sys *System,
 	pubkey nostr.PubKey,
 	addressableIndex addressableIndex,
 	parseTag func(nostr.Tag) (I, bool),
-) *GenericSets[I] {
+) *GenericSets[V, I] {
 	events, err := sys.addressableLoaders[addressableIndex].Load(ctx, pubkey)
 	if err != nil {
 		return nil
 	}
 
-	v := &GenericSets[I]{
+	v := &GenericSets[V, I]{
 		PubKey: pubkey,
 		Events: events,
 		Sets:   parseSetsFromEvents(events, parseTag),
 	}
 	for _, evt := range events {
-		sys.StoreRelay.Publish(ctx, *evt)
+		sys.Publisher.Publish(ctx, evt)
 	}
 	return v
 }
 
-func parseSetsFromEvents[I TagItemWithValue](
-	events []*nostr.Event,
+func parseSetsFromEvents[V comparable, I TagItemWithValue[V]](
+	events []nostr.Event,
 	parseTag func(nostr.Tag) (I, bool),
 ) map[string][]I {
 	sets := make(map[string][]I, len(events))

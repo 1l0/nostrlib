@@ -39,13 +39,13 @@ func (sys *System) FetchSpecificEventFromInput(
 		case "naddr":
 			pointer = data.(nostr.EntityPointer)
 		case "note":
-			pointer = nostr.EventPointer{ID: data.(string)}
+			pointer = nostr.EventPointer{ID: data.([32]byte)}
 		default:
 			return nil, nil, fmt.Errorf("invalid code '%s'", input)
 		}
 	} else {
-		if nostr.IsValid32ByteHex(input) {
-			pointer = nostr.EventPointer{ID: input}
+		if id, err := nostr.IDFromHex(input); err == nil {
+			pointer = nostr.EventPointer{ID: id}
 		} else {
 			return nil, nil, fmt.Errorf("failed to decode '%s': %w", input, err)
 		}
@@ -66,7 +66,7 @@ func (sys *System) FetchSpecificEvent(
 	priorityRelays := make([]string, 0, 8)
 
 	var filter nostr.Filter
-	author := ""
+	var author nostr.PubKey
 	relays := make([]string, 0, 10)
 	fallback := make([]string, 0, 10)
 	successRelays = make([]string, 0, 10)
@@ -74,7 +74,7 @@ func (sys *System) FetchSpecificEvent(
 	switch v := pointer.(type) {
 	case nostr.EventPointer:
 		author = v.Author
-		filter.IDs = []string{v.ID}
+		filter.IDs = []nostr.ID{v.ID}
 		relays = append(relays, v.Relays...)
 		relays = appendUnique(relays, sys.FallbackRelays.Next())
 		fallback = append(fallback, sys.JustIDRelays.URLs...)
@@ -82,9 +82,9 @@ func (sys *System) FetchSpecificEvent(
 		priorityRelays = append(priorityRelays, v.Relays...)
 	case nostr.EntityPointer:
 		author = v.PublicKey
-		filter.Authors = []string{v.PublicKey}
+		filter.Authors = []nostr.PubKey{v.PublicKey}
 		filter.Tags = nostr.TagMap{"d": []string{v.Identifier}}
-		filter.Kinds = []int{v.Kind}
+		filter.Kinds = []uint16{v.Kind}
 		relays = append(relays, v.Relays...)
 		relays = appendUnique(relays, sys.FallbackRelays.Next())
 		fallback = append(fallback, sys.FallbackRelays.Next(), sys.FallbackRelays.Next())
@@ -93,13 +93,12 @@ func (sys *System) FetchSpecificEvent(
 
 	// try to fetch in our internal eventstore first
 	if !params.SkipLocalStore {
-		if res, _ := sys.StoreRelay.QuerySync(ctx, filter); len(res) != 0 {
-			evt := res[0]
-			return evt, nil, nil
+		for evt := range sys.Store.QueryEvents(filter) {
+			return &evt, nil, nil
 		}
 	}
 
-	if author != "" {
+	if author != nostr.ZeroPK {
 		// fetch relays for author
 		authorRelays := sys.FetchOutboxRelays(ctx, author, 3)
 
@@ -141,19 +140,16 @@ attempts:
 		countdown := 6.0
 		subManyCtx := ctx
 
-		for ie := range sys.Pool.FetchMany(
-			subManyCtx,
-			attempt.relays,
-			filter,
-			nostr.WithLabel(attempt.label),
-		) {
+		for ie := range sys.Pool.FetchMany(subManyCtx, attempt.relays, filter, nostr.SubscriptionOptions{
+			Label: attempt.label,
+		}) {
 			fetchProfileOnce.Do(func() {
 				go sys.FetchProfileMetadata(ctx, ie.PubKey)
 			})
 
 			successRelays = append(successRelays, ie.Relay.URL)
 			if result == nil || ie.CreatedAt > result.CreatedAt {
-				result = ie.Event
+				result = &ie.Event
 			}
 
 			if !attempt.slowWithRelays {
@@ -170,7 +166,7 @@ attempts:
 
 	// save stuff in cache and in internal store
 	if !params.SkipLocalStore {
-		sys.StoreRelay.Publish(ctx, *result)
+		sys.Publisher.Publish(ctx, *result)
 	}
 
 	// put priority relays first so they get used in nevent and nprofile

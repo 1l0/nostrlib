@@ -1,10 +1,11 @@
 package sdk
 
 import (
-	"context"
 	"math/rand/v2"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr/eventstore/nullstore"
 	"fiatjaf.com/nostr/eventstore/wrappers"
 	"fiatjaf.com/nostr/sdk/cache"
 	cache_memory "fiatjaf.com/nostr/sdk/cache/memory"
@@ -13,8 +14,6 @@ import (
 	"fiatjaf.com/nostr/sdk/hints/memoryh"
 	"fiatjaf.com/nostr/sdk/kvstore"
 	kvstore_memory "fiatjaf.com/nostr/sdk/kvstore/memory"
-	"fiatjaf.com/nostr/eventstore"
-	"fiatjaf.com/nostr/eventstore/nullstore"
 )
 
 // System represents the core functionality of the SDK, providing access to
@@ -30,17 +29,17 @@ import (
 type System struct {
 	KVStore               kvstore.KVStore
 	MetadataCache         cache.Cache32[ProfileMetadata]
-	RelayListCache        cache.Cache32[GenericList[Relay]]
-	FollowListCache       cache.Cache32[GenericList[ProfileRef]]
-	MuteListCache         cache.Cache32[GenericList[ProfileRef]]
-	BookmarkListCache     cache.Cache32[GenericList[EventRef]]
-	PinListCache          cache.Cache32[GenericList[EventRef]]
-	BlockedRelayListCache cache.Cache32[GenericList[RelayURL]]
-	SearchRelayListCache  cache.Cache32[GenericList[RelayURL]]
-	TopicListCache        cache.Cache32[GenericList[Topic]]
-	RelaySetsCache        cache.Cache32[GenericSets[RelayURL]]
-	FollowSetsCache       cache.Cache32[GenericSets[ProfileRef]]
-	TopicSetsCache        cache.Cache32[GenericSets[Topic]]
+	RelayListCache        cache.Cache32[GenericList[string, Relay]]
+	FollowListCache       cache.Cache32[GenericList[nostr.PubKey, ProfileRef]]
+	MuteListCache         cache.Cache32[GenericList[nostr.PubKey, ProfileRef]]
+	BookmarkListCache     cache.Cache32[GenericList[string, EventRef]]
+	PinListCache          cache.Cache32[GenericList[string, EventRef]]
+	BlockedRelayListCache cache.Cache32[GenericList[string, RelayURL]]
+	SearchRelayListCache  cache.Cache32[GenericList[string, RelayURL]]
+	TopicListCache        cache.Cache32[GenericList[string, Topic]]
+	RelaySetsCache        cache.Cache32[GenericSets[string, RelayURL]]
+	FollowSetsCache       cache.Cache32[GenericSets[nostr.PubKey, ProfileRef]]
+	TopicSetsCache        cache.Cache32[GenericSets[string, Topic]]
 	Hints                 hints.HintsDB
 	Pool                  *nostr.Pool
 	RelayListRelays       *RelayStream
@@ -54,8 +53,8 @@ type System struct {
 
 	Publisher wrappers.StorePublisher
 
-	replaceableLoaders []*dataloader.Loader[nostr.PubKey, *nostr.Event]
-	addressableLoaders []*dataloader.Loader[nostr.PubKey, []*nostr.Event]
+	replaceableLoaders []*dataloader.Loader[nostr.PubKey, nostr.Event]
+	addressableLoaders []*dataloader.Loader[nostr.PubKey, []nostr.Event]
 }
 
 // SystemModifier is a function that modifies a System instance.
@@ -119,12 +118,12 @@ func NewSystem(mods ...SystemModifier) *System {
 		Hints: memoryh.NewHintDB(),
 	}
 
-	sys.Pool = nostr.NewPool(context.Background(),
-		nostr.WithAuthorKindQueryMiddleware(sys.TrackQueryAttempts),
-		nostr.WithEventMiddleware(sys.TrackEventHintsAndRelays),
-		nostr.WithDuplicateMiddleware(sys.TrackEventRelaysD),
-		nostr.WithPenaltyBox(),
-	)
+	sys.Pool = nostr.NewPool(nostr.PoolOptions{
+		AuthorKindQueryMiddleware: sys.TrackQueryAttempts,
+		EventMiddleware:           sys.TrackEventHintsAndRelays,
+		DuplicateMiddleware:       sys.TrackEventRelaysD,
+		PenaltyBox:                true,
+	})
 
 	for _, mod := range mods {
 		mod(sys)
@@ -134,14 +133,14 @@ func NewSystem(mods ...SystemModifier) *System {
 		sys.MetadataCache = cache_memory.New[ProfileMetadata](8000)
 	}
 	if sys.RelayListCache == nil {
-		sys.RelayListCache = cache_memory.New[GenericList[Relay]](8000)
+		sys.RelayListCache = cache_memory.New[GenericList[string, Relay]](8000)
 	}
 
 	if sys.Store == nil {
 		sys.Store = &nullstore.NullStore{}
 		sys.Store.Init()
 	}
-	sys.StoreRelay = eventstore.RelayWrapper{Store: sys.Store}
+	sys.Publisher = wrappers.StorePublisher{Store: sys.Store}
 
 	sys.initializeReplaceableDataloaders()
 	sys.initializeAddressableDataloaders()
@@ -223,14 +222,14 @@ func WithStore(store eventstore.Store) SystemModifier {
 }
 
 // WithRelayListCache returns a SystemModifier that sets the RelayListCache.
-func WithRelayListCache(cache cache.Cache32[GenericList[Relay]]) SystemModifier {
+func WithRelayListCache(cache cache.Cache32[GenericList[string, Relay]]) SystemModifier {
 	return func(sys *System) {
 		sys.RelayListCache = cache
 	}
 }
 
 // WithFollowListCache returns a SystemModifier that sets the FollowListCache.
-func WithFollowListCache(cache cache.Cache32[GenericList[ProfileRef]]) SystemModifier {
+func WithFollowListCache(cache cache.Cache32[GenericList[nostr.PubKey, ProfileRef]]) SystemModifier {
 	return func(sys *System) {
 		sys.FollowListCache = cache
 	}
