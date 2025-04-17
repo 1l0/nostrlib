@@ -12,9 +12,9 @@ func TestEOSEMadness(t *testing.T) {
 	rl := mustRelayConnect(t, RELAY)
 	defer rl.Close()
 
-	sub, err := rl.Subscribe(context.Background(), Filters{
-		{Kinds: []uint16{KindTextNote}, Limit: 2},
-	})
+	sub, err := rl.Subscribe(context.Background(), Filter{
+		Kinds: []uint16{KindTextNote}, Limit: 2,
+	}, SubscriptionOptions{})
 	assert.NoError(t, err)
 
 	timeout := time.After(3 * time.Second)

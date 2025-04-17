@@ -94,7 +94,7 @@ func TestIDCheck(t *testing.T) {
 
 		require.False(t, evt.CheckID())
 
-		evt.Sign(GeneratePrivateKey())
+		evt.Sign(Generate())
 		require.True(t, evt.CheckID())
 
 		evt.Content += "!"
@@ -108,7 +108,7 @@ func BenchmarkIDCheck(b *testing.B) {
 		Content:   fmt.Sprintf("hello"),
 		Tags:      Tags{},
 	}
-	evt.Sign(GeneratePrivateKey())
+	evt.Sign(Generate())
 
 	b.Run("naïve", func(b *testing.B) {
 		for b.Loop() {

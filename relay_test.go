@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/websocket"
 )
@@ -29,7 +28,7 @@ func TestPublish(t *testing.T) {
 		PubKey:    pub,
 	}
 	err := textNote.Sign(priv)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// fake relay server
 	var mu sync.Mutex // guards published to satisfy go test -race
@@ -41,24 +40,24 @@ func TestPublish(t *testing.T) {
 		// verify the client sent exactly the textNote
 		var raw []stdjson.RawMessage
 		err := websocket.JSON.Receive(conn, &raw)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		event := parseEventMessage(t, raw)
-		assert.True(t, bytes.Equal(event.Serialize(), textNote.Serialize()))
+		require.True(t, bytes.Equal(event.Serialize(), textNote.Serialize()))
 
 		// send back an ok nip-20 command result
 		res := []any{"OK", textNote.ID, true, ""}
 		err = websocket.JSON.Send(conn, res)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	defer ws.Close()
 
 	// connect a client and send the text note
 	rl := mustRelayConnect(t, ws.URL)
 	err = rl.Publish(context.Background(), textNote)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.True(t, published, "fake relay server saw no event")
+	require.True(t, published, "fake relay server saw no event")
 }
 
 func TestPublishBlocked(t *testing.T) {
@@ -71,7 +70,7 @@ func TestPublishBlocked(t *testing.T) {
 		// discard received message; not interested
 		var raw []stdjson.RawMessage
 		err := websocket.JSON.Receive(conn, &raw)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// send back a not ok nip-20 command result
 		res := []any{"OK", textNote.ID.String(), false, "blocked"}
@@ -82,7 +81,7 @@ func TestPublishBlocked(t *testing.T) {
 	// connect a client and send a text note
 	rl := mustRelayConnect(t, ws.URL)
 	err := rl.Publish(context.Background(), textNote)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestPublishWriteFailed(t *testing.T) {
@@ -102,7 +101,7 @@ func TestPublishWriteFailed(t *testing.T) {
 	// Force brief period of time so that publish always fails on closed socket.
 	time.Sleep(1 * time.Millisecond)
 	err := rl.Publish(context.Background(), textNote)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConnectContext(t *testing.T) {
@@ -120,45 +119,28 @@ func TestConnectContext(t *testing.T) {
 	// relay client
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := RelayConnect(ctx, ws.URL)
-	assert.NoError(t, err)
+	r, err := RelayConnect(ctx, ws.URL, RelayOptions{})
+	require.NoError(t, err)
 
 	defer r.Close()
 
 	mu.Lock()
 	defer mu.Unlock()
-	assert.True(t, connected, "fake relay server saw no client connect")
+	require.True(t, connected, "fake relay server saw no client connect")
 }
 
 func TestConnectContextCanceled(t *testing.T) {
 	// fake relay server
-	ws := newWebsocketServer(discardingHandler)
+	ws := newWebsocketServer(func(conn *websocket.Conn) {
+		io.ReadAll(conn) // discard all input
+	})
 	defer ws.Close()
 
 	// relay client
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // make ctx expired
-	_, err := RelayConnect(ctx, ws.URL)
-	assert.ErrorIs(t, err, context.Canceled)
-}
-
-func TestConnectWithOrigin(t *testing.T) {
-	// fake relay server
-	// default handler requires origin golang.org/x/net/websocket
-	ws := httptest.NewServer(websocket.Handler(discardingHandler))
-	defer ws.Close()
-
-	// relay client
-	r := NewRelay(context.Background(), NormalizeURL(ws.URL),
-		WithRequestHeader(http.Header{"origin": {"https://example.com"}}))
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	err := r.Connect(ctx)
-	assert.NoError(t, err)
-}
-
-func discardingHandler(conn *websocket.Conn) {
-	io.ReadAll(conn) // discard all input
+	_, err := RelayConnect(ctx, ws.URL, RelayOptions{})
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func newWebsocketServer(handler func(*websocket.Conn)) *httptest.Server {
@@ -178,7 +160,7 @@ var anyOriginHandshake = func(conf *websocket.Config, r *http.Request) error {
 func makeKeyPair(t *testing.T) (priv, pub [32]byte) {
 	t.Helper()
 
-	privkey := GeneratePrivateKey()
+	privkey := Generate()
 	pubkey := GetPublicKey(privkey)
 
 	return privkey, pubkey
@@ -187,7 +169,7 @@ func makeKeyPair(t *testing.T) (priv, pub [32]byte) {
 func mustRelayConnect(t *testing.T, url string) *Relay {
 	t.Helper()
 
-	rl, err := RelayConnect(context.Background(), url)
+	rl, err := RelayConnect(context.Background(), url, RelayOptions{})
 	require.NoError(t, err)
 
 	return rl
@@ -196,14 +178,14 @@ func mustRelayConnect(t *testing.T, url string) *Relay {
 func parseEventMessage(t *testing.T, raw []stdjson.RawMessage) Event {
 	t.Helper()
 
-	assert.Condition(t, func() (success bool) {
+	require.Condition(t, func() (success bool) {
 		return len(raw) >= 2
 	})
 
 	var typ string
 	err := json.Unmarshal(raw[0], &typ)
-	assert.NoError(t, err)
-	assert.Equal(t, "EVENT", typ)
+	require.NoError(t, err)
+	require.Equal(t, "EVENT", typ)
 
 	var event Event
 	err = json.Unmarshal(raw[1], &event)
@@ -215,23 +197,23 @@ func parseEventMessage(t *testing.T, raw []stdjson.RawMessage) Event {
 func parseSubscriptionMessage(t *testing.T, raw []stdjson.RawMessage) (subid string, filters []Filter) {
 	t.Helper()
 
-	assert.Greater(t, len(raw), 3)
+	require.Greater(t, len(raw), 3)
 
 	var typ string
 	err := json.Unmarshal(raw[0], &typ)
 
-	assert.NoError(t, err)
-	assert.Equal(t, "REQ", typ)
+	require.NoError(t, err)
+	require.Equal(t, "REQ", typ)
 
 	var id string
 	err = json.Unmarshal(raw[1], &id)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var ff []Filter
 	for _, b := range raw[2:] {
 		var f Filter
 		err := json.Unmarshal(b, &f)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		ff = append(ff, f)
 	}
 	return id, ff

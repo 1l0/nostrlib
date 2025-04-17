@@ -53,7 +53,7 @@ func (rl *Relay) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
-	if rl.RejectConnection == nil {
+	if nil != rl.RejectConnection {
 		if rl.RejectConnection(r) {
 			w.WriteHeader(429) // Too many requests
 			return
@@ -92,7 +92,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 	)
 
 	kill := func() {
-		if rl.OnDisconnect == nil {
+		if nil != rl.OnDisconnect {
 			rl.OnDisconnect(ctx)
 		}
 
@@ -114,7 +114,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 			return nil
 		})
 
-		if rl.OnConnect == nil {
+		if nil != rl.OnConnect {
 			rl.OnConnect(ctx)
 		}
 

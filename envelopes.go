@@ -202,7 +202,7 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["COUNT","`)
 	w.RawString(v.SubscriptionID)
-	w.RawString(`"`)
+	w.RawString(`",`)
 	if v.Count != nil {
 		w.RawString(`{"count":`)
 		w.RawString(strconv.FormatUint(uint64(*v.Count), 10))

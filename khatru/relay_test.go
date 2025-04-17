@@ -183,7 +183,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 		// create newer event that should replace the first
 		evt2 := createEvent(sk1, 0, `{"name":"newer"}`, nil)
-		evt2.CreatedAt = 2000 // Newer timestamp
+		evt2.CreatedAt = 2004 // Newer timestamp
 		evt2.Sign(sk1)
 		err = client1.Publish(ctx, evt2)
 		if err != nil {
@@ -213,8 +213,8 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		var receivedEvents []nostr.Event
 		for {
 			select {
-			case env := <-sub.Events:
-				receivedEvents = append(receivedEvents, env)
+			case evt := <-sub.Events:
+				receivedEvents = append(receivedEvents, evt)
 			case <-sub.EndOfStoredEvents:
 				if len(receivedEvents) != 1 {
 					t.Errorf("expected exactly 1 event, got %d", len(receivedEvents))

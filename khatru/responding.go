@@ -32,7 +32,6 @@ func (rl *Relay) handleRequest(ctx context.Context, id string, eose *sync.WaitGr
 		for event := range rl.QueryStored(ctx, filter) {
 			ws.WriteJSON(nostr.EventEnvelope{SubscriptionID: &id, Event: event})
 		}
-		eose.Done()
 	}
 
 	return nil

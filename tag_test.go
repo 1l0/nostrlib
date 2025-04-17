@@ -21,7 +21,7 @@ func TestTagHelpers(t *testing.T) {
 	assert.Equal(t, "ffffff", tags.FindLast("e")[1], "failed to get last")
 	assert.Equal(t, 2, len(slices.Collect(tags.FindAll("e"))), "failed to get all")
 	c := make(Tags, 0, 2)
-	for _, tag := range tags.All([]string{"e", ""}) {
+	for tag := range tags.FindAll("e") {
 		c = append(c, tag)
 	}
 }
