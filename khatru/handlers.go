@@ -176,8 +176,8 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 					// check NIP-70 protected
 					if nip70.IsProtected(env.Event) {
-						authed := GetAuthed(ctx)
-						if authed == "" {
+						authed, isAuthed := GetAuthed(ctx)
+						if isAuthed {
 							RequestAuth(ctx)
 							ws.WriteJSON(nostr.OKEnvelope{
 								EventID: env.Event.ID,
@@ -213,20 +213,20 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 					if env.Event.Kind == 5 {
 						// this always returns "blocked: " whenever it returns an error
-						writeErr = srl.handleDeleteRequest(ctx, &env.Event)
+						writeErr = srl.handleDeleteRequest(ctx, env.Event)
 					} else if nostr.IsEphemeralKind(env.Event.Kind) {
 						// this will also always return a prefixed reason
-						writeErr = srl.handleEphemeral(ctx, &env.Event)
+						writeErr = srl.handleEphemeral(ctx, env.Event)
 					} else {
 						// this will also always return a prefixed reason
-						skipBroadcast, writeErr = srl.handleNormal(ctx, &env.Event)
+						skipBroadcast, writeErr = srl.handleNormal(ctx, env.Event)
 					}
 
 					var reason string
 					if writeErr == nil {
 						ok = true
 						if !skipBroadcast {
-							n := srl.notifyListeners(&env.Event)
+							n := srl.notifyListeners(env.Event)
 
 							// the number of notified listeners matters in ephemeral events
 							if nostr.IsEphemeralKind(env.Event.Kind) {
@@ -247,12 +247,12 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 					ws.WriteJSON(nostr.OKEnvelope{EventID: env.Event.ID, OK: ok, Reason: reason})
 				case *nostr.CountEnvelope:
-					if rl.CountEvents == nil && rl.CountEventsHLL == nil {
+					if rl.Count == nil && rl.CountHLL == nil {
 						ws.WriteJSON(nostr.ClosedEnvelope{SubscriptionID: env.SubscriptionID, Reason: "unsupported: this relay does not support NIP-45"})
 						return
 					}
 
-					var total int64
+					var total uint32
 					var hll *hyperloglog.HyperLogLog
 
 					srl := rl
@@ -278,7 +278,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				case *nostr.ReqEnvelope:
 					eose := sync.WaitGroup{}
-					eose.Add(len(env.Filters))
+					eose.Add(1)
 
 					// a context just for the "stored events" request handler
 					reqCtx, cancelReqCtx := context.WithCancelCause(ctx)
@@ -287,24 +287,22 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					reqCtx = context.WithValue(reqCtx, subscriptionIdKey, env.SubscriptionID)
 
 					// handle each filter separately -- dispatching events as they're loaded from databases
-					for _, filter := range env.Filters {
-						srl := rl
-						if rl.getSubRelayFromFilter != nil {
-							srl = rl.getSubRelayFromFilter(filter)
+					srl := rl
+					if rl.getSubRelayFromFilter != nil {
+						srl = rl.getSubRelayFromFilter(env.Filter)
+					}
+					err := srl.handleRequest(reqCtx, env.SubscriptionID, &eose, ws, env.Filter)
+					if err != nil {
+						// fail everything if any filter is rejected
+						reason := err.Error()
+						if strings.HasPrefix(reason, "auth-required:") {
+							RequestAuth(ctx)
 						}
-						err := srl.handleRequest(reqCtx, env.SubscriptionID, &eose, ws, filter)
-						if err != nil {
-							// fail everything if any filter is rejected
-							reason := err.Error()
-							if strings.HasPrefix(reason, "auth-required:") {
-								RequestAuth(ctx)
-							}
-							ws.WriteJSON(nostr.ClosedEnvelope{SubscriptionID: env.SubscriptionID, Reason: reason})
-							cancelReqCtx(errors.New("filter rejected"))
-							return
-						} else {
-							rl.addListener(ws, env.SubscriptionID, srl, filter, cancelReqCtx)
-						}
+						ws.WriteJSON(nostr.ClosedEnvelope{SubscriptionID: env.SubscriptionID, Reason: reason})
+						cancelReqCtx(errors.New("filter rejected"))
+						return
+					} else {
+						rl.addListener(ws, env.SubscriptionID, srl, env.Filter, cancelReqCtx)
 					}
 
 					go func() {
@@ -317,7 +315,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					rl.removeListenerId(ws, id)
 				case *nostr.AuthEnvelope:
 					wsBaseUrl := strings.Replace(rl.getBaseURL(r), "http", "ws", 1)
-					if pubkey, ok := nip42.ValidateAuthEvent(&env.Event, ws.Challenge, wsBaseUrl); ok {
+					if pubkey, ok := nip42.ValidateAuthEvent(env.Event, ws.Challenge, wsBaseUrl); ok {
 						ws.AuthedPublicKey = pubkey
 						ws.authLock.Lock()
 						if ws.Authed != nil {

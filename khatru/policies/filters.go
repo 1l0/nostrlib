@@ -4,8 +4,8 @@ import (
 	"context"
 	"slices"
 
-	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/khatru"
 )
 
 // NoComplexFilters disallows filters with more than 2 tags.
@@ -21,7 +21,7 @@ func NoComplexFilters(ctx context.Context, filter nostr.Filter) (reject bool, ms
 
 // MustAuth requires all subscribers to be authenticated
 func MustAuth(ctx context.Context, filter nostr.Filter) (reject bool, msg string) {
-	if khatru.GetAuthed(ctx) == "" {
+	if _, isAuthed := khatru.GetAuthed(ctx); !isAuthed {
 		return true, "auth-required: all requests must be authenticated"
 	}
 	return false, ""
@@ -63,7 +63,7 @@ func RemoveSearchQueries(ctx context.Context, filter *nostr.Filter) {
 func RemoveAllButKinds(kinds ...uint16) func(context.Context, *nostr.Filter) {
 	return func(ctx context.Context, filter *nostr.Filter) {
 		if n := len(filter.Kinds); n > 0 {
-			newKinds := make([]int, 0, n)
+			newKinds := make([]uint16, 0, n)
 			for i := 0; i < n; i++ {
 				if k := filter.Kinds[i]; slices.Contains(kinds, uint16(k)) {
 					newKinds = append(newKinds, k)

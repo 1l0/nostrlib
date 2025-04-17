@@ -21,53 +21,42 @@ func (rl *Relay) handleRequest(ctx context.Context, id string, eose *sync.WaitGr
 	// because we may, for example, remove some things from the incoming filters
 	// that we know we don't support, and then if the end result is an empty
 	// filter we can just reject it)
-	if rl.RejectFilter != nil {
-		if reject, msg := rl.RejectFilter(ctx, filter); reject {
+	if nil != rl.OnRequest {
+		if reject, msg := rl.OnRequest(ctx, filter); reject {
 			return errors.New(nostr.NormalizeOKMessage(msg, "blocked"))
 		}
 	}
 
 	// run the function to query events
-	if rl.QueryEvents != nil {
-		ch, err := rl.QueryEvents(ctx, filter)
-		if err != nil {
-			ws.WriteJSON(nostr.NoticeEnvelope(err.Error()))
-			eose.Done()
-		} else if ch == nil {
-			eose.Done()
+	if nil != rl.QueryStored {
+		for event := range rl.QueryStored(ctx, filter) {
+			ws.WriteJSON(nostr.EventEnvelope{SubscriptionID: &id, Event: event})
 		}
-
-		go func(ch chan *nostr.Event) {
-			for event := range ch {
-				ws.WriteJSON(nostr.EventEnvelope{SubscriptionID: &id, Event: *event})
-			}
-			eose.Done()
-		}(ch)
+		eose.Done()
 	}
 
 	return nil
 }
 
-func (rl *Relay) handleCountRequest(ctx context.Context, ws *WebSocket, filter nostr.Filter) int64 {
+func (rl *Relay) handleCountRequest(ctx context.Context, ws *WebSocket, filter nostr.Filter) uint32 {
 	// check if we'll reject this filter
-	if rl.RejectCountFilter != nil {
-		if rejecting, msg := rl.RejectCountFilter(ctx, filter); rejecting {
+	if nil != rl.OnCountFilter {
+		if rejecting, msg := rl.OnCountFilter(ctx, filter); rejecting {
 			ws.WriteJSON(nostr.NoticeEnvelope(msg))
 			return 0
 		}
 	}
 
 	// run the functions to count (generally it will be just one)
-	var subtotal int64 = 0
-	if rl.CountEvents != nil {
-		res, err := rl.CountEvents(ctx, filter)
+	if nil != rl.Count {
+		res, err := rl.Count(ctx, filter)
 		if err != nil {
 			ws.WriteJSON(nostr.NoticeEnvelope(err.Error()))
 		}
-		subtotal += res
+		return res
 	}
 
-	return subtotal
+	return 0
 }
 
 func (rl *Relay) handleCountRequestWithHLL(
@@ -75,32 +64,22 @@ func (rl *Relay) handleCountRequestWithHLL(
 	ws *WebSocket,
 	filter nostr.Filter,
 	offset int,
-) (int64, *hyperloglog.HyperLogLog) {
+) (uint32, *hyperloglog.HyperLogLog) {
 	// check if we'll reject this filter
-	if rl.RejectCountFilter != nil {
-		if rejecting, msg := rl.RejectCountFilter(ctx, filter); rejecting {
+	if nil != rl.OnCountFilter {
+		if rejecting, msg := rl.OnCountFilter(ctx, filter); rejecting {
 			ws.WriteJSON(nostr.NoticeEnvelope(msg))
 			return 0, nil
 		}
 	}
 
-	// run the functions to count (generally it will be just one)
-	var subtotal int64 = 0
-	var hll *hyperloglog.HyperLogLog
-	if rl.CountEventsHLL != nil {
-		res, fhll, err := rl.CountEventsHLL(ctx, filter, offset)
+	if nil != rl.CountHLL {
+		res, hll, err := rl.CountHLL(ctx, filter, offset)
 		if err != nil {
 			ws.WriteJSON(nostr.NoticeEnvelope(err.Error()))
 		}
-		subtotal += res
-		if fhll != nil {
-			if hll == nil {
-				hll = fhll
-			} else {
-				hll.Merge(fhll)
-			}
-		}
+		return res, hll
 	}
 
-	return subtotal, hll
+	return 0, nil
 }

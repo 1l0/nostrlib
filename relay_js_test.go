@@ -24,7 +24,7 @@ func TestConnectContext(t *testing.T) {
 	// relay client
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := RelayConnect(ctx, testRelayURL)
+	r, err := RelayConnect(ctx, testRelayURL, RelayOptions{})
 	assert.NoError(t, err)
 
 	defer r.Close()
@@ -34,7 +34,7 @@ func TestConnectContextCanceled(t *testing.T) {
 	// relay client
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // make ctx expired
-	_, err := RelayConnect(ctx, testRelayURL)
+	_, err := RelayConnect(ctx, testRelayURL, RelayOptions{})
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
@@ -60,7 +60,7 @@ func TestPublish(t *testing.T) {
 func makeKeyPair(t *testing.T) (priv, pub [32]byte) {
 	t.Helper()
 
-	privkey := GeneratePrivateKey()
+	privkey := Generate()
 	pubkey := GetPublicKey(privkey)
 
 	return privkey, pubkey
@@ -69,7 +69,7 @@ func makeKeyPair(t *testing.T) (priv, pub [32]byte) {
 func mustRelayConnect(t *testing.T, url string) *Relay {
 	t.Helper()
 
-	rl, err := RelayConnect(context.Background(), url)
+	rl, err := RelayConnect(context.Background(), url, RelayOptions{})
 	require.NoError(t, err)
 
 	return rl

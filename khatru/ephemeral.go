@@ -7,9 +7,9 @@ import (
 	"fiatjaf.com/nostr"
 )
 
-func (rl *Relay) handleEphemeral(ctx context.Context, evt *nostr.Event) error {
-	for _, reject := range rl.RejectEvent {
-		if reject, msg := reject(ctx, evt); reject {
+func (rl *Relay) handleEphemeral(ctx context.Context, evt nostr.Event) error {
+	if nil != rl.OnEvent {
+		if reject, msg := rl.OnEvent(ctx, evt); reject {
 			if msg == "" {
 				return errors.New("blocked: no reason")
 			} else {
@@ -18,8 +18,8 @@ func (rl *Relay) handleEphemeral(ctx context.Context, evt *nostr.Event) error {
 		}
 	}
 
-	for _, oee := range rl.OnEphemeralEvent {
-		oee(ctx, evt)
+	if nil != rl.OnEphemeralEvent {
+		rl.OnEphemeralEvent(ctx, evt)
 	}
 
 	return nil

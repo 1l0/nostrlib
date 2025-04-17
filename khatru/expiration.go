@@ -11,7 +11,7 @@ import (
 )
 
 type expiringEvent struct {
-	id        string
+	id        nostr.ID
 	expiresAt nostr.Timestamp
 }
 
@@ -74,13 +74,8 @@ func (em *expirationManager) initialScan(ctx context.Context) {
 
 	// query all events
 	ctx = context.WithValue(ctx, internalCallKey, struct{}{})
-	for _, query := range em.relay.QueryEvents {
-		ch, err := query(ctx, nostr.Filter{})
-		if err != nil {
-			continue
-		}
-
-		for evt := range ch {
+	if nil != em.relay.QueryStored {
+		for evt := range em.relay.QueryStored(ctx, nostr.Filter{}) {
 			if expiresAt := nip40.GetExpiration(evt.Tags); expiresAt != -1 {
 				heap.Push(&em.events, expiringEvent{
 					id:        evt.ID,
@@ -109,23 +104,13 @@ func (em *expirationManager) checkExpiredEvents(ctx context.Context) {
 		heap.Pop(&em.events)
 
 		ctx := context.WithValue(ctx, internalCallKey, struct{}{})
-		for _, query := range em.relay.QueryEvents {
-			ch, err := query(ctx, nostr.Filter{IDs: []string{next.id}})
-			if err != nil {
-				continue
-			}
-
-			if evt := <-ch; evt != nil {
-				for _, del := range em.relay.DeleteEvent {
-					del(ctx, evt)
-				}
-			}
-			break
+		if nil != em.relay.DeleteEvent {
+			em.relay.DeleteEvent(ctx, next.id)
 		}
 	}
 }
 
-func (em *expirationManager) trackEvent(evt *nostr.Event) {
+func (em *expirationManager) trackEvent(evt nostr.Event) {
 	if expiresAt := nip40.GetExpiration(evt.Tags); expiresAt != -1 {
 		em.mu.Lock()
 		heap.Push(&em.events, expiringEvent{
@@ -136,7 +121,7 @@ func (em *expirationManager) trackEvent(evt *nostr.Event) {
 	}
 }
 
-func (em *expirationManager) removeEvent(id string) {
+func (em *expirationManager) removeEvent(id nostr.ID) {
 	em.mu.Lock()
 	defer em.mu.Unlock()
 

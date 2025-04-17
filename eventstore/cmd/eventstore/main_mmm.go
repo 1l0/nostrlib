@@ -3,13 +3,11 @@
 package main
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 
 	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/mmm"
-	"fiatjaf.com/nostr"
 	"github.com/rs/zerolog"
 )
 
@@ -24,9 +22,7 @@ func doMmmInit(path string) (eventstore.Store, error) {
 	if err := mmmm.Init(); err != nil {
 		return nil, err
 	}
-	il := &mmm.IndexingLayer{
-		ShouldIndex: func(ctx context.Context, e *nostr.Event) bool { return false },
-	}
+	il := &mmm.IndexingLayer{}
 	if err := mmmm.EnsureLayer(filepath.Base(path), il); err != nil {
 		return nil, err
 	}

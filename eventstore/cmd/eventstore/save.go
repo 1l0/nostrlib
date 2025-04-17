@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/urfave/cli/v3"
-	"github.com/mailru/easyjson"
 	"fiatjaf.com/nostr"
+	"github.com/mailru/easyjson"
+	"github.com/urfave/cli/v3"
 )
 
 var save = &cli.Command{
@@ -25,7 +25,7 @@ var save = &cli.Command{
 				continue
 			}
 
-			if err := db.SaveEvent(ctx, &event); err != nil {
+			if err := db.SaveEvent(event); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to save event '%s': %s\n", line, err)
 				hasError = true
 				continue

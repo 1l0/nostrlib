@@ -8,11 +8,11 @@ import (
 	"os"
 	"sync"
 
-	"github.com/urfave/cli/v3"
-	"github.com/mailru/easyjson"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip77/negentropy"
 	"fiatjaf.com/nostr/nip77/negentropy/storage/vector"
+	"github.com/mailru/easyjson"
+	"github.com/urfave/cli/v3"
 )
 
 var neg = &cli.Command{
@@ -44,11 +44,7 @@ var neg = &cli.Command{
 		// create negentropy object and initialize it with events
 		vec := vector.New()
 		neg := negentropy.New(vec, frameSizeLimit)
-		ch, err := db.QueryEvents(ctx, filter)
-		if err != nil {
-			return fmt.Errorf("error querying: %s\n", err)
-		}
-		for evt := range ch {
+		for evt := range db.QueryEvents(filter) {
 			vec.Insert(evt.CreatedAt, evt.ID)
 		}
 

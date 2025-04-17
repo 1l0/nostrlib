@@ -21,7 +21,7 @@ type BlossomServer struct {
 
 	RejectUpload func(ctx context.Context, auth *nostr.Event, size int, ext string) (bool, string, int)
 	RejectGet    func(ctx context.Context, auth *nostr.Event, sha256 string) (bool, string, int)
-	RejectList   func(ctx context.Context, auth *nostr.Event, pubkey string) (bool, string, int)
+	RejectList   func(ctx context.Context, auth *nostr.Event, pubkey nostr.PubKey) (bool, string, int)
 	RejectDelete func(ctx context.Context, auth *nostr.Event, sha256 string) (bool, string, int)
 }
 

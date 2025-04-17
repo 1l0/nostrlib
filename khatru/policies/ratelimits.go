@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"time"
 
-	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/khatru"
 )
 
-func EventIPRateLimiter(tokensPerInterval int, interval time.Duration, maxTokens int) func(ctx context.Context, _ *nostr.Event) (reject bool, msg string) {
+func EventIPRateLimiter(tokensPerInterval int, interval time.Duration, maxTokens int) func(ctx context.Context, _ nostr.Event) (reject bool, msg string) {
 	rl := startRateLimitSystem[string](tokensPerInterval, interval, maxTokens)
 
-	return func(ctx context.Context, _ *nostr.Event) (reject bool, msg string) {
+	return func(ctx context.Context, _ nostr.Event) (reject bool, msg string) {
 		ip := khatru.GetIP(ctx)
 		if ip == "" {
 			return false, ""
@@ -21,11 +21,11 @@ func EventIPRateLimiter(tokensPerInterval int, interval time.Duration, maxTokens
 	}
 }
 
-func EventPubKeyRateLimiter(tokensPerInterval int, interval time.Duration, maxTokens int) func(ctx context.Context, _ *nostr.Event) (reject bool, msg string) {
+func EventPubKeyRateLimiter(tokensPerInterval int, interval time.Duration, maxTokens int) func(ctx context.Context, _ nostr.Event) (reject bool, msg string) {
 	rl := startRateLimitSystem[string](tokensPerInterval, interval, maxTokens)
 
-	return func(ctx context.Context, evt *nostr.Event) (reject bool, msg string) {
-		return rl(evt.PubKey), "rate-limited: slow down, please"
+	return func(ctx context.Context, evt nostr.Event) (reject bool, msg string) {
+		return rl(evt.PubKey.Hex()), "rate-limited: slow down, please"
 	}
 }
 

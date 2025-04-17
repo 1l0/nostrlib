@@ -19,7 +19,6 @@ require (
 	github.com/dgraph-io/ristretto v1.0.0
 	github.com/elnosh/gonuts v0.3.1-0.20250123162555-7c0381a585e3
 	github.com/fasthttp/websocket v1.5.12
-	github.com/fiatjaf/eventstore v0.16.2
 	github.com/fiatjaf/khatru v0.17.4
 	github.com/gomarkdown/markdown v0.0.0-20241205020045-f7e15b2f3e62
 	github.com/json-iterator/go v1.1.12
@@ -70,6 +69,7 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/fiatjaf/eventstore v0.16.2 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/snappy v0.0.4 // indirect

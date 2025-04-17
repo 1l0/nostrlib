@@ -12,29 +12,20 @@ import (
 )
 
 func main() {
-	db1 := slicestore.SliceStore{}
+	db1 := &slicestore.SliceStore{}
 	db1.Init()
 	r1 := khatru.NewRelay()
-	r1.StoreEvent = append(r1.StoreEvent, db1.SaveEvent)
-	r1.QueryEvents = append(r1.QueryEvents, db1.QueryEvents)
-	r1.CountEvents = append(r1.CountEvents, db1.CountEvents)
-	r1.DeleteEvent = append(r1.DeleteEvent, db1.DeleteEvent)
+	r1.UseEventstore(db1)
 
-	db2 := badger.BadgerBackend{DatabaseURL: "/tmp/t"}
+	db2 := &badger.BadgerBackend{Path: "/tmp/t"}
 	db2.Init()
 	r2 := khatru.NewRelay()
-	r2.StoreEvent = append(r2.StoreEvent, db2.SaveEvent)
-	r2.QueryEvents = append(r2.QueryEvents, db2.QueryEvents)
-	r2.CountEvents = append(r2.CountEvents, db2.CountEvents)
-	r2.DeleteEvent = append(r2.DeleteEvent, db2.DeleteEvent)
+	r2.UseEventstore(db2)
 
-	db3 := slicestore.SliceStore{}
+	db3 := &slicestore.SliceStore{}
 	db3.Init()
 	r3 := khatru.NewRelay()
-	r3.StoreEvent = append(r3.StoreEvent, db3.SaveEvent)
-	r3.QueryEvents = append(r3.QueryEvents, db3.QueryEvents)
-	r3.CountEvents = append(r3.CountEvents, db3.CountEvents)
-	r3.DeleteEvent = append(r3.DeleteEvent, db3.DeleteEvent)
+	r3.UseEventstore(db3)
 
 	router := khatru.NewRouter()
 

@@ -1,7 +1,7 @@
 # eventstore command-line tool
 
 ```
-go install github.com/fiatjaf/eventstore/cmd/eventstore@latest
+go install fiatjaf.com/nostr/eventstore/cmd/eventstore@latest
 ```
 
 ## Usage

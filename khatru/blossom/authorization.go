@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mailru/easyjson"
 	"fiatjaf.com/nostr"
+	"github.com/mailru/easyjson"
 )
 
 func readAuthorization(r *http.Request) (*nostr.Event, error) {
@@ -28,7 +28,7 @@ func readAuthorization(r *http.Request) (*nostr.Event, error) {
 	if evt.Kind != 24242 || !evt.CheckID() {
 		return nil, fmt.Errorf("invalid event")
 	}
-	if ok, _ := evt.CheckSignature(); !ok {
+	if !evt.VerifySignature() {
 		return nil, fmt.Errorf("invalid signature")
 	}
 

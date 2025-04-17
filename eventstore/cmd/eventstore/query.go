@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mailru/easyjson"
 	"fiatjaf.com/nostr"
+	"github.com/mailru/easyjson"
 	"github.com/urfave/cli/v3"
 )
 
@@ -25,14 +25,7 @@ var query = &cli.Command{
 				continue
 			}
 
-			ch, err := db.QueryEvents(ctx, filter)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error querying: %s\n", err)
-				hasError = true
-				continue
-			}
-
-			for evt := range ch {
+			for evt := range db.QueryEvents(filter) {
 				fmt.Println(evt)
 			}
 		}

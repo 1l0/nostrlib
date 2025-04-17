@@ -2,6 +2,7 @@ package blossom
 
 import (
 	"context"
+	"iter"
 
 	"fiatjaf.com/nostr"
 )
@@ -13,14 +14,14 @@ type BlobDescriptor struct {
 	Type     string          `json:"type"`
 	Uploaded nostr.Timestamp `json:"uploaded"`
 
-	Owner string `json:"-"`
+	Owner nostr.PubKey `json:"-"`
 }
 
 type BlobIndex interface {
-	Keep(ctx context.Context, blob BlobDescriptor, pubkey string) error
-	List(ctx context.Context, pubkey string) (chan BlobDescriptor, error)
+	Keep(ctx context.Context, blob BlobDescriptor, pubkey nostr.PubKey) error
+	List(ctx context.Context, pubkey nostr.PubKey) iter.Seq[BlobDescriptor]
 	Get(ctx context.Context, sha256 string) (*BlobDescriptor, error)
-	Delete(ctx context.Context, sha256 string, pubkey string) error
+	Delete(ctx context.Context, sha256 string, pubkey nostr.PubKey) error
 }
 
 var _ BlobIndex = (*EventStoreBlobIndexWrapper)(nil)

@@ -2,10 +2,11 @@ package blossom
 
 import (
 	"context"
+	"iter"
 	"strconv"
 
-	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
 )
 
 // EventStoreBlobIndexWrapper uses fake events to keep track of what blobs we have stored and who owns them
@@ -15,15 +16,15 @@ type EventStoreBlobIndexWrapper struct {
 	ServiceURL string
 }
 
-func (es EventStoreBlobIndexWrapper) Keep(ctx context.Context, blob BlobDescriptor, pubkey string) error {
-	ch, err := es.Store.QueryEvents(ctx, nostr.Filter{Authors: []string{pubkey}, Kinds: []int{24242}, Tags: nostr.TagMap{"x": []string{blob.SHA256}}})
-	if err != nil {
-		return err
-	}
+func (es EventStoreBlobIndexWrapper) Keep(ctx context.Context, blob BlobDescriptor, pubkey nostr.PubKey) error {
+	next, stop := iter.Pull(
+		es.Store.QueryEvents(nostr.Filter{Authors: []nostr.PubKey{pubkey}, Kinds: []uint16{24242}, Tags: nostr.TagMap{"x": []string{blob.SHA256}}}),
+	)
+	defer stop()
 
-	if <-ch == nil {
+	if _, exists := next(); !exists {
 		// doesn't exist, save
-		evt := &nostr.Event{
+		evt := nostr.Event{
 			PubKey: pubkey,
 			Kind:   24242,
 			Tags: nostr.Tags{
@@ -34,38 +35,31 @@ func (es EventStoreBlobIndexWrapper) Keep(ctx context.Context, blob BlobDescript
 			CreatedAt: blob.Uploaded,
 		}
 		evt.ID = evt.GetID()
-		es.Store.SaveEvent(ctx, evt)
+		es.Store.SaveEvent(evt)
 	}
 
 	return nil
 }
 
-func (es EventStoreBlobIndexWrapper) List(ctx context.Context, pubkey string) (chan BlobDescriptor, error) {
-	ech, err := es.Store.QueryEvents(ctx, nostr.Filter{Authors: []string{pubkey}, Kinds: []int{24242}})
-	if err != nil {
-		return nil, err
-	}
-
-	ch := make(chan BlobDescriptor)
-
-	go func() {
-		for evt := range ech {
-			ch <- es.parseEvent(evt)
+func (es EventStoreBlobIndexWrapper) List(ctx context.Context, pubkey nostr.PubKey) iter.Seq[BlobDescriptor] {
+	return func(yield func(BlobDescriptor) bool) {
+		for evt := range es.Store.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pubkey},
+			Kinds:   []uint16{24242},
+		}) {
+			yield(es.parseEvent(evt))
 		}
-		close(ch)
-	}()
-
-	return ch, nil
+	}
 }
 
 func (es EventStoreBlobIndexWrapper) Get(ctx context.Context, sha256 string) (*BlobDescriptor, error) {
-	ech, err := es.Store.QueryEvents(ctx, nostr.Filter{Tags: nostr.TagMap{"x": []string{sha256}}, Kinds: []int{24242}, Limit: 1})
-	if err != nil {
-		return nil, err
-	}
+	next, stop := iter.Pull(
+		es.Store.QueryEvents(nostr.Filter{Tags: nostr.TagMap{"x": []string{sha256}}, Kinds: []uint16{24242}, Limit: 1}),
+	)
 
-	evt := <-ech
-	if evt != nil {
+	defer stop()
+
+	if evt, found := next(); found {
 		bd := es.parseEvent(evt)
 		return &bd, nil
 	}
@@ -73,21 +67,27 @@ func (es EventStoreBlobIndexWrapper) Get(ctx context.Context, sha256 string) (*B
 	return nil, nil
 }
 
-func (es EventStoreBlobIndexWrapper) Delete(ctx context.Context, sha256 string, pubkey string) error {
-	ech, err := es.Store.QueryEvents(ctx, nostr.Filter{Authors: []string{pubkey}, Tags: nostr.TagMap{"x": []string{sha256}}, Kinds: []int{24242}, Limit: 1})
-	if err != nil {
-		return err
-	}
+func (es EventStoreBlobIndexWrapper) Delete(ctx context.Context, sha256 string, pubkey nostr.PubKey) error {
+	next, stop := iter.Pull(
+		es.Store.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pubkey},
+			Tags:    nostr.TagMap{"x": []string{sha256}},
+			Kinds:   []uint16{24242},
+			Limit:   1,
+		},
+		),
+	)
 
-	evt := <-ech
-	if evt != nil {
-		return es.Store.DeleteEvent(ctx, evt)
+	defer stop()
+
+	if evt, found := next(); found {
+		return es.Store.DeleteEvent(evt.ID)
 	}
 
 	return nil
 }
 
-func (es EventStoreBlobIndexWrapper) parseEvent(evt *nostr.Event) BlobDescriptor {
+func (es EventStoreBlobIndexWrapper) parseEvent(evt nostr.Event) BlobDescriptor {
 	hhash := evt.Tags[0][1]
 	mimetype := evt.Tags[1][1]
 	ext := getExtension(mimetype)

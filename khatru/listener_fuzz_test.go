@@ -17,7 +17,7 @@ func FuzzRandomListenerClientRemoving(f *testing.F) {
 
 		rl := NewRelay()
 
-		f := nostr.Filter{Kinds: []int{1}}
+		f := nostr.Filter{Kinds: []uint16{1}}
 		cancel := func(cause error) {}
 
 		websockets := make([]*WebSocket, 0, totalWebsockets*baseSubs)
@@ -71,7 +71,7 @@ func FuzzRandomListenerIdRemoving(f *testing.F) {
 
 		rl := NewRelay()
 
-		f := nostr.Filter{Kinds: []int{1}}
+		f := nostr.Filter{Kinds: []uint16{1}}
 		cancel := func(cause error) {}
 		websockets := make([]*WebSocket, 0, totalWebsockets)
 
@@ -150,7 +150,7 @@ func FuzzRouterListenersPabloCrash(f *testing.F) {
 			rl.clients[ws] = make([]listenerSpec, 0, subIterations)
 		}
 
-		f := nostr.Filter{Kinds: []int{1}}
+		f := nostr.Filter{Kinds: []uint16{1}}
 		cancel := func(cause error) {}
 
 		type wsid struct {

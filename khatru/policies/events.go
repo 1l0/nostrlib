@@ -16,25 +16,25 @@ import (
 //
 // If ignoreKinds is given this restriction will not apply to these kinds (useful for allowing a bigger).
 // If onlyKinds is given then all other kinds will be ignored.
-func PreventTooManyIndexableTags(max int, ignoreKinds []int, onlyKinds []int) func(context.Context, *nostr.Event) (bool, string) {
+func PreventTooManyIndexableTags(max int, ignoreKinds []uint16, onlyKinds []uint16) func(context.Context, nostr.Event) (bool, string) {
 	slices.Sort(ignoreKinds)
 	slices.Sort(onlyKinds)
 
-	ignore := func(kind int) bool { return false }
+	ignore := func(kind uint16) bool { return false }
 	if len(ignoreKinds) > 0 {
-		ignore = func(kind int) bool {
+		ignore = func(kind uint16) bool {
 			_, isIgnored := slices.BinarySearch(ignoreKinds, kind)
 			return isIgnored
 		}
 	}
 	if len(onlyKinds) > 0 {
-		ignore = func(kind int) bool {
+		ignore = func(kind uint16) bool {
 			_, isApplicable := slices.BinarySearch(onlyKinds, kind)
 			return !isApplicable
 		}
 	}
 
-	return func(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+	return func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
 		if ignore(event.Kind) {
 			return false, ""
 		}
@@ -53,8 +53,8 @@ func PreventTooManyIndexableTags(max int, ignoreKinds []int, onlyKinds []int) fu
 }
 
 // PreventLargeTags rejects events that have indexable tag values greater than maxTagValueLen.
-func PreventLargeTags(maxTagValueLen int) func(context.Context, *nostr.Event) (bool, string) {
-	return func(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+func PreventLargeTags(maxTagValueLen int) func(context.Context, nostr.Event) (bool, string) {
+	return func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
 		for _, tag := range event.Tags {
 			if len(tag) > 1 && len(tag[0]) == 1 {
 				if len(tag[1]) > maxTagValueLen {
@@ -68,11 +68,11 @@ func PreventLargeTags(maxTagValueLen int) func(context.Context, *nostr.Event) (b
 
 // RestrictToSpecifiedKinds returns a function that can be used as a RejectFilter that will reject
 // any events with kinds different than the specified ones.
-func RestrictToSpecifiedKinds(allowEphemeral bool, kinds ...uint16) func(context.Context, *nostr.Event) (bool, string) {
+func RestrictToSpecifiedKinds(allowEphemeral bool, kinds ...uint16) func(context.Context, nostr.Event) (bool, string) {
 	// sort the kinds in increasing order
 	slices.Sort(kinds)
 
-	return func(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+	return func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
 		if allowEphemeral && nostr.IsEphemeralKind(event.Kind) {
 			return false, ""
 		}
@@ -85,9 +85,9 @@ func RestrictToSpecifiedKinds(allowEphemeral bool, kinds ...uint16) func(context
 	}
 }
 
-func PreventTimestampsInThePast(threshold time.Duration) func(context.Context, *nostr.Event) (bool, string) {
+func PreventTimestampsInThePast(threshold time.Duration) func(context.Context, nostr.Event) (bool, string) {
 	thresholdSeconds := nostr.Timestamp(threshold.Seconds())
-	return func(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+	return func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
 		if nostr.Now()-event.CreatedAt > thresholdSeconds {
 			return true, "event too old"
 		}
@@ -95,9 +95,9 @@ func PreventTimestampsInThePast(threshold time.Duration) func(context.Context, *
 	}
 }
 
-func PreventTimestampsInTheFuture(threshold time.Duration) func(context.Context, *nostr.Event) (bool, string) {
+func PreventTimestampsInTheFuture(threshold time.Duration) func(context.Context, nostr.Event) (bool, string) {
 	thresholdSeconds := nostr.Timestamp(threshold.Seconds())
-	return func(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+	return func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
 		if event.CreatedAt-nostr.Now() > thresholdSeconds {
 			return true, "event too much in the future"
 		}
@@ -105,12 +105,12 @@ func PreventTimestampsInTheFuture(threshold time.Duration) func(context.Context,
 	}
 }
 
-func RejectEventsWithBase64Media(ctx context.Context, evt *nostr.Event) (bool, string) {
+func RejectEventsWithBase64Media(ctx context.Context, evt nostr.Event) (bool, string) {
 	return strings.Contains(evt.Content, "data:image/") || strings.Contains(evt.Content, "data:video/"), "event with base64 media"
 }
 
-func OnlyAllowNIP70ProtectedEvents(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
-	if nip70.IsProtected(*event) {
+func OnlyAllowNIP70ProtectedEvents(ctx context.Context, event nostr.Event) (reject bool, msg string) {
+	if nip70.IsProtected(event) {
 		return false, ""
 	}
 	return true, "blocked: we only accept events protected with the nip70 \"-\" tag"

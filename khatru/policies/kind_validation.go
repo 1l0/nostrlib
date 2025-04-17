@@ -7,7 +7,7 @@ import (
 	"fiatjaf.com/nostr"
 )
 
-func ValidateKind(ctx context.Context, evt *nostr.Event) (bool, string) {
+func ValidateKind(ctx context.Context, evt nostr.Event) (bool, string) {
 	switch evt.Kind {
 	case 0:
 		var m struct {

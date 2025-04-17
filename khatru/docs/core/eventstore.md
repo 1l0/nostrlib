@@ -6,7 +6,7 @@ outline: deep
 
 Khatru doesn't make any assumptions about how you'll want to store events. Any function can be plugged in to the `StoreEvent`, `DeleteEvent`, `ReplaceEvent` and `QueryEvents` hooks.
 
-However the [`eventstore`](https://github.com/fiatjaf/eventstore) library has adapters that you can easily plug into `khatru`'s hooks.
+However the [`eventstore`](https://fiatjaf.com/nostr/eventstore) library has adapters that you can easily plug into `khatru`'s hooks.
 
 # Using the `eventstore` library
 
@@ -14,7 +14,7 @@ The library includes many different adapters -- often called "backends" --, writ
 
 For all of them you start by instantiating a struct containing some basic options and a pointer (a file path for local databases, a connection string for remote databases) to the data. Then you call `.Init()` and if all is well you're ready to start storing, querying and deleting events, so you can pass the respective functions to their `khatru` counterparts. These eventstores also expose a `.Close()` function that must be called if you're going to stop using that store and keep your application open.
 
-Here's an example with the [Badger](https://pkg.go.dev/github.com/fiatjaf/eventstore/badger) adapter, made for the [Badger](https://github.com/dgraph-io/badger) embedded key-value database:
+Here's an example with the [Badger](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/badger) adapter, made for the [Badger](https://github.com/dgraph-io/badger) embedded key-value database:
 
 ```go
 package main
@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fiatjaf/eventstore/badger"
+	"fiatjaf.com/nostr/eventstore/badger"
 	"github.com/fiatjaf/khatru"
 )
 
@@ -46,11 +46,11 @@ func main() {
 }
 ```
 
-[LMDB](https://pkg.go.dev/github.com/fiatjaf/eventstore/lmdb) works the same way.
+[LMDB](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/lmdb) works the same way.
 
-[SQLite](https://pkg.go.dev/github.com/fiatjaf/eventstore/sqlite3) also stores things locally so it only needs a `Path`.
+[SQLite](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/sqlite3) also stores things locally so it only needs a `Path`.
 
-[PostgreSQL](https://pkg.go.dev/github.com/fiatjaf/eventstore/postgresql) and [MySQL](https://pkg.go.dev/github.com/fiatjaf/eventstore/mysql) use remote connections to database servers, so they take a `DatabaseURL` parameter, but after that it's the same.
+[PostgreSQL](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/postgresql) and [MySQL](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/mysql) use remote connections to database servers, so they take a `DatabaseURL` parameter, but after that it's the same.
 
 ## Using two at a time
 

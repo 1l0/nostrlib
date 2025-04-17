@@ -11,10 +11,10 @@ func (rl *Relay) HandleNIP11(w http.ResponseWriter, r *http.Request) {
 
 	info := *rl.Info
 
-	if len(rl.DeleteEvent) > 0 {
+	if nil != rl.DeleteEvent {
 		info.AddSupportedNIP(9)
 	}
-	if len(rl.CountEvents) > 0 {
+	if nil != rl.Count {
 		info.AddSupportedNIP(45)
 	}
 	if rl.Negentropy {
@@ -30,8 +30,8 @@ func (rl *Relay) HandleNIP11(w http.ResponseWriter, r *http.Request) {
 		info.Banner = strings.TrimSuffix(baseURL, "/") + "/" + strings.TrimPrefix(info.Banner, "/")
 	}
 
-	for _, ovw := range rl.OverwriteRelayInformation {
-		info = ovw(r.Context(), r, info)
+	if nil != rl.OverwriteRelayInformation {
+		info = rl.OverwriteRelayInformation(r.Context(), r, info)
 	}
 
 	json.NewEncoder(w).Encode(info)

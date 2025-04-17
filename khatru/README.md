@@ -115,7 +115,7 @@ func main() {
 
 ### But I don't want to write my own database!
 
-Fear no more. Using the https://github.com/fiatjaf/eventstore module you get a bunch of compatible databases out of the box and you can just plug them into your relay. For example, [sqlite](https://pkg.go.dev/github.com/fiatjaf/eventstore/sqlite3):
+Fear no more. Using the https://fiatjaf.com/nostr/eventstore module you get a bunch of compatible databases out of the box and you can just plug them into your relay. For example, [sqlite](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/sqlite3):
 
 ```go
 	db := sqlite3.SQLite3Backend{DatabaseURL: "/tmp/khatru-sqlite-tmp"}

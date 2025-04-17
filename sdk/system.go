@@ -13,8 +13,8 @@ import (
 	"fiatjaf.com/nostr/sdk/hints/memoryh"
 	"fiatjaf.com/nostr/sdk/kvstore"
 	kvstore_memory "fiatjaf.com/nostr/sdk/kvstore/memory"
-	"github.com/fiatjaf/eventstore"
-	"github.com/fiatjaf/eventstore/nullstore"
+	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr/eventstore/nullstore"
 )
 
 // System represents the core functionality of the SDK, providing access to

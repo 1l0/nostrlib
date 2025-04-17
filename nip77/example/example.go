@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
-	"github.com/fiatjaf/eventstore"
-	"github.com/fiatjaf/eventstore/slicestore"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/slicestore"
+	"fiatjaf.com/nostr/eventstore/wrappers"
 	"fiatjaf.com/nostr/nip77"
 )
 
@@ -16,8 +17,8 @@ func main() {
 	db := &slicestore.SliceStore{}
 	db.Init()
 
-	sk := nostr.GeneratePrivateKey()
-	local := eventstore.RelayWrapper{Store: db}
+	sk := nostr.Generate()
+	local := wrappers.StorePublisher{Store: db}
 
 	for {
 		for i := 0; i < 20; i++ {
@@ -29,7 +30,7 @@ func main() {
 					Tags:      nostr.Tags{},
 				}
 				evt.Sign(sk)
-				db.SaveEvent(ctx, &evt)
+				db.SaveEvent(evt)
 			}
 
 			{
@@ -40,7 +41,7 @@ func main() {
 					Tags:      nostr.Tags{},
 				}
 				evt.Sign(sk)
-				db.SaveEvent(ctx, &evt)
+				db.SaveEvent(evt)
 			}
 		}
 
@@ -50,11 +51,7 @@ func main() {
 			panic(err)
 		}
 
-		data, err := local.QuerySync(ctx, nostr.Filter{})
-		if err != nil {
-			panic(err)
-		}
-
+		data := slices.Collect(local.QueryEvents(nostr.Filter{}))
 		fmt.Println("total local events:", len(data))
 		time.Sleep(time.Second * 10)
 	}

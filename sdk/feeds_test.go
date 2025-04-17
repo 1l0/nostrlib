@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
-	"github.com/fiatjaf/eventstore/slicestore"
+	"fiatjaf.com/nostr/eventstore/slicestore"
 	"github.com/fiatjaf/khatru"
 	"github.com/stretchr/testify/require"
 )

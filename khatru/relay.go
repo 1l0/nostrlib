@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/nip11"
 	"fiatjaf.com/nostr/nip45/hyperloglog"
 	"github.com/fasthttp/websocket"
@@ -57,23 +58,22 @@ type Relay struct {
 	ServiceURL string
 
 	// hooks that will be called at various times
-	RejectEvent               func(ctx context.Context, event *nostr.Event) (reject bool, msg string)
-	OverwriteDeletionOutcome  func(ctx context.Context, target *nostr.Event, deletion *nostr.Event) (acceptDeletion bool, msg string)
+	OnEvent                   func(ctx context.Context, event nostr.Event) (reject bool, msg string)
 	StoreEvent                func(ctx context.Context, event nostr.Event) error
 	ReplaceEvent              func(ctx context.Context, event nostr.Event) error
 	DeleteEvent               func(ctx context.Context, id nostr.ID) error
 	OnEventSaved              func(ctx context.Context, event nostr.Event)
 	OnEphemeralEvent          func(ctx context.Context, event nostr.Event)
-	RejectFilter              func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
-	RejectCountFilter         func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
-	QueryEvents               func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event]
-	CountEvents               func(ctx context.Context, filter nostr.Filter) (uint32, error)
-	CountEventsHLL            func(ctx context.Context, filter nostr.Filter, offset int) (uint32, *hyperloglog.HyperLogLog, error)
+	OnRequest                 func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
+	OnCountFilter             func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
+	QueryStored               func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event]
+	Count                     func(ctx context.Context, filter nostr.Filter) (uint32, error)
+	CountHLL                  func(ctx context.Context, filter nostr.Filter, offset int) (uint32, *hyperloglog.HyperLogLog, error)
 	RejectConnection          func(r *http.Request) bool
 	OnConnect                 func(ctx context.Context)
 	OnDisconnect              func(ctx context.Context)
 	OverwriteRelayInformation func(ctx context.Context, r *http.Request, info nip11.RelayInformationDocument) nip11.RelayInformationDocument
-	PreventBroadcast          func(ws *WebSocket, event *nostr.Event) bool
+	PreventBroadcast          func(ws *WebSocket, event nostr.Event) bool
 
 	// these are used when this relays acts as a router
 	routes                []Route
@@ -115,6 +115,24 @@ type Relay struct {
 
 	// NIP-40 expiration manager
 	expirationManager *expirationManager
+}
+
+func (rl *Relay) UseEventstore(store eventstore.Store) {
+	rl.QueryStored = func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
+		return store.QueryEvents(filter)
+	}
+	rl.Count = func(ctx context.Context, filter nostr.Filter) (uint32, error) {
+		return store.CountEvents(filter)
+	}
+	rl.StoreEvent = func(ctx context.Context, event nostr.Event) error {
+		return store.SaveEvent(event)
+	}
+	rl.ReplaceEvent = func(ctx context.Context, event nostr.Event) error {
+		return store.ReplaceEvent(event)
+	}
+	rl.DeleteEvent = func(ctx context.Context, id nostr.ID) error {
+		return store.DeleteEvent(id)
+	}
 }
 
 func (rl *Relay) getBaseURL(r *http.Request) string {

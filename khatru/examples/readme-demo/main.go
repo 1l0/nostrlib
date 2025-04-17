@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"iter"
 	"log"
 	"net/http"
 
@@ -22,45 +23,36 @@ func main() {
 	relay.Info.Icon = "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fliquipedia.net%2Fcommons%2Fimages%2F3%2F35%2FSCProbe.jpg&f=1&nofb=1&ipt=0cbbfef25bce41da63d910e86c3c343e6c3b9d63194ca9755351bb7c2efa3359&ipo=images"
 
 	// you must bring your own storage scheme -- if you want to have any
-	store := make(map[string]*nostr.Event, 120)
+	store := make(map[nostr.ID]nostr.Event, 120)
 
 	// set up the basic relay functions
-	relay.StoreEvent = append(relay.StoreEvent,
-		func(ctx context.Context, event *nostr.Event) error {
-			store[event.ID] = event
-			return nil
-		},
-	)
-	relay.QueryEvents = append(relay.QueryEvents,
-		func(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
-			ch := make(chan *nostr.Event)
-			go func() {
-				for _, evt := range store {
-					if filter.Matches(evt) {
-						ch <- evt
-					}
+	relay.StoreEvent = func(ctx context.Context, event nostr.Event) error {
+		store[event.ID] = event
+		return nil
+	}
+	relay.QueryStored = func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
+		return func(yield func(nostr.Event) bool) {
+			for _, evt := range store {
+				if filter.Matches(evt) {
+					yield(evt)
 				}
-				close(ch)
-			}()
-			return ch, nil
-		},
-	)
-	relay.DeleteEvent = append(relay.DeleteEvent,
-		func(ctx context.Context, event *nostr.Event) error {
-			delete(store, event.ID)
-			return nil
-		},
-	)
+			}
+		}
+	}
+	relay.DeleteEvent = func(ctx context.Context, id nostr.ID) error {
+		delete(store, id)
+		return nil
+	}
 
 	// there are many other configurable things you can set
-	relay.RejectEvent = append(relay.RejectEvent,
+	relay.OnEvent = policies.SeqEvent(
 		// built-in policies
 		policies.ValidateKind,
+		policies.PreventLargeTags(100),
 
 		// define your own policies
-		policies.PreventLargeTags(100),
-		func(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
-			if event.PubKey == "fa984bd7dbb282f07e16e7ae87b26a2a7b9b90b7246a44771f0cf5ae58018f52" {
+		func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
+			if event.PubKey == nostr.MustPubKeyFromHex("fa984bd7dbb282f07e16e7ae87b26a2a7b9b90b7246a44771f0cf5ae58018f52") {
 				return true, "we don't allow this person to write here"
 			}
 			return false, "" // anyone else can
@@ -68,13 +60,13 @@ func main() {
 	)
 
 	// you can request auth by rejecting an event or a request with the prefix "auth-required: "
-	relay.RejectFilter = append(relay.RejectFilter,
+	relay.OnRequest = policies.SeqRequest(
 		// built-in policies
 		policies.NoComplexFilters,
 
 		// define your own policies
 		func(ctx context.Context, filter nostr.Filter) (reject bool, msg string) {
-			if pubkey := khatru.GetAuthed(ctx); pubkey != "" {
+			if pubkey, isAuthed := khatru.GetAuthed(ctx); !isAuthed {
 				log.Printf("request from %s\n", pubkey)
 				return false, ""
 			}

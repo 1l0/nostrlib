@@ -9,7 +9,7 @@ import (
 	"fiatjaf.com/nostr"
 )
 
-func (rl *Relay) handleDeleteRequest(ctx context.Context, evt *nostr.Event) error {
+func (rl *Relay) handleDeleteRequest(ctx context.Context, evt nostr.Event) error {
 	// event deletion -- nip09
 	for _, tag := range evt.Tags {
 		if len(tag) >= 2 {
@@ -17,7 +17,11 @@ func (rl *Relay) handleDeleteRequest(ctx context.Context, evt *nostr.Event) erro
 
 			switch tag[0] {
 			case "e":
-				f = nostr.Filter{IDs: []string{tag[1]}}
+				id, err := nostr.IDFromHex(tag[1])
+				if err != nil {
+					return fmt.Errorf("invalid 'e' tag '%s': %w", tag[1], err)
+				}
+				f = nostr.Filter{IDs: []nostr.ID{id}}
 			case "a":
 				spl := strings.Split(tag[1], ":")
 				if len(spl) != 3 {
@@ -27,11 +31,15 @@ func (rl *Relay) handleDeleteRequest(ctx context.Context, evt *nostr.Event) erro
 				if err != nil {
 					continue
 				}
-				author := spl[1]
+				author, err := nostr.PubKeyFromHex(spl[1])
+				if err != nil {
+					continue
+				}
+
 				identifier := spl[2]
 				f = nostr.Filter{
-					Kinds:   []int{kind},
-					Authors: []string{author},
+					Kinds:   []uint16{uint16(kind)},
+					Authors: []nostr.PubKey{author},
 					Tags:    nostr.TagMap{"d": []string{identifier}},
 					Until:   &evt.CreatedAt,
 				}
@@ -40,39 +48,30 @@ func (rl *Relay) handleDeleteRequest(ctx context.Context, evt *nostr.Event) erro
 			}
 
 			ctx := context.WithValue(ctx, internalCallKey, struct{}{})
-			for _, query := range rl.QueryEvents {
-				ch, err := query(ctx, f)
-				if err != nil {
-					continue
-				}
-				target := <-ch
-				if target == nil {
-					continue
-				}
-				// got the event, now check if the user can delete it
-				acceptDeletion := target.PubKey == evt.PubKey
-				var msg string
-				if !acceptDeletion {
-					msg = "you are not the author of this event"
-				}
-				// but if we have a function to overwrite this outcome, use that instead
-				for _, odo := range rl.OverwriteDeletionOutcome {
-					acceptDeletion, msg = odo(ctx, target, evt)
-				}
 
-				if acceptDeletion {
-					// delete it
-					for _, del := range rl.DeleteEvent {
-						if err := del(ctx, target); err != nil {
-							return err
-						}
+			if nil != rl.QueryStored {
+				for target := range rl.QueryStored(ctx, f) {
+					// got the event, now check if the user can delete it
+					acceptDeletion := target.PubKey == evt.PubKey
+					var msg string
+					if !acceptDeletion {
+						msg = "you are not the author of this event"
 					}
 
-					// if it was tracked to be expired that is not needed anymore
-					rl.expirationManager.removeEvent(target.ID)
-				} else {
-					// fail and stop here
-					return fmt.Errorf("blocked: %s", msg)
+					if acceptDeletion {
+						// delete it
+						if nil != rl.DeleteEvent {
+							if err := rl.DeleteEvent(ctx, target.ID); err != nil {
+								return err
+							}
+						}
+
+						// if it was tracked to be expired that is not needed anymore
+						rl.expirationManager.removeEvent(target.ID)
+					} else {
+						// fail and stop here
+						return fmt.Errorf("blocked: %s", msg)
+					}
 				}
 
 				// don't try to query this same event again

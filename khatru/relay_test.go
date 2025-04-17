@@ -7,41 +7,31 @@ import (
 	"testing"
 	"time"
 
-	"fiatjaf.com/nostr/eventstore/slicestore"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/slicestore"
 )
 
 func TestBasicRelayFunctionality(t *testing.T) {
 	// setup relay with in-memory store
 	relay := NewRelay()
-	store := slicestore.SliceStore{}
+	store := &slicestore.SliceStore{}
 	store.Init()
-	relay.StoreEvent = append(relay.StoreEvent, store.SaveEvent)
-	relay.QueryEvents = append(relay.QueryEvents, store.QueryEvents)
-	relay.DeleteEvent = append(relay.DeleteEvent, store.DeleteEvent)
+
+	relay.UseEventstore(store)
 
 	// start test server
 	server := httptest.NewServer(relay)
 	defer server.Close()
 
 	// create test keys
-	sk1 := nostr.GeneratePrivateKey()
-	pk1, err := nostr.GetPublicKey(sk1)
-	if err != nil {
-		t.Fatalf("Failed to get public key 1: %v", err)
-	}
-	sk2 := nostr.GeneratePrivateKey()
-	pk2, err := nostr.GetPublicKey(sk2)
-	if err != nil {
-		t.Fatalf("Failed to get public key 2: %v", err)
-	}
+	sk1 := nostr.Generate()
+	pk1 := nostr.GetPublicKey(sk1)
+	sk2 := nostr.Generate()
+	pk2 := nostr.GetPublicKey(sk2)
 
 	// helper to create signed events
-	createEvent := func(sk string, kind int, content string, tags nostr.Tags) nostr.Event {
-		pk, err := nostr.GetPublicKey(sk)
-		if err != nil {
-			t.Fatalf("Failed to get public key: %v", err)
-		}
+	createEvent := func(sk nostr.SecretKey, kind uint16, content string, tags nostr.Tags) nostr.Event {
+		pk := nostr.GetPublicKey(sk)
 		evt := nostr.Event{
 			PubKey:    pk,
 			CreatedAt: nostr.Now(),
@@ -55,13 +45,13 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 	// connect two test clients
 	url := "ws" + server.URL[4:]
-	client1, err := nostr.RelayConnect(context.Background(), url)
+	client1, err := nostr.RelayConnect(t.Context(), url, nostr.RelayOptions{})
 	if err != nil {
 		t.Fatalf("failed to connect client1: %v", err)
 	}
 	defer client1.Close()
 
-	client2, err := nostr.RelayConnect(context.Background(), url)
+	client2, err := nostr.RelayConnect(t.Context(), url, nostr.RelayOptions{})
 	if err != nil {
 		t.Fatalf("failed to connect client2: %v", err)
 	}
@@ -69,7 +59,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 	// test 1: store and query events
 	t.Run("store and query events", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()
 
 		evt1 := createEvent(sk1, 1, "hello world", nil)
@@ -79,10 +69,10 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		}
 
 		// Query the event back
-		sub, err := client2.Subscribe(ctx, []nostr.Filter{{
-			Authors: []string{pk1},
-			Kinds:   []int{1},
-		}})
+		sub, err := client2.Subscribe(ctx, nostr.Filter{
+			Authors: []nostr.PubKey{pk1},
+			Kinds:   []uint16{1},
+		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)
 		}
@@ -101,14 +91,14 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 	// test 2: live event subscription
 	t.Run("live event subscription", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()
 
 		// Setup subscription first
-		sub, err := client1.Subscribe(ctx, []nostr.Filter{{
-			Authors: []string{pk2},
-			Kinds:   []int{1},
-		}})
+		sub, err := client1.Subscribe(ctx, nostr.Filter{
+			Authors: []nostr.PubKey{pk2},
+			Kinds:   []uint16{1},
+		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)
 		}
@@ -134,7 +124,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 	// test 3: event deletion
 	t.Run("event deletion", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()
 
 		// Create an event to be deleted
@@ -145,16 +135,16 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		}
 
 		// Create deletion event
-		delEvent := createEvent(sk1, 5, "deleting", nostr.Tags{{"e", evt3.ID}})
+		delEvent := createEvent(sk1, 5, "deleting", nostr.Tags{{"e", evt3.ID.Hex()}})
 		err = client1.Publish(ctx, delEvent)
 		if err != nil {
 			t.Fatalf("failed to publish deletion event: %v", err)
 		}
 
 		// Try to query the deleted event
-		sub, err := client2.Subscribe(ctx, []nostr.Filter{{
-			IDs: []string{evt3.ID},
-		}})
+		sub, err := client2.Subscribe(ctx, nostr.Filter{
+			IDs: []nostr.ID{evt3.ID},
+		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)
 		}
@@ -179,7 +169,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 	// test 4: teplaceable events
 	t.Run("replaceable events", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()
 
 		// create initial kind:0 event
@@ -210,17 +200,17 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		}
 
 		// query to verify only the newest event exists
-		sub, err := client2.Subscribe(ctx, []nostr.Filter{{
-			Authors: []string{pk1},
-			Kinds:   []int{0},
-		}})
+		sub, err := client2.Subscribe(ctx, nostr.Filter{
+			Authors: []nostr.PubKey{pk1},
+			Kinds:   []uint16{0},
+		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)
 		}
 		defer sub.Unsub()
 
 		// should only get one event back (the newest one)
-		var receivedEvents []*nostr.Event
+		var receivedEvents []nostr.Event
 		for {
 			select {
 			case env := <-sub.Events:
@@ -241,17 +231,15 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 	// test 5: event expiration
 	t.Run("event expiration", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
 
 		// create a new relay with shorter expiration check interval
 		relay := NewRelay()
 		relay.expirationManager.interval = 3 * time.Second // check every 3 seconds
-		store := slicestore.SliceStore{}
+		store := &slicestore.SliceStore{}
 		store.Init()
-		relay.StoreEvent = append(relay.StoreEvent, store.SaveEvent)
-		relay.QueryEvents = append(relay.QueryEvents, store.QueryEvents)
-		relay.DeleteEvent = append(relay.DeleteEvent, store.DeleteEvent)
+		relay.UseEventstore(store)
 
 		// start test server
 		server := httptest.NewServer(relay)
@@ -259,7 +247,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 		// connect test client
 		url := "ws" + server.URL[4:]
-		client, err := nostr.RelayConnect(context.Background(), url)
+		client, err := nostr.RelayConnect(t.Context(), url, nostr.RelayOptions{})
 		if err != nil {
 			t.Fatalf("failed to connect client: %v", err)
 		}
@@ -274,9 +262,9 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		}
 
 		// verify event exists initially
-		sub, err := client.Subscribe(ctx, []nostr.Filter{{
-			IDs: []string{evt.ID},
-		}})
+		sub, err := client.Subscribe(ctx, nostr.Filter{
+			IDs: []nostr.ID{evt.ID},
+		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)
 		}
@@ -296,9 +284,9 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		time.Sleep(4 * time.Second)
 
 		// verify event no longer exists
-		sub, err = client.Subscribe(ctx, []nostr.Filter{{
-			IDs: []string{evt.ID},
-		}})
+		sub, err = client.Subscribe(ctx, nostr.Filter{
+			IDs: []nostr.ID{evt.ID},
+		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)
 		}
@@ -323,7 +311,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 	// test 6: unauthorized deletion
 	t.Run("unauthorized deletion", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()
 
 		// create an event from client1
@@ -334,16 +322,16 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		}
 
 		// Try to delete it with client2
-		delEvent := createEvent(sk2, 5, "trying to delete", nostr.Tags{{"e", evt4.ID}})
+		delEvent := createEvent(sk2, 5, "trying to delete", nostr.Tags{{"e", evt4.ID.Hex()}})
 		err = client2.Publish(ctx, delEvent)
 		if err == nil {
 			t.Fatalf("should have failed to publish deletion event: %v", err)
 		}
 
 		// Verify event still exists
-		sub, err := client1.Subscribe(ctx, []nostr.Filter{{
-			IDs: []string{evt4.ID},
-		}})
+		sub, err := client1.Subscribe(ctx, nostr.Filter{
+			IDs: []nostr.ID{evt4.ID},
+		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)
 		}

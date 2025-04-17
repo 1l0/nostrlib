@@ -1,6 +1,7 @@
 package khatru
 
 import (
+	"bytes"
 	"net"
 	"net/http"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 func isOlder(previous, next *nostr.Event) bool {
 	return previous.CreatedAt < next.CreatedAt ||
-		(previous.CreatedAt == next.CreatedAt && previous.ID > next.ID)
+		(previous.CreatedAt == next.CreatedAt && bytes.Compare(previous.ID[:], next.ID[:]) == 1)
 }
 
 var privateMasks = func() []net.IPNet {

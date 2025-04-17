@@ -87,8 +87,8 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// run the reject hooks
-	for _, ru := range bs.RejectUpload {
-		reject, reason, code := ru(r.Context(), auth, size, ext)
+	if nil != bs.RejectUpload {
+		reject, reason, code := bs.RejectUpload(r.Context(), auth, size, ext)
 		if reject {
 			blossomError(w, reason, code)
 			return
@@ -134,8 +134,8 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// save actual blob
-	for _, sb := range bs.StoreBlob {
-		if err := sb(r.Context(), hhash, b); err != nil {
+	if nil != bs.StoreBlob {
+		if err := bs.StoreBlob(r.Context(), hhash, b); err != nil {
 			blossomError(w, "failed to save: "+err.Error(), 500)
 			return
 		}
@@ -175,8 +175,8 @@ func (bs BlossomServer) handleGetBlob(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for _, rg := range bs.RejectGet {
-		reject, reason, code := rg(r.Context(), auth, hhash)
+	if nil != bs.RejectGet {
+		reject, reason, code := bs.RejectGet(r.Context(), auth, hhash)
 		if reject {
 			blossomError(w, reason, code)
 			return
@@ -188,8 +188,8 @@ func (bs BlossomServer) handleGetBlob(w http.ResponseWriter, r *http.Request) {
 		ext = "." + spl[1]
 	}
 
-	for _, lb := range bs.LoadBlob {
-		reader, _ := lb(r.Context(), hhash)
+	if nil != bs.LoadBlob {
+		reader, _ := bs.LoadBlob(r.Context(), hhash)
 		if reader != nil {
 			// use unix epoch as the time if we can't find the descriptor
 			// as described in the http.ServeContent documentation
@@ -245,26 +245,20 @@ func (bs BlossomServer) handleList(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pubkey := r.URL.Path[6:]
+	pubkey, err := nostr.PubKeyFromHex(r.URL.Path[6:])
 
-	for _, rl := range bs.RejectList {
-		reject, reason, code := rl(r.Context(), auth, pubkey)
+	if nil != bs.RejectList {
+		reject, reason, code := bs.RejectList(r.Context(), auth, pubkey)
 		if reject {
 			blossomError(w, reason, code)
 			return
 		}
 	}
 
-	ch, err := bs.Store.List(r.Context(), pubkey)
-	if err != nil {
-		blossomError(w, "failed to query: "+err.Error(), 500)
-		return
-	}
-
 	w.Write([]byte{'['})
 	enc := json.NewEncoder(w)
 	first := true
-	for bd := range ch {
+	for bd := range bs.Store.List(r.Context(), pubkey) {
 		if !first {
 			w.Write([]byte{','})
 		} else {
@@ -303,8 +297,8 @@ func (bs BlossomServer) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// should we accept this delete?
-	for _, rd := range bs.RejectDelete {
-		reject, reason, code := rd(r.Context(), auth, hhash)
+	if nil != bs.RejectDelete {
+		reject, reason, code := bs.RejectDelete(r.Context(), auth, hhash)
 		if reject {
 			blossomError(w, reason, code)
 			return
@@ -319,8 +313,8 @@ func (bs BlossomServer) handleDelete(w http.ResponseWriter, r *http.Request) {
 
 	// we will actually only delete the file if no one else owns it
 	if bd, err := bs.Store.Get(r.Context(), hhash); err == nil && bd == nil {
-		for _, del := range bs.DeleteBlob {
-			if err := del(r.Context(), hhash); err != nil {
+		if nil != bs.DeleteBlob {
+			if err := bs.DeleteBlob(r.Context(), hhash); err != nil {
 				blossomError(w, "failed to delete blob: "+err.Error(), 500)
 				return
 			}
