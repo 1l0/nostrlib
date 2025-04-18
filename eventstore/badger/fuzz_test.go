@@ -2,23 +2,18 @@ package badger
 
 import (
 	"cmp"
-	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
-	"github.com/dgraph-io/badger/v4"
-	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr"
+	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/slices"
 )
 
 func FuzzQuery(f *testing.F) {
-	ctx := context.Background()
-
 	f.Add(uint(200), uint(50), uint(13), uint(2), uint(2), uint(0), uint(1))
 	f.Fuzz(func(t *testing.T, total, limit, authors, timestampAuthorFactor, seedFactor, kinds, kindFactor uint) {
 		total++
@@ -72,41 +67,41 @@ func FuzzQuery(f *testing.F) {
 		// ~ start actual test
 
 		filter := nostr.Filter{
-			Authors: make([]string, authors),
+			Authors: make([]nostr.PubKey, authors),
 			Limit:   int(limit),
 		}
-		maxKind := 1
+		var maxKind uint16 = 1
 		if kinds > 0 {
-			filter.Kinds = make([]int, kinds)
+			filter.Kinds = make([]uint16, kinds)
 			for i := range filter.Kinds {
-				filter.Kinds[i] = int(kindFactor) * i
+				filter.Kinds[i] = uint16(kindFactor) * uint16(i)
 			}
 			maxKind = filter.Kinds[len(filter.Kinds)-1]
 		}
 
 		for i := 0; i < int(authors); i++ {
-			sk := make([]byte, 32)
-			binary.BigEndian.PutUint32(sk, uint32(i%int(authors*seedFactor))+1)
-			pk, _ := nostr.GetPublicKey(hex.EncodeToString(sk))
+			sk := nostr.SecretKey{}
+			binary.BigEndian.PutUint32(sk[:], uint32(i%int(authors*seedFactor))+1)
+			pk := nostr.GetPublicKey(sk)
 			filter.Authors[i] = pk
 		}
 
-		expected := make([]*nostr.Event, 0, total)
+		expected := make([]nostr.Event, 0, total)
 		for i := 0; i < int(total); i++ {
 			skseed := uint32(i%int(authors*seedFactor)) + 1
-			sk := make([]byte, 32)
-			binary.BigEndian.PutUint32(sk, skseed)
+			sk := nostr.SecretKey{}
+			binary.BigEndian.PutUint32(sk[:], skseed)
 
-			evt := &nostr.Event{
+			evt := nostr.Event{
 				CreatedAt: nostr.Timestamp(skseed)*nostr.Timestamp(timestampAuthorFactor) + nostr.Timestamp(i),
 				Content:   fmt.Sprintf("unbalanced %d", i),
 				Tags:      nostr.Tags{},
-				Kind:      i % maxKind,
+				Kind:      uint16(i) % maxKind,
 			}
-			err := evt.Sign(hex.EncodeToString(sk))
+			err := evt.Sign(sk)
 			require.NoError(t, err)
 
-			err = db.SaveEvent(ctx, evt)
+			err = db.SaveEvent(evt)
 			require.NoError(t, err)
 
 			if filter.Matches(evt) {
@@ -114,27 +109,25 @@ func FuzzQuery(f *testing.F) {
 			}
 		}
 
-		slices.SortFunc(expected, nostr.CompareEventPtrReverse)
+		slices.SortFunc(expected, nostr.CompareEventReverse)
 		if len(expected) > int(limit) {
 			expected = expected[0:limit]
 		}
 
-		w := eventstore.RelayWrapper{Store: db}
-
 		start := time.Now()
 		// fmt.Println(filter)
-		res, err := w.QuerySync(ctx, filter)
+		res := slices.Collect(db.QueryEvents(filter))
 		end := time.Now()
 
 		require.NoError(t, err)
 		require.Equal(t, len(expected), len(res), "number of results is different than expected")
 
 		require.Less(t, end.Sub(start).Milliseconds(), int64(1500), "query took too long")
-		require.True(t, slices.IsSortedFunc(res, func(a, b *nostr.Event) int { return cmp.Compare(b.CreatedAt, a.CreatedAt) }), "results are not sorted")
+		require.True(t, slices.IsSortedFunc(res, func(a, b nostr.Event) int { return cmp.Compare(b.CreatedAt, a.CreatedAt) }), "results are not sorted")
 
 		nresults := len(expected)
 
-		getTimestamps := func(events []*nostr.Event) []nostr.Timestamp {
+		getTimestamps := func(events []nostr.Event) []nostr.Timestamp {
 			res := make([]nostr.Timestamp, len(events))
 			for i, evt := range events {
 				res[i] = evt.CreatedAt

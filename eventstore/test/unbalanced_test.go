@@ -60,9 +60,7 @@ func unbalancedTest(t *testing.T, db eventstore.Store) {
 	}
 	require.Len(t, expected, limit)
 
-	w := eventstore.RelayWrapper{Store: db}
-
-	res := slices.Collect(w.QueryEvents(bigfilter))
+	res := slices.Collect(db.QueryEvents(bigfilter))
 
 	require.Equal(t, limit, len(res))
 	require.True(t, slices.IsSortedFunc(res, nostr.CompareEventReverse))

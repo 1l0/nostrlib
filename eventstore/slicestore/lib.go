@@ -5,12 +5,12 @@ import (
 	"cmp"
 	"fmt"
 	"iter"
+	"slices"
 	"sync"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/internal"
-	"golang.org/x/exp/slices"
 )
 
 var _ eventstore.Store = (*SliceStore)(nil)
@@ -80,6 +80,13 @@ func (b *SliceStore) CountEvents(filter nostr.Filter) (uint32, error) {
 }
 
 func (b *SliceStore) SaveEvent(evt nostr.Event) error {
+	b.Lock()
+	defer b.Unlock()
+
+	return b.save(evt)
+}
+
+func (b *SliceStore) save(evt nostr.Event) error {
 	idx, found := slices.BinarySearchFunc(b.internal, evt, eventComparator)
 	if found {
 		return eventstore.ErrDupEvent
@@ -93,8 +100,22 @@ func (b *SliceStore) SaveEvent(evt nostr.Event) error {
 }
 
 func (b *SliceStore) DeleteEvent(id nostr.ID) error {
-	idx, found := slices.BinarySearchFunc(b.internal, id, eventIDComparator)
-	if !found {
+	b.Lock()
+	defer b.Unlock()
+
+	return b.delete(id)
+}
+
+func (b *SliceStore) delete(id nostr.ID) error {
+	var idx int = -1
+	for i, event := range b.internal {
+		if event.ID == id {
+			idx = i
+			break
+		}
+	}
+
+	if idx == -1 {
 		// we don't have this event
 		return nil
 	}
@@ -117,7 +138,7 @@ func (b *SliceStore) ReplaceEvent(evt nostr.Event) error {
 	shouldStore := true
 	for previous := range b.QueryEvents(filter) {
 		if internal.IsOlder(previous, evt) {
-			if err := b.DeleteEvent(previous.ID); err != nil {
+			if err := b.delete(previous.ID); err != nil {
 				return fmt.Errorf("failed to delete event for replacing: %w", err)
 			}
 		} else {
@@ -126,7 +147,7 @@ func (b *SliceStore) ReplaceEvent(evt nostr.Event) error {
 	}
 
 	if shouldStore {
-		if err := b.SaveEvent(evt); err != nil && err != eventstore.ErrDupEvent {
+		if err := b.save(evt); err != nil && err != eventstore.ErrDupEvent {
 			return fmt.Errorf("failed to save: %w", err)
 		}
 	}
@@ -135,17 +156,13 @@ func (b *SliceStore) ReplaceEvent(evt nostr.Event) error {
 }
 
 func eventTimestampComparator(e nostr.Event, t nostr.Timestamp) int {
-	return int(t) - int(e.CreatedAt)
-}
-
-func eventIDComparator(e nostr.Event, i nostr.ID) int {
-	return bytes.Compare(i[:], e.ID[:])
+	return cmp.Compare(t, e.CreatedAt)
 }
 
 func eventComparator(a nostr.Event, b nostr.Event) int {
-	c := cmp.Compare(b.CreatedAt, a.CreatedAt)
-	if c != 0 {
-		return c
+	v := cmp.Compare(b.CreatedAt, a.CreatedAt)
+	if v == 0 {
+		v = bytes.Compare(b.ID[:], a.ID[:])
 	}
-	return bytes.Compare(b.ID[:], a.ID[:])
+	return v
 }

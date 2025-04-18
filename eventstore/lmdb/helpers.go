@@ -6,12 +6,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"iter"
+	"slices"
 	"strconv"
 	"strings"
 
 	"fiatjaf.com/nostr"
 	"github.com/PowerDNS/lmdb-go/lmdb"
-	"golang.org/x/exp/slices"
 )
 
 // this iterator always goes backwards
@@ -64,7 +64,7 @@ func (b *LMDBBackend) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 		{
 			// ~ by pubkey+date
 			k := make([]byte, 8+4)
-			hex.Decode(k[0:8], []byte(evt.PubKey[0:8*2]))
+			copy(k[0:8], evt.PubKey[0:8])
 			binary.BigEndian.PutUint32(k[8:8+4], uint32(evt.CreatedAt))
 			if !yield(key{dbi: b.indexPubkey, key: k[0 : 8+4]}) {
 				return
@@ -84,7 +84,7 @@ func (b *LMDBBackend) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 		{
 			// ~ by pubkey+kind+date
 			k := make([]byte, 8+2+4)
-			hex.Decode(k[0:8], []byte(evt.PubKey[0:8*2]))
+			copy(k[0:8], evt.PubKey[0:8])
 			binary.BigEndian.PutUint16(k[8:8+2], uint16(evt.Kind))
 			binary.BigEndian.PutUint32(k[8+2:8+2+4], uint32(evt.CreatedAt))
 			if !yield(key{dbi: b.indexPubkeyKind, key: k[0 : 8+2+4]}) {

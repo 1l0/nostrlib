@@ -90,8 +90,11 @@ func (b *BlugeBackend) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
 		var next *search.DocumentMatch
 		for next, err = dmi.Next(); next != nil; next, err = dmi.Next() {
 			next.VisitStoredFields(func(field string, value []byte) bool {
-				for evt := range b.RawEventStore.QueryEvents(nostr.Filter{IDs: []nostr.ID{nostr.ID(value)}}) {
-					yield(evt)
+				id, err := nostr.IDFromHex(string(value))
+				if err == nil {
+					for evt := range b.RawEventStore.QueryEvents(nostr.Filter{IDs: []nostr.ID{id}}) {
+						yield(evt)
+					}
 				}
 				return false
 			})

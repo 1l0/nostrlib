@@ -1,8 +1,8 @@
 package mmm
 
 import (
-	"context"
 	"fmt"
+	"iter"
 	"math/rand/v2"
 	"os"
 	"slices"
@@ -47,11 +47,10 @@ func FuzzTest(f *testing.F) {
 		}
 
 		// create test events
-		ctx := context.Background()
-		sk := "945e01e37662430162121b804d3645a86d97df9d256917d86735d0eb219393eb"
-		storedIds := make([]string, nevents)
-		nTags := make(map[string]int)
-		storedByLayer := make(map[string][]string)
+		sk := nostr.MustSecretKeyFromHex("945e01e37662430162121b804d3645a86d97df9d256917d86735d0eb219393eb")
+		storedIds := make([]nostr.ID, nevents)
+		nTags := make(map[nostr.ID]int)
+		storedByLayer := make(map[string][]nostr.ID)
 
 		// create n events with random combinations of tags
 		for i := 0; i < int(nevents); i++ {
@@ -68,9 +67,9 @@ func FuzzTest(f *testing.F) {
 				}
 			}
 
-			evt := &nostr.Event{
+			evt := nostr.Event{
 				CreatedAt: nostr.Timestamp(i),
-				Kind:      i, // hack to query by serial id
+				Kind:      uint16(i), // hack to query by serial id
 				Tags:      tags,
 				Content:   fmt.Sprintf("test content %d", i),
 			}
@@ -78,23 +77,20 @@ func FuzzTest(f *testing.F) {
 
 			for _, layer := range mmm.layers {
 				if evt.Tags.FindWithValue("t", layer.name) != nil {
-					err := layer.SaveEvent(ctx, evt)
+					err := layer.SaveEvent(evt)
 					require.NoError(t, err)
 					storedByLayer[layer.name] = append(storedByLayer[layer.name], evt.ID)
 				}
 			}
 
-			storedIds = append(storedIds, evt.ID)
+			storedIds[i] = evt.ID
 			nTags[evt.ID] = len(evt.Tags)
 		}
 
 		// verify each layer has the correct events
 		for _, layer := range mmm.layers {
-			results, err := layer.QueryEvents(ctx, nostr.Filter{})
-			require.NoError(t, err)
-
 			count := 0
-			for evt := range results {
+			for evt := range layer.QueryEvents(nostr.Filter{}) {
 				require.True(t, evt.Tags.ContainsAny("t", []string{layer.name}))
 				count++
 			}
@@ -102,7 +98,7 @@ func FuzzTest(f *testing.F) {
 		}
 
 		// randomly select n events to delete from random layers
-		deleted := make(map[string][]*IndexingLayer)
+		deleted := make(map[nostr.ID][]*IndexingLayer)
 
 		for range ndeletes {
 			id := storedIds[rnd.Int()%len(storedIds)]
@@ -117,7 +113,7 @@ func FuzzTest(f *testing.F) {
 				require.Contains(t, layers, layer)
 
 				// delete now
-				layer.DeleteEvent(ctx, evt)
+				layer.DeleteEvent(evt.ID)
 				deleted[id] = append(deleted[id], layer)
 			} else {
 				// was never saved to this in the first place
@@ -152,16 +148,16 @@ func FuzzTest(f *testing.F) {
 				for _, layer := range mmm.layers {
 					// verify event still accessible from other layers
 					if slices.Contains(foundlayers, layer) {
-						ch, err := layer.QueryEvents(ctx, nostr.Filter{Kinds: []int{evt.Kind}}) // hack
-						require.NoError(t, err)
-						fetched := <-ch
-						require.NotNil(t, fetched)
+						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []uint16{evt.Kind}})) // hack
+						_, fetched := next()
+						require.True(t, fetched)
+						stop()
 					} else {
 						// and not accessible from this layer we just deleted
-						ch, err := layer.QueryEvents(ctx, nostr.Filter{Kinds: []int{evt.Kind}}) // hack
-						require.NoError(t, err)
-						fetched := <-ch
-						require.Nil(t, fetched)
+						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []uint16{evt.Kind}})) // hack
+						_, fetched := next()
+						require.True(t, fetched)
+						stop()
 					}
 				}
 			}
@@ -169,11 +165,8 @@ func FuzzTest(f *testing.F) {
 
 		// now delete a layer and events that only exist in that layer should vanish
 		layer := mmm.layers[rnd.Int()%len(mmm.layers)]
-		ch, err := layer.QueryEvents(ctx, nostr.Filter{})
-		require.NoError(t, err)
-
-		eventsThatShouldVanish := make([]string, 0, nevents/2)
-		for evt := range ch {
+		eventsThatShouldVanish := make([]nostr.ID, 0, nevents/2)
+		for evt := range layer.QueryEvents(nostr.Filter{}) {
 			if len(evt.Tags) == 1+len(deleted[evt.ID]) {
 				eventsThatShouldVanish = append(eventsThatShouldVanish, evt.ID)
 			}

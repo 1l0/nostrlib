@@ -53,10 +53,7 @@ func manyAuthorsTest(t *testing.T, db eventstore.Store) {
 		}
 	}
 
-	w := eventstore.RelayWrapper{Store: db}
-
-	res := slices.Collect(w.QueryEvents(bigfilter))
-
+	res := slices.Collect(db.QueryEvents(bigfilter))
 	require.Len(t, res, limit)
 	require.True(t, slices.IsSortedFunc(res, nostr.CompareEventReverse))
 	slices.SortFunc(ordered, nostr.CompareEventReverse)

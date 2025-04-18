@@ -51,7 +51,7 @@ func (il *IndexingLayer) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 		{
 			// ~ by pubkey+date
 			k := make([]byte, 8+4)
-			hex.Decode(k[0:8], []byte(evt.PubKey[0:8*2]))
+			copy(k[0:8], evt.PubKey[0:8])
 			binary.BigEndian.PutUint32(k[8:8+4], uint32(evt.CreatedAt))
 			if !yield(key{dbi: il.indexPubkey, key: k[0 : 8+4]}) {
 				return
@@ -71,7 +71,7 @@ func (il *IndexingLayer) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 		{
 			// ~ by pubkey+kind+date
 			k := make([]byte, 8+2+4)
-			hex.Decode(k[0:8], []byte(evt.PubKey[0:8*2]))
+			copy(k[0:8], evt.PubKey[0:8])
 			binary.BigEndian.PutUint16(k[8:8+2], uint16(evt.Kind))
 			binary.BigEndian.PutUint32(k[8+2:8+2+4], uint32(evt.CreatedAt))
 			if !yield(key{dbi: il.indexPubkeyKind, key: k[0 : 8+2+4]}) {

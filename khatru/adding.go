@@ -45,7 +45,6 @@ func (rl *Relay) handleNormal(ctx context.Context, evt nostr.Event) (skipBroadca
 	} else {
 		// otherwise it's a replaceable
 		if nil != rl.ReplaceEvent {
-			fmt.Print("\nREPLACING .", evt.CreatedAt, "\n\n")
 			if err := rl.ReplaceEvent(ctx, evt); err != nil {
 				switch err {
 				case eventstore.ErrDupEvent:

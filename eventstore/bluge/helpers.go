@@ -1,6 +1,8 @@
 package bluge
 
 import (
+	"encoding/hex"
+
 	"fiatjaf.com/nostr"
 )
 
@@ -20,5 +22,7 @@ func (id eventIdentifier) Field() string {
 }
 
 func (id eventIdentifier) Term() []byte {
-	return id[:]
+	idhex := make([]byte, 64)
+	hex.Encode(idhex, id[:])
+	return idhex
 }

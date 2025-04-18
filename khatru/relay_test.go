@@ -217,7 +217,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 				receivedEvents = append(receivedEvents, evt)
 			case <-sub.EndOfStoredEvents:
 				if len(receivedEvents) != 1 {
-					t.Errorf("expected exactly 1 event, got %d", len(receivedEvents))
+					t.Errorf("expected exactly 1 event, got %v", receivedEvents)
 				}
 				if len(receivedEvents) > 0 && receivedEvents[0].Content != `{"name":"newer"}` {
 					t.Errorf("expected newest event content, got %s", receivedEvents[0].Content)

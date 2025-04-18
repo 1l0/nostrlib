@@ -43,7 +43,6 @@ func runSecondTestOn(t *testing.T, db eventstore.Store) {
 		require.NoError(t, err)
 	}
 
-	w := eventstore.RelayWrapper{Store: db}
 	pk3 := nostr.GetPublicKey(sk3)
 	pk4 := nostr.GetPublicKey(sk4)
 	eTags := make([]string, 20)
@@ -69,12 +68,9 @@ func runSecondTestOn(t *testing.T, db eventstore.Store) {
 
 	t.Run("filter", func(t *testing.T) {
 		for q, filter := range filters {
-			q := q
-			filter := filter
 			label := fmt.Sprintf("filter %d: %s", q, filter)
-
 			t.Run(fmt.Sprintf("q-%d", q), func(t *testing.T) {
-				results := slices.Collect(w.QueryEvents(filter))
+				results := slices.Collect(db.QueryEvents(filter))
 				require.NotEmpty(t, results, label)
 			})
 		}

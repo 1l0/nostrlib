@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"slices"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
 	"fiatjaf.com/nostr/eventstore/internal"
 	"github.com/dgraph-io/badger/v4"
-	"golang.org/x/exp/slices"
 )
 
 var batchFilled = errors.New("batch-filled")

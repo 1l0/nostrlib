@@ -99,7 +99,7 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([]in
 		results[q] = make([]internal.IterEvent, 0, batchSizePerQuery*2)
 	}
 
-	// fmt.Println("queries", len(queries))
+	// fmt.Println("queries", filter, len(queries))
 
 	for c := 0; ; c++ {
 		batchSizePerQuery = internal.BatchSizePerNumberOfQueries(limit, remainingUnexhausted)
@@ -113,7 +113,7 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([]in
 			if oldest.Q == q && remainingUnexhausted > 1 {
 				continue
 			}
-			// fmt.Println("    query", q, unsafe.Pointer(&results[q]), hex.EncodeToString(query.prefix), len(results[q]))
+			// fmt.Println("    query", q, unsafe.Pointer(&results[q]), b.dbiName(query.dbi), hex.EncodeToString(query.prefix), len(results[q]))
 
 			it := iterators[q]
 			pulledThisIteration := 0

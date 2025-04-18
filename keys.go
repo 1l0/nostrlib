@@ -21,7 +21,7 @@ func Generate() SecretKey {
 
 type SecretKey [32]byte
 
-func (sk SecretKey) String() string { return hex.EncodeToString(sk[:]) }
+func (sk SecretKey) String() string { return "sk::" + sk.Hex() }
 func (sk SecretKey) Hex() string    { return hex.EncodeToString(sk[:]) }
 func (sk SecretKey) Public() PubKey { return GetPublicKey(sk) }
 
@@ -53,7 +53,7 @@ var ZeroPK = [32]byte{}
 
 type PubKey [32]byte
 
-func (pk PubKey) String() string { return hex.EncodeToString(pk[:]) }
+func (pk PubKey) String() string { return "pk::" + pk.Hex() }
 func (pk PubKey) Hex() string    { return hex.EncodeToString(pk[:]) }
 
 func PubKeyFromHex(pkh string) (PubKey, error) {

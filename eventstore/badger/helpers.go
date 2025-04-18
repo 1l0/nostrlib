@@ -4,11 +4,11 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"iter"
+	"slices"
 	"strconv"
 	"strings"
 
 	"fiatjaf.com/nostr"
-	"golang.org/x/exp/slices"
 )
 
 func getTagIndexPrefix(tagValue string) ([]byte, int) {

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"fiatjaf.com/nostr"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBasicStuff(t *testing.T) {
@@ -20,17 +21,17 @@ func TestBasicStuff(t *testing.T) {
 		if i%3 == 0 {
 			kind = 12
 		}
-		ss.SaveEvent(nostr.Event{CreatedAt: nostr.Timestamp(v), Kind: uint16(kind)})
+		evt := nostr.Event{CreatedAt: nostr.Timestamp(v), Kind: uint16(kind)}
+		evt.Sign(nostr.Generate())
+		ss.SaveEvent(evt)
 	}
 
 	list := make([]nostr.Event, 0, 20)
 	for event := range ss.QueryEvents(nostr.Filter{}) {
 		list = append(list, event)
 	}
+	require.Len(t, list, 20)
 
-	if len(list) != 20 {
-		t.Fatalf("failed to load 20 events")
-	}
 	if list[0].CreatedAt != 10018 || list[1].CreatedAt != 10016 || list[18].CreatedAt != 3 || list[19].CreatedAt != 1 {
 		t.Fatalf("order is incorrect")
 	}
@@ -49,7 +50,5 @@ func TestBasicStuff(t *testing.T) {
 	for event := range ss.QueryEvents(nostr.Filter{Since: &since}) {
 		list = append(list, event)
 	}
-	if len(list) != 5 {
-		t.Fatalf("should have gotten 5, not %d", len(list))
-	}
+	require.Len(t, list, 5)
 }

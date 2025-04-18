@@ -17,7 +17,7 @@ var ZeroID = [32]byte{}
 // ID represents an event id
 type ID [32]byte
 
-func (id ID) String() string { return hex.EncodeToString(id[:]) }
+func (id ID) String() string { return "id::" + id.Hex() }
 func (id ID) Hex() string    { return hex.EncodeToString(id[:]) }
 
 func IDFromHex(idh string) (ID, error) {

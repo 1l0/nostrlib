@@ -145,29 +145,19 @@ pubkeyMatching:
 		if len(filter.Kinds) == 0 {
 			// will use pubkey index
 			queries = make([]query, len(filter.Authors))
-			for i, pubkeyHex := range filter.Authors {
-				if len(pubkeyHex) != 64 {
-					return nil, nil, nil, "", nil, 0, fmt.Errorf("invalid author '%s'", pubkeyHex)
-				}
+			for i, pk := range filter.Authors {
 				prefix := make([]byte, 8)
-				if _, err := hex.Decode(prefix[0:8], []byte(pubkeyHex[0:8*2])); err != nil {
-					return nil, nil, nil, "", nil, 0, fmt.Errorf("invalid author '%s'", pubkeyHex)
-				}
+				copy(prefix[0:8], pk[0:8])
 				queries[i] = query{i: i, dbi: il.indexPubkey, prefix: prefix[0:8], keySize: 8 + 4, timestampSize: 4}
 			}
 		} else {
 			// will use pubkeyKind index
 			queries = make([]query, len(filter.Authors)*len(filter.Kinds))
 			i := 0
-			for _, pubkeyHex := range filter.Authors {
+			for _, pk := range filter.Authors {
 				for _, kind := range filter.Kinds {
-					if len(pubkeyHex) != 64 {
-						return nil, nil, nil, "", nil, 0, fmt.Errorf("invalid author '%s'", pubkeyHex)
-					}
 					prefix := make([]byte, 8+2)
-					if _, err := hex.Decode(prefix[0:8], []byte(pubkeyHex[0:8*2])); err != nil {
-						return nil, nil, nil, "", nil, 0, fmt.Errorf("invalid author '%s'", pubkeyHex)
-					}
+					copy(prefix[0:8], pk[0:8])
 					binary.BigEndian.PutUint16(prefix[8:8+2], uint16(kind))
 					queries[i] = query{i: i, dbi: il.indexPubkeyKind, prefix: prefix[0 : 8+2], keySize: 10 + 4, timestampSize: 4}
 					i++

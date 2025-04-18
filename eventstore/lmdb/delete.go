@@ -40,13 +40,13 @@ func (b *LMDBBackend) delete(txn *lmdb.Txn, id nostr.ID) error {
 	for k := range b.getIndexKeysForEvent(evt) {
 		err := txn.Del(k.dbi, k.key, idx)
 		if err != nil {
-			return fmt.Errorf("failed to delete index entry %s for %x: %w", b.keyName(k), evt.ID[0:8*2], err)
+			return fmt.Errorf("failed to delete index entry %s for %x: %w", b.keyName(k), evt.ID[0:8], err)
 		}
 	}
 
 	// delete the raw event
 	if err := txn.Del(b.rawEventStore, idx, nil); err != nil {
-		return fmt.Errorf("failed to delete raw event %x (idx %x): %w", evt.ID[0:8*2], idx, err)
+		return fmt.Errorf("failed to delete raw event %x (idx %x): %w", evt.ID[0:8], idx, err)
 	}
 
 	return nil

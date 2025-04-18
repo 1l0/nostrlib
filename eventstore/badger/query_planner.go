@@ -2,11 +2,9 @@ package badger
 
 import (
 	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 
-	"fiatjaf.com/nostr/eventstore/internal"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/internal"
 )
 
 type query struct {
@@ -51,13 +49,10 @@ func prepareQueries(filter nostr.Filter) (
 
 	if len(filter.IDs) > 0 {
 		queries = make([]query, len(filter.IDs))
-		for i, idHex := range filter.IDs {
+		for i, id := range filter.IDs {
 			prefix := make([]byte, 1+8)
 			prefix[0] = indexIdPrefix
-			if len(idHex) != 64 {
-				return nil, nil, 0, fmt.Errorf("invalid id '%s'", idHex)
-			}
-			hex.Decode(prefix[1:], []byte(idHex[0:8*2]))
+			copy(prefix[1:1+8], id[0:8])
 			queries[i] = query{i: i, prefix: prefix, skipTimestamp: true}
 		}
 
@@ -96,27 +91,20 @@ pubkeyMatching:
 	if len(filter.Authors) > 0 {
 		if len(filter.Kinds) == 0 {
 			queries = make([]query, len(filter.Authors))
-			for i, pubkeyHex := range filter.Authors {
-				if len(pubkeyHex) != 64 {
-					return nil, nil, 0, fmt.Errorf("invalid pubkey '%s'", pubkeyHex)
-				}
+			for i, pk := range filter.Authors {
 				prefix := make([]byte, 1+8)
 				prefix[0] = indexPubkeyPrefix
-				hex.Decode(prefix[1:], []byte(pubkeyHex[0:8*2]))
+				copy(prefix[1:1+8], pk[0:8])
 				queries[i] = query{i: i, prefix: prefix}
 			}
 		} else {
 			queries = make([]query, len(filter.Authors)*len(filter.Kinds))
 			i := 0
-			for _, pubkeyHex := range filter.Authors {
+			for _, pk := range filter.Authors {
 				for _, kind := range filter.Kinds {
-					if len(pubkeyHex) != 64 {
-						return nil, nil, 0, fmt.Errorf("invalid pubkey '%s'", pubkeyHex)
-					}
-
 					prefix := make([]byte, 1+8+2)
 					prefix[0] = indexPubkeyKindPrefix
-					hex.Decode(prefix[1:], []byte(pubkeyHex[0:8*2]))
+					copy(prefix[1:1+8], pk[0:8])
 					binary.BigEndian.PutUint16(prefix[1+8:], uint16(kind))
 					queries[i] = query{i: i, prefix: prefix}
 					i++
