@@ -7,7 +7,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore/slicestore"
-	"github.com/fiatjaf/khatru"
+	"fiatjaf.com/nostr/khatru"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,12 +20,9 @@ func TestStreamLiveFeed(t *testing.T) {
 	relay3 := khatru.NewRelay()
 
 	for _, r := range []*khatru.Relay{relay1, relay2, relay3} {
-		db := slicestore.SliceStore{}
+		db := &slicestore.SliceStore{}
 		db.Init()
-		r.QueryEvents = append(r.QueryEvents, db.QueryEvents)
-		r.StoreEvent = append(r.StoreEvent, db.SaveEvent)
-		r.ReplaceEvent = append(r.ReplaceEvent, db.ReplaceEvent)
-		r.DeleteEvent = append(r.DeleteEvent, db.DeleteEvent)
+		r.UseEventstore(db)
 		defer db.Close()
 	}
 
@@ -55,9 +52,9 @@ func TestStreamLiveFeed(t *testing.T) {
 	<-s3
 
 	// generate two random keypairs for testing
-	sk1 := nostr.GeneratePrivateKey()
+	sk1 := nostr.Generate()
 	pk1 := nostr.GetPublicKey(sk1)
-	sk2 := nostr.GeneratePrivateKey()
+	sk2 := nostr.Generate()
 	pk2 := nostr.GetPublicKey(sk2)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -89,7 +86,7 @@ func TestStreamLiveFeed(t *testing.T) {
 	relayListEvt2.Sign(sk2)
 
 	// publish relay lists to relay1
-	relay, err := nostr.RelayConnect(ctx, "ws://localhost:48481")
+	relay, err := nostr.RelayConnect(ctx, "ws://localhost:48481", nostr.RelayOptions{})
 	if err != nil {
 		t.Fatalf("failed to connect to relay1: %v", err)
 	}
@@ -131,7 +128,7 @@ func TestStreamLiveFeed(t *testing.T) {
 	go sys.Pool.PublishMany(ctx, []string{"ws://localhost:48482", "ws://localhost:48483"}, evt2)
 
 	// start streaming events for both pubkeys
-	events, err := sys.StreamLiveFeed(ctx, []nostr.PubKey{pk1, pk2}, []int{1})
+	events, err := sys.StreamLiveFeed(ctx, []nostr.PubKey{pk1, pk2}, []uint16{1})
 	if err != nil {
 		t.Fatalf("failed to start streaming: %v", err)
 	}

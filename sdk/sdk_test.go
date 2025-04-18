@@ -27,12 +27,12 @@ func TestMetadataAndEvents(t *testing.T) {
 
 	// fetch notes
 	filter := nostr.Filter{
-		Kinds:   []int{1},
-		Authors: []string{meta.PubKey},
+		Kinds:   []uint16{1},
+		Authors: []nostr.PubKey{meta.PubKey},
 		Limit:   5,
 	}
-	events := make([]*nostr.Event, 0, 5)
-	for ie := range sys.Pool.FetchMany(ctx, relays, filter) {
+	events := make([]nostr.Event, 0, 5)
+	for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "nltest"}) {
 		events = append(events, ie.Event)
 	}
 	require.NoError(t, err)
@@ -93,14 +93,14 @@ func TestFollowListRecursion(t *testing.T) {
 	ctx := context.Background()
 
 	// fetch initial follow list
-	followList := sys.FetchFollowList(ctx, "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")
+	followList := sys.FetchFollowList(ctx, nostr.MustPubKeyFromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"))
 	fmt.Println("~", len(followList.Items))
 	require.Greater(t, len(followList.Items), 400, "should follow more than 400 accounts")
 
 	// fetch metadata and follow lists for each followed account concurrently
 	type result struct {
-		pubkey     string
-		followList GenericList[ProfileRef]
+		pubkey     nostr.PubKey
+		followList GenericList[nostr.PubKey, ProfileRef]
 		metadata   ProfileMetadata
 	}
 
