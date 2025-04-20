@@ -19,7 +19,7 @@ func getTagIndexPrefix(tagValue string) ([]byte, int) {
 		// store value in the new special "a" tag index
 		k = make([]byte, 1+2+8+len(d)+4+4)
 		k[0] = indexTagAddrPrefix
-		binary.BigEndian.PutUint16(k[1:], kind)
+		binary.BigEndian.PutUint16(k[1:], uint16(kind))
 		copy(k[1+2:], pkb[0:8])
 		copy(k[1+2+8:], d)
 		offset = 1 + 2 + 8 + len(d)
@@ -137,12 +137,12 @@ func (b *BadgerBackend) getIndexKeysForEvent(evt nostr.Event, idx []byte) iter.S
 	}
 }
 
-func getAddrTagElements(tagValue string) (kind uint16, pkb []byte, d string) {
+func getAddrTagElements(tagValue string) (kind nostr.Kind, pkb []byte, d string) {
 	spl := strings.Split(tagValue, ":")
 	if len(spl) == 3 {
 		if pkb, _ := hex.DecodeString(spl[1]); len(pkb) == 32 {
 			if kind, err := strconv.ParseUint(spl[0], 10, 16); err == nil {
-				return uint16(kind), pkb, spl[2]
+				return nostr.Kind(kind), pkb, spl[2]
 			}
 		}
 	}

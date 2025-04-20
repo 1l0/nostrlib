@@ -13,7 +13,7 @@ func TestEOSEMadness(t *testing.T) {
 	defer rl.Close()
 
 	sub, err := rl.Subscribe(context.Background(), Filter{
-		Kinds: []uint16{KindTextNote}, Limit: 2,
+		Kinds: []Kind{KindTextNote}, Limit: 2,
 	}, SubscriptionOptions{})
 	assert.NoError(t, err)
 

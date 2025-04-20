@@ -128,7 +128,7 @@ func TestStreamLiveFeed(t *testing.T) {
 	go sys.Pool.PublishMany(ctx, []string{"ws://localhost:48482", "ws://localhost:48483"}, evt2)
 
 	// start streaming events for both pubkeys
-	events, err := sys.StreamLiveFeed(ctx, []nostr.PubKey{pk1, pk2}, []uint16{1})
+	events, err := sys.StreamLiveFeed(ctx, []nostr.PubKey{pk1, pk2}, []nostr.Kind{1})
 	if err != nil {
 		t.Fatalf("failed to start streaming: %v", err)
 	}

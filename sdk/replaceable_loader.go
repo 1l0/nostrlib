@@ -48,7 +48,7 @@ func (sys *System) initializeReplaceableDataloaders() {
 	sys.replaceableLoaders[kind_10030] = sys.createReplaceableDataloader(10030)
 }
 
-func (sys *System) createReplaceableDataloader(kind uint16) *dataloader.Loader[nostr.PubKey, nostr.Event] {
+func (sys *System) createReplaceableDataloader(kind nostr.Kind) *dataloader.Loader[nostr.PubKey, nostr.Event] {
 	return dataloader.NewBatchedLoader(
 		func(ctxs []context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]dataloader.Result[nostr.Event] {
 			return sys.batchLoadReplaceableEvents(ctxs, kind, pubkeys)
@@ -62,7 +62,7 @@ func (sys *System) createReplaceableDataloader(kind uint16) *dataloader.Loader[n
 
 func (sys *System) batchLoadReplaceableEvents(
 	ctxs []context.Context,
-	kind uint16,
+	kind nostr.Kind,
 	pubkeys []nostr.PubKey,
 ) map[nostr.PubKey]dataloader.Result[nostr.Event] {
 	batchSize := len(pubkeys)
@@ -98,7 +98,7 @@ func (sys *System) batchLoadReplaceableEvents(
 					dfilter = nostr.DirectedFilter{
 						Relay: relay,
 						Filter: nostr.Filter{
-							Kinds:   []uint16{kind},
+							Kinds:   []nostr.Kind{kind},
 							Authors: make([]nostr.PubKey, 0, batchSize-i /* this and all pubkeys after this can be added */),
 						},
 					}
@@ -141,7 +141,7 @@ func (sys *System) batchLoadReplaceableEvents(
 	}
 }
 
-func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey nostr.PubKey, kind uint16) []string {
+func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey nostr.PubKey, kind nostr.Kind) []string {
 	var relays []string
 
 	// search in specific relays for user

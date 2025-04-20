@@ -53,25 +53,25 @@ func (b *LMDBBackend) CountEvents(filter nostr.Filter) (uint32, error) {
 					count++
 				} else {
 					// fetch actual event
-					val, err := txn.Get(b.rawEventStore, it.valIdx)
+					bin, err := txn.Get(b.rawEventStore, it.valIdx)
 					if err != nil {
 						panic(err)
 					}
 
 					// check it against pubkeys without decoding the entire thing
-					if !slices.Contains(extraAuthors, [32]byte(val[32:64])) {
+					if !slices.Contains(extraAuthors, betterbinary.GetPubKey(bin)) {
 						it.next()
 						continue
 					}
 
 					// check it against kinds without decoding the entire thing
-					if !slices.Contains(extraKinds, [2]byte(val[132:134])) {
+					if !slices.Contains(extraKinds, betterbinary.GetKind(bin)) {
 						it.next()
 						continue
 					}
 
 					evt := &nostr.Event{}
-					if err := betterbinary.Unmarshal(val, evt); err != nil {
+					if err := betterbinary.Unmarshal(bin, evt); err != nil {
 						it.next()
 						continue
 					}
@@ -139,7 +139,7 @@ func (b *LMDBBackend) CountEventsHLL(filter nostr.Filter, offset int) (uint32, *
 				}
 
 				// fetch actual event (we need it regardless because we need the pubkey for the hll)
-				val, err := txn.Get(b.rawEventStore, it.valIdx)
+				bin, err := txn.Get(b.rawEventStore, it.valIdx)
 				if err != nil {
 					panic(err)
 				}
@@ -147,16 +147,16 @@ func (b *LMDBBackend) CountEventsHLL(filter nostr.Filter, offset int) (uint32, *
 				if extraKinds == nil && extraTagValues == nil {
 					// nothing extra to check
 					count++
-					hll.AddBytes(nostr.PubKey(val[32:64]))
+					hll.AddBytes(betterbinary.GetPubKey(bin))
 				} else {
 					// check it against kinds without decoding the entire thing
-					if !slices.Contains(extraKinds, [2]byte(val[132:134])) {
+					if !slices.Contains(extraKinds, betterbinary.GetKind(bin)) {
 						it.next()
 						continue
 					}
 
 					evt := &nostr.Event{}
-					if err := betterbinary.Unmarshal(val, evt); err != nil {
+					if err := betterbinary.Unmarshal(bin, evt); err != nil {
 						it.next()
 						continue
 					}

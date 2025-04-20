@@ -27,7 +27,3 @@ func TagMatches(evtb []byte, key string, vals []string) bool {
 	}
 	return false
 }
-
-func KindMatches(evtb []byte, kind uint16) bool {
-	return binary.LittleEndian.Uint16(evtb[1:3]) == kind
-}

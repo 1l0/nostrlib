@@ -28,7 +28,7 @@ func TestFilterUnmarshal(t *testing.T) {
 func TestFilterMarshal(t *testing.T) {
 	until := Timestamp(12345678)
 	filterj, err := json.Marshal(Filter{
-		Kinds: []uint16{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
+		Kinds: []Kind{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
 		Tags:  TagMap{"fruit": {"banana", "mango"}},
 		Until: &until,
 	})
@@ -60,7 +60,7 @@ func TestFilterUnmarshalWithLimitZero(t *testing.T) {
 func TestFilterMarshalWithLimitZero(t *testing.T) {
 	until := Timestamp(12345678)
 	filterj, err := json.Marshal(Filter{
-		Kinds:     []uint16{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
+		Kinds:     []Kind{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
 		Tags:      TagMap{"fruit": {"banana", "mango"}},
 		Until:     &until,
 		LimitZero: true,
@@ -83,25 +83,25 @@ func TestFilterMatchingLive(t *testing.T) {
 
 func TestFilterEquality(t *testing.T) {
 	assert.True(t, FilterEqual(
-		Filter{Kinds: []uint16{KindEncryptedDirectMessage, KindDeletion}},
-		Filter{Kinds: []uint16{KindEncryptedDirectMessage, KindDeletion}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion}},
 	), "kinds filters should be equal")
 
 	assert.True(t, FilterEqual(
-		Filter{Kinds: []uint16{KindEncryptedDirectMessage, KindDeletion}, Tags: TagMap{"letter": {"a", "b"}}},
-		Filter{Kinds: []uint16{KindEncryptedDirectMessage, KindDeletion}, Tags: TagMap{"letter": {"b", "a"}}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion}, Tags: TagMap{"letter": {"a", "b"}}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion}, Tags: TagMap{"letter": {"b", "a"}}},
 	), "kind+tags filters should be equal")
 
 	tm := Now()
 	assert.True(t, FilterEqual(
 		Filter{
-			Kinds: []uint16{KindEncryptedDirectMessage, KindDeletion},
+			Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion},
 			Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
 			Since: &tm,
 			IDs:   []ID{{'a', 'a'}, {'b', 'b'}},
 		},
 		Filter{
-			Kinds: []uint16{KindDeletion, KindEncryptedDirectMessage},
+			Kinds: []Kind{KindDeletion, KindEncryptedDirectMessage},
 			Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
 			Since: &tm,
 			IDs:   []ID{{'a', 'a'}, {'b', 'b'}},
@@ -109,15 +109,15 @@ func TestFilterEquality(t *testing.T) {
 	), "kind+2tags+since+ids filters should be equal")
 
 	assert.False(t, FilterEqual(
-		Filter{Kinds: []uint16{KindTextNote, KindEncryptedDirectMessage, KindDeletion}},
-		Filter{Kinds: []uint16{KindEncryptedDirectMessage, KindDeletion, KindRepost}},
+		Filter{Kinds: []Kind{KindTextNote, KindEncryptedDirectMessage, KindDeletion}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion, KindRepost}},
 	), "kinds filters shouldn't be equal")
 }
 
 func TestFilterClone(t *testing.T) {
 	ts := Now() - 60*60
 	flt := Filter{
-		Kinds: []uint16{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		Kinds: []Kind{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 		Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
 		Since: &ts,
 		IDs:   []ID{MustIDFromHex("9894b4b5cb5166d23ee8899a4151cf0c66aec00bde101982a13b8e8ceb972df9")},
@@ -144,10 +144,10 @@ func TestFilterClone(t *testing.T) {
 
 func TestTheoreticalLimit(t *testing.T) {
 	require.Equal(t, 6, GetTheoreticalLimit(Filter{IDs: []ID{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}}))
-	require.Equal(t, 9, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}}, Kinds: []uint16{3, 0, 10002}}))
-	require.Equal(t, 4, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}}, Kinds: []uint16{10050}}))
+	require.Equal(t, 9, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}}, Kinds: []Kind{3, 0, 10002}}))
+	require.Equal(t, 4, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}}, Kinds: []Kind{10050}}))
 	require.Equal(t, -1, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}}}))
-	require.Equal(t, -1, GetTheoreticalLimit(Filter{Kinds: []uint16{3, 0, 10002}}))
-	require.Equal(t, 24, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}, Kinds: []uint16{30023, 30024}, Tags: TagMap{"d": []string{"aaa", "bbb"}}}))
-	require.Equal(t, -1, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}, Kinds: []uint16{30023, 30024}}))
+	require.Equal(t, -1, GetTheoreticalLimit(Filter{Kinds: []Kind{3, 0, 10002}}))
+	require.Equal(t, 24, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}, Kinds: []Kind{30023, 30024}, Tags: TagMap{"d": []string{"aaa", "bbb"}}}))
+	require.Equal(t, -1, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}, Kinds: []Kind{30023, 30024}}))
 }

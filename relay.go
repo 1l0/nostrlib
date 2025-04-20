@@ -366,10 +366,10 @@ func (r *Relay) publish(ctx context.Context, id ID, env Envelope) error {
 			if gotOk {
 				return err
 			}
-			return ctx.Err()
+			return fmt.Errorf("publish: %w", context.Cause(ctx))
 		case <-r.connectionContext.Done():
 			// this is caused when we lose connectivity
-			return err
+			return fmt.Errorf("relay: %w", context.Cause(r.connectionContext))
 		}
 	}
 }

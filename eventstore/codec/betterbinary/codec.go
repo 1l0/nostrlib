@@ -107,7 +107,7 @@ func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 		}
 	}()
 
-	evt.Kind = uint16(binary.LittleEndian.Uint16(data[1:3]))
+	evt.Kind = nostr.Kind(binary.LittleEndian.Uint16(data[1:3]))
 	evt.CreatedAt = nostr.Timestamp(binary.LittleEndian.Uint32(data[3:7]))
 	evt.ID = nostr.ID(data[7:39])
 	evt.PubKey = nostr.PubKey(data[39:71])

@@ -27,7 +27,7 @@ func TestMetadataAndEvents(t *testing.T) {
 
 	// fetch notes
 	filter := nostr.Filter{
-		Kinds:   []uint16{1},
+		Kinds:   []nostr.Kind{1},
 		Authors: []nostr.PubKey{meta.PubKey},
 		Limit:   5,
 	}

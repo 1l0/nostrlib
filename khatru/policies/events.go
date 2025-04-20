@@ -16,19 +16,19 @@ import (
 //
 // If ignoreKinds is given this restriction will not apply to these kinds (useful for allowing a bigger).
 // If onlyKinds is given then all other kinds will be ignored.
-func PreventTooManyIndexableTags(max int, ignoreKinds []uint16, onlyKinds []uint16) func(context.Context, nostr.Event) (bool, string) {
+func PreventTooManyIndexableTags(max int, ignoreKinds []nostr.Kind, onlyKinds []nostr.Kind) func(context.Context, nostr.Event) (bool, string) {
 	slices.Sort(ignoreKinds)
 	slices.Sort(onlyKinds)
 
-	ignore := func(kind uint16) bool { return false }
+	ignore := func(kind nostr.Kind) bool { return false }
 	if len(ignoreKinds) > 0 {
-		ignore = func(kind uint16) bool {
+		ignore = func(kind nostr.Kind) bool {
 			_, isIgnored := slices.BinarySearch(ignoreKinds, kind)
 			return isIgnored
 		}
 	}
 	if len(onlyKinds) > 0 {
-		ignore = func(kind uint16) bool {
+		ignore = func(kind nostr.Kind) bool {
 			_, isApplicable := slices.BinarySearch(onlyKinds, kind)
 			return !isApplicable
 		}
@@ -68,16 +68,16 @@ func PreventLargeTags(maxTagValueLen int) func(context.Context, nostr.Event) (bo
 
 // RestrictToSpecifiedKinds returns a function that can be used as a RejectFilter that will reject
 // any events with kinds different than the specified ones.
-func RestrictToSpecifiedKinds(allowEphemeral bool, kinds ...uint16) func(context.Context, nostr.Event) (bool, string) {
+func RestrictToSpecifiedKinds(allowEphemeral bool, kinds ...nostr.Kind) func(context.Context, nostr.Event) (bool, string) {
 	// sort the kinds in increasing order
 	slices.Sort(kinds)
 
 	return func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
-		if allowEphemeral && nostr.IsEphemeralKind(event.Kind) {
+		if allowEphemeral && event.Kind.IsEphemeral() {
 			return false, ""
 		}
 
-		if _, allowed := slices.BinarySearch(kinds, uint16(event.Kind)); allowed {
+		if _, allowed := slices.BinarySearch(kinds, nostr.Kind(event.Kind)); allowed {
 			return false, ""
 		}
 

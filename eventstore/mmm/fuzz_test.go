@@ -69,7 +69,7 @@ func FuzzTest(f *testing.F) {
 
 			evt := nostr.Event{
 				CreatedAt: nostr.Timestamp(i),
-				Kind:      uint16(i), // hack to query by serial id
+				Kind:      nostr.Kind(i), // hack to query by serial id
 				Tags:      tags,
 				Content:   fmt.Sprintf("test content %d", i),
 			}
@@ -148,13 +148,13 @@ func FuzzTest(f *testing.F) {
 				for _, layer := range mmm.layers {
 					// verify event still accessible from other layers
 					if slices.Contains(foundlayers, layer) {
-						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []uint16{evt.Kind}})) // hack
+						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}})) // hack
 						_, fetched := next()
 						require.True(t, fetched)
 						stop()
 					} else {
 						// and not accessible from this layer we just deleted
-						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []uint16{evt.Kind}})) // hack
+						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}})) // hack
 						_, fetched := next()
 						require.True(t, fetched)
 						stop()

@@ -212,13 +212,13 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 				bin := il.mmmm.mmapf[pos.start : pos.start+uint64(pos.size)]
 
 				// check it against pubkeys without decoding the entire thing
-				if extraAuthors != nil && !slices.Contains(extraAuthors, [32]byte(bin[39:71])) {
+				if extraAuthors != nil && !slices.Contains(extraAuthors, betterbinary.GetPubKey(bin)) {
 					it.next()
 					continue
 				}
 
 				// check it against kinds without decoding the entire thing
-				if extraKinds != nil && !slices.Contains(extraKinds, [2]byte(bin[1:3])) {
+				if extraKinds != nil && !slices.Contains(extraKinds, betterbinary.GetKind(bin)) {
 					it.next()
 					continue
 				}
@@ -231,7 +231,7 @@ func (il *IndexingLayer) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([
 					return nil, fmt.Errorf("event read error: %w", err)
 				}
 
-				// fmt.Println("      event", hex.EncodeToString(val[0:4]), "kind", binary.BigEndian.Uint16(val[132:134]), "author", hex.EncodeToString(val[32:36]), "ts", nostr.Timestamp(binary.BigEndian.Uint32(val[128:132])), hex.EncodeToString(it.key), it.valIdx)
+				// fmt.Println("      event", betterbinary.GetID(bin), "kind", betterbinary.GetKind(bin).Num(), "author", betterbinary.GetPubKey(bin), "ts", betterbinary.GetCreatedAt(bin), hex.EncodeToString(it.key), it.valIdx)
 
 				// if there is still a tag to be checked, do it now
 				if extraTagValues != nil && !event.Tags.ContainsAny(extraTagKey, extraTagValues) {

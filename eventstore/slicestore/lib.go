@@ -130,8 +130,8 @@ func (b *SliceStore) ReplaceEvent(evt nostr.Event) error {
 	b.Lock()
 	defer b.Unlock()
 
-	filter := nostr.Filter{Limit: 1, Kinds: []uint16{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
-	if nostr.IsAddressableKind(evt.Kind) {
+	filter := nostr.Filter{Limit: 1, Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
+	if evt.Kind.IsAddressable() {
 		filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}
 	}
 

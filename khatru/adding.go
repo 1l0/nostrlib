@@ -11,7 +11,7 @@ import (
 
 // AddEvent sends an event through then normal add pipeline, as if it was received from a websocket.
 func (rl *Relay) AddEvent(ctx context.Context, evt nostr.Event) (skipBroadcast bool, writeError error) {
-	if nostr.IsEphemeralKind(evt.Kind) {
+	if evt.Kind.IsEphemeral() {
 		return false, rl.handleEphemeral(ctx, evt)
 	} else {
 		return rl.handleNormal(ctx, evt)
@@ -31,7 +31,7 @@ func (rl *Relay) handleNormal(ctx context.Context, evt nostr.Event) (skipBroadca
 
 	// will store
 	// regular kinds are just saved directly
-	if nostr.IsRegularKind(evt.Kind) {
+	if evt.Kind.IsRegular() {
 		if nil != rl.StoreEvent {
 			if err := rl.StoreEvent(ctx, evt); err != nil {
 				switch err {

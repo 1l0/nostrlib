@@ -22,8 +22,8 @@ type query struct {
 
 func (b *LMDBBackend) prepareQueries(filter nostr.Filter) (
 	queries []query,
-	extraAuthors [][32]byte,
-	extraKinds [][2]byte,
+	extraAuthors []nostr.PubKey,
+	extraKinds []nostr.Kind,
 	extraTagKey string,
 	extraTagValues []string,
 	since uint32,
@@ -127,16 +127,16 @@ func (b *LMDBBackend) prepareQueries(filter nostr.Filter) (
 
 			// add an extra kind filter if available (only do this on plain tag index, not on ptag-kind index)
 			if filter.Kinds != nil {
-				extraKinds = make([][2]byte, len(filter.Kinds))
+				extraKinds = make([]nostr.Kind, len(filter.Kinds))
 				for i, kind := range filter.Kinds {
-					binary.BigEndian.PutUint16(extraKinds[i][0:2], uint16(kind))
+					extraKinds[i] = kind
 				}
 			}
 		}
 
 		// add an extra author search if possible
 		if filter.Authors != nil {
-			extraAuthors = make([][32]byte, len(filter.Authors))
+			extraAuthors = make([]nostr.PubKey, len(filter.Authors))
 			for i, pk := range filter.Authors {
 				extraAuthors[i] = pk
 			}

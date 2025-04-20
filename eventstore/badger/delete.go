@@ -12,6 +12,8 @@ import (
 var serialDelete uint32 = 0
 
 func (b *BadgerBackend) DeleteEvent(id nostr.ID) error {
+	fmt.Println("...", id)
+
 	deletionHappened := false
 
 	err := b.Update(func(txn *badger.Txn) error {
@@ -52,20 +54,23 @@ func (b *BadgerBackend) delete(txn *badger.Txn, id nostr.ID) (bool, error) {
 	var evt nostr.Event
 
 	it := txn.NewIterator(opts)
+	defer it.Close()
 	it.Seek(prefix)
 	if it.ValidForPrefix(prefix) {
-		idx = append(idx, it.Item().Key()[1+8:]...)
-		if err := it.Item().Value(func(val []byte) error {
-			return betterbinary.Unmarshal(val, &evt)
-		}); err != nil {
-			return false, fmt.Errorf("failed to unmarshal event %x to delete: %w", id[:], err)
+		idx = append(idx, it.Item().Key()[1+8:1+8+4]...)
+		item, err := txn.Get(idx)
+		if err == badger.ErrKeyNotFound {
+			// this event doesn't exist or is already deleted
+			return false, nil
+		} else if err != nil {
+			return false, fmt.Errorf("failed to fetch event %x to delete: %w", id[:], err)
+		} else {
+			if err := item.Value(func(bin []byte) error {
+				return betterbinary.Unmarshal(bin, &evt)
+			}); err != nil {
+				return false, fmt.Errorf("failed to unmarshal event %x to delete: %w", id[:], err)
+			}
 		}
-	}
-	it.Close()
-
-	// if no idx was found, end here, this event doesn't exist
-	if len(idx) == 1 {
-		return false, nil
 	}
 
 	// calculate all index keys we have for this event and delete them

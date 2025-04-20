@@ -112,7 +112,7 @@ func NewBunker(
 		now := nostr.Now()
 		events := pool.SubscribeMany(ctx, relays, nostr.Filter{
 			Tags:      nostr.TagMap{"p": []string{clientPublicKey.Hex()}},
-			Kinds:     []uint16{nostr.KindNostrConnect},
+			Kinds:     []nostr.Kind{nostr.KindNostrConnect},
 			Since:     &now,
 			LimitZero: true,
 		}, nostr.SubscriptionOptions{

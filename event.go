@@ -13,7 +13,7 @@ type Event struct {
 	ID        ID
 	PubKey    PubKey
 	CreatedAt Timestamp
-	Kind      uint16
+	Kind      Kind
 	Tags      Tags
 	Content   string
 	Sig       [64]byte

@@ -44,6 +44,6 @@ func TestRelayWrapper(t *testing.T) {
 	}
 	time.Sleep(time.Millisecond * 200)
 
-	evts := slices.Collect(w.QueryEvents(nostr.Filter{Kinds: []uint16{3}}))
+	evts := slices.Collect(w.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{3}}))
 	require.Len(t, evts, 1)
 }

@@ -26,13 +26,13 @@ func (b *LMDBBackend) delete(txn *lmdb.Txn, id nostr.ID) error {
 	}
 
 	// if we do, get it so we can compute the indexes
-	buf, err := txn.Get(b.rawEventStore, idx)
+	bin, err := txn.Get(b.rawEventStore, idx)
 	if err != nil {
 		return fmt.Errorf("failed to get raw event %x to delete: %w", id, err)
 	}
 
 	var evt nostr.Event
-	if err := betterbinary.Unmarshal(buf, &evt); err != nil {
+	if err := betterbinary.Unmarshal(bin, &evt); err != nil {
 		return fmt.Errorf("failed to unmarshal raw event %x to delete: %w", id, err)
 	}
 

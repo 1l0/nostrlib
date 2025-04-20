@@ -161,26 +161,26 @@ func (b *BadgerBackend) query(txn *badger.Txn, filter nostr.Filter, limit int) (
 					return nil, err
 				}
 
-				if err := item.Value(func(val []byte) error {
-					// fmt.Println("      event", hex.EncodeToString(val[0:4]), "kind", binary.BigEndian.Uint16(val[132:134]), "author", hex.EncodeToString(val[32:36]), "ts", nostr.Timestamp(binary.BigEndian.Uint32(val[128:132])))
+				if err := item.Value(func(bin []byte) error {
+					// fmt.Println("      event", betterbinary.GetID(bin ), "kind", betterbinary.GetKind(bin ).Num(), "author", betterbinary.GetPubKey(bin ), "ts", betterbinary.GetCreatedAt(bin ), hex.EncodeToString(it.key), it.valIdx)
 
 					// check it against pubkeys without decoding the entire thing
 					if extraFilter != nil && extraFilter.Authors != nil &&
-						!nostr.ContainsPubKey(extraFilter.Authors, nostr.PubKey(val[32:64])) {
+						!nostr.ContainsPubKey(extraFilter.Authors, betterbinary.GetPubKey(bin)) {
 						// fmt.Println("        skipped (authors)")
 						return nil
 					}
 
 					// check it against kinds without decoding the entire thing
 					if extraFilter != nil && extraFilter.Kinds != nil &&
-						!slices.Contains(extraFilter.Kinds, binary.BigEndian.Uint16(val[132:134])) {
+						!slices.Contains(extraFilter.Kinds, betterbinary.GetKind(bin)) {
 						// fmt.Println("        skipped (kinds)")
 						return nil
 					}
 
 					event := nostr.Event{}
-					if err := betterbinary.Unmarshal(val, &event); err != nil {
-						log.Printf("badger: value read error (id %x): %s\n", val[0:32], err)
+					if err := betterbinary.Unmarshal(bin, &event); err != nil {
+						log.Printf("badger: value read error (id %x): %s\n", betterbinary.GetID(bin), err)
 						return err
 					}
 

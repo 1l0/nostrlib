@@ -113,9 +113,10 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([]in
 			if oldest.Q == q && remainingUnexhausted > 1 {
 				continue
 			}
-			// fmt.Println("    query", q, unsafe.Pointer(&results[q]), b.dbiName(query.dbi), hex.EncodeToString(query.prefix), len(results[q]))
+			// fmt.Println("    query", q, unsafe.Pointer(&results[q]), b.dbiName(query.dbi), hex.EncodeToString(query.prefix), hex.EncodeToString(query.startingPoint), len(results[q]))
 
 			it := iterators[q]
+			// fmt.Println("    ", q, unsafe.Pointer(iterators[q]), it.err)
 			pulledThisIteration := 0
 
 			for {
@@ -124,7 +125,7 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([]in
 					len(it.key) != query.keySize ||
 					!bytes.HasPrefix(it.key, query.prefix) {
 					// either iteration has errored or we reached the end of this prefix
-					// fmt.Println("      reached end", it.key, query.keySize, query.prefix)
+					// fmt.Println("      reached end", hex.EncodeToString(it.key), query.keySize, hex.EncodeToString(query.prefix), it.err)
 					exhaust(q)
 					break
 				}
@@ -140,7 +141,7 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([]in
 				}
 
 				// fetch actual event
-				val, err := txn.Get(b.rawEventStore, it.valIdx)
+				bin, err := txn.Get(b.rawEventStore, it.valIdx)
 				if err != nil {
 					log.Printf(
 						"lmdb: failed to get %x based on prefix %x, index key %x from raw event store: %s\n",
@@ -149,26 +150,26 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int) ([]in
 				}
 
 				// check it against pubkeys without decoding the entire thing
-				if extraAuthors != nil && !slices.Contains(extraAuthors, [32]byte(val[32:64])) {
+				if extraAuthors != nil && !slices.Contains(extraAuthors, betterbinary.GetPubKey(bin)) {
 					it.next()
 					continue
 				}
 
 				// check it against kinds without decoding the entire thing
-				if extraKinds != nil && !slices.Contains(extraKinds, [2]byte(val[132:134])) {
+				if extraKinds != nil && !slices.Contains(extraKinds, betterbinary.GetKind(bin)) {
 					it.next()
 					continue
 				}
 
 				// decode the entire thing
 				event := nostr.Event{}
-				if err := betterbinary.Unmarshal(val, &event); err != nil {
-					log.Printf("lmdb: value read error (id %x) on query prefix %x sp %x dbi %d: %s\n", val[0:32],
+				if err := betterbinary.Unmarshal(bin, &event); err != nil {
+					log.Printf("lmdb: value read error (id %x) on query prefix %x sp %x dbi %d: %s\n", betterbinary.GetID(bin),
 						query.prefix, query.startingPoint, query.dbi, err)
 					return nil, fmt.Errorf("event read error: %w", err)
 				}
 
-				// fmt.Println("      event", hex.EncodeToString(val[0:4]), "kind", binary.BigEndian.Uint16(val[132:134]), "author", hex.EncodeToString(val[32:36]), "ts", nostr.Timestamp(binary.BigEndian.Uint32(val[128:132])), hex.EncodeToString(it.key), it.valIdx)
+				// fmt.Println("      event", betterbinary.GetID(bin), "kind", betterbinary.GetKind(bin).Num(), "author", betterbinary.GetPubKey(bin), "ts", betterbinary.GetCreatedAt(bin), hex.EncodeToString(it.key), it.valIdx)
 
 				// if there is still a tag to be checked, do it now
 				if extraTagValues != nil && !event.Tags.ContainsAny(extraTagKey, extraTagValues) {

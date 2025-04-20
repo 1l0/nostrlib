@@ -38,7 +38,7 @@ func (rl *Relay) handleDeleteRequest(ctx context.Context, evt nostr.Event) error
 
 				identifier := spl[2]
 				f = nostr.Filter{
-					Kinds:   []uint16{uint16(kind)},
+					Kinds:   []nostr.Kind{nostr.Kind(kind)},
 					Authors: []nostr.PubKey{author},
 					Tags:    nostr.TagMap{"d": []string{identifier}},
 					Until:   &evt.CreatedAt,

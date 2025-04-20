@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync/atomic"
 
+	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
@@ -34,7 +35,7 @@ type LMDBBackend struct {
 	indexPTagKind   lmdb.DBI
 
 	hllCache          lmdb.DBI
-	EnableHLLCacheFor func(kind uint16) (useCache bool, skipSavingActualEvent bool)
+	EnableHLLCacheFor func(kind nostr.Kind) (useCache bool, skipSavingActualEvent bool)
 
 	lastId atomic.Uint32
 }

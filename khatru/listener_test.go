@@ -29,9 +29,9 @@ func TestListenerSetupAndRemoveOnce(t *testing.T) {
 	ws1 := &WebSocket{}
 	ws2 := &WebSocket{}
 
-	f1 := nostr.Filter{Kinds: []uint16{1}}
-	f2 := nostr.Filter{Kinds: []uint16{2}}
-	f3 := nostr.Filter{Kinds: []uint16{3}}
+	f1 := nostr.Filter{Kinds: []nostr.Kind{1}}
+	f2 := nostr.Filter{Kinds: []nostr.Kind{2}}
+	f3 := nostr.Filter{Kinds: []nostr.Kind{3}}
 
 	rl.clients[ws1] = nil
 	rl.clients[ws2] = nil
@@ -86,9 +86,9 @@ func TestListenerMoreConvolutedCase(t *testing.T) {
 	ws3 := &WebSocket{}
 	ws4 := &WebSocket{}
 
-	f1 := nostr.Filter{Kinds: []uint16{1}}
-	f2 := nostr.Filter{Kinds: []uint16{2}}
-	f3 := nostr.Filter{Kinds: []uint16{3}}
+	f1 := nostr.Filter{Kinds: []nostr.Kind{1}}
+	f2 := nostr.Filter{Kinds: []nostr.Kind{2}}
+	f3 := nostr.Filter{Kinds: []nostr.Kind{3}}
 
 	rl.clients[ws1] = nil
 	rl.clients[ws2] = nil
@@ -205,9 +205,9 @@ func TestListenerMoreStuffWithMultipleRelays(t *testing.T) {
 	ws3 := &WebSocket{}
 	ws4 := &WebSocket{}
 
-	f1 := nostr.Filter{Kinds: []uint16{1}}
-	f2 := nostr.Filter{Kinds: []uint16{2}}
-	f3 := nostr.Filter{Kinds: []uint16{3}}
+	f1 := nostr.Filter{Kinds: []nostr.Kind{1}}
+	f2 := nostr.Filter{Kinds: []nostr.Kind{2}}
+	f3 := nostr.Filter{Kinds: []nostr.Kind{3}}
 
 	rlx := NewRelay()
 	rly := NewRelay()
@@ -424,7 +424,7 @@ func TestListenerMoreStuffWithMultipleRelays(t *testing.T) {
 func TestRandomListenerClientRemoving(t *testing.T) {
 	rl := NewRelay()
 
-	f := nostr.Filter{Kinds: []uint16{1}}
+	f := nostr.Filter{Kinds: []nostr.Kind{1}}
 	cancel := func(cause error) {}
 
 	websockets := make([]*WebSocket, 0, 20)
@@ -463,7 +463,7 @@ func TestRandomListenerClientRemoving(t *testing.T) {
 func TestRandomListenerIdRemoving(t *testing.T) {
 	rl := NewRelay()
 
-	f := nostr.Filter{Kinds: []uint16{1}}
+	f := nostr.Filter{Kinds: []nostr.Kind{1}}
 	cancel := func(cause error) {}
 
 	websockets := make([]*WebSocket, 0, 20)
@@ -531,7 +531,7 @@ func TestRouterListenersPabloCrash(t *testing.T) {
 	rl.clients[ws2] = nil
 	rl.clients[ws3] = nil
 
-	f := nostr.Filter{Kinds: []uint16{1}}
+	f := nostr.Filter{Kinds: []nostr.Kind{1}}
 	cancel := func(cause error) {}
 
 	rl.addListener(ws1, ":1", rla, f, cancel)

@@ -16,8 +16,8 @@ func (b *BadgerBackend) ReplaceEvent(evt nostr.Event) error {
 	}
 
 	return b.Update(func(txn *badger.Txn) error {
-		filter := nostr.Filter{Limit: 1, Kinds: []uint16{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
-		if nostr.IsAddressableKind(evt.Kind) {
+		filter := nostr.Filter{Limit: 1, Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
+		if evt.Kind.IsAddressable() {
 			// when addressable, add the "d" tag to the filter
 			filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}
 		}

@@ -66,15 +66,15 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 				in.Delim('[')
 				if out.Kinds == nil {
 					if !in.IsDelim(']') {
-						out.Kinds = make([]uint16, 0, 8)
+						out.Kinds = make([]Kind, 0, 8)
 					} else {
-						out.Kinds = []uint16{}
+						out.Kinds = []Kind{}
 					}
 				} else {
 					out.Kinds = (out.Kinds)[:0]
 				}
 				for !in.IsDelim(']') {
-					out.Kinds = append(out.Kinds, uint16(in.Int()))
+					out.Kinds = append(out.Kinds, Kind(in.Int()))
 					in.WantComma()
 				}
 				in.Delim(']')

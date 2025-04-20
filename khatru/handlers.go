@@ -214,7 +214,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					if env.Event.Kind == 5 {
 						// this always returns "blocked: " whenever it returns an error
 						writeErr = srl.handleDeleteRequest(ctx, env.Event)
-					} else if nostr.IsEphemeralKind(env.Event.Kind) {
+					} else if env.Event.Kind.IsEphemeral() {
 						// this will also always return a prefixed reason
 						writeErr = srl.handleEphemeral(ctx, env.Event)
 					} else {
@@ -229,7 +229,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 							n := srl.notifyListeners(env.Event)
 
 							// the number of notified listeners matters in ephemeral events
-							if nostr.IsEphemeralKind(env.Event.Kind) {
+							if env.Event.Kind.IsEphemeral() {
 								if n == 0 {
 									ok = false
 									reason = "mute: no one was listening for this"

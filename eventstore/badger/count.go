@@ -60,9 +60,9 @@ func (b *BadgerBackend) CountEvents(filter nostr.Filter) (uint32, error) {
 						return err
 					}
 
-					err = item.Value(func(val []byte) error {
+					err = item.Value(func(bin []byte) error {
 						evt := nostr.Event{}
-						if err := betterbinary.Unmarshal(val, &evt); err != nil {
+						if err := betterbinary.Unmarshal(bin, &evt); err != nil {
 							return err
 						}
 
@@ -135,15 +135,15 @@ func (b *BadgerBackend) CountEventsHLL(filter nostr.Filter, offset int) (uint32,
 					return err
 				}
 
-				err = item.Value(func(val []byte) error {
+				err = item.Value(func(bin []byte) error {
 					if extraFilter == nil {
-						hll.AddBytes([32]byte(val[32:64]))
+						hll.AddBytes(betterbinary.GetPubKey(bin))
 						count++
 						return nil
 					}
 
 					evt := nostr.Event{}
-					if err := betterbinary.Unmarshal(val, &evt); err != nil {
+					if err := betterbinary.Unmarshal(bin, &evt); err != nil {
 						return err
 					}
 					if extraFilter.Matches(evt) {

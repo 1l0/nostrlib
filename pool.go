@@ -29,7 +29,7 @@ type Pool struct {
 
 	eventMiddleware     func(RelayEvent)
 	duplicateMiddleware func(relay string, id ID)
-	queryMiddleware     func(relay string, pubkey PubKey, kind uint16)
+	queryMiddleware     func(relay string, pubkey PubKey, kind Kind)
 	relayOptions        RelayOptions
 
 	// custom things not often used
@@ -88,7 +88,7 @@ type PoolOptions struct {
 	// AuthorKindQueryMiddleware is a function that will be called with every combination of
 	// relay+pubkey+kind queried in a .SubscribeMany*() call -- when applicable (i.e. when the query
 	// contains a pubkey and a kind).
-	AuthorKindQueryMiddleware func(relay string, pubkey PubKey, kind uint16)
+	AuthorKindQueryMiddleware func(relay string, pubkey PubKey, kind Kind)
 
 	// RelayOptions are any options that should be passed to Relays instantiated by this pool
 	RelayOptions RelayOptions

@@ -95,7 +95,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 				if len(v) != 4 {
 					return prefix, nil, fmt.Errorf("invalid uint32 value for integer (%v)", v)
 				}
-				result.Kind = uint16(binary.BigEndian.Uint32(v))
+				result.Kind = nostr.Kind(binary.BigEndian.Uint32(v))
 			default:
 				// ignore
 			}
@@ -127,7 +127,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 				}
 				result.PublicKey = nostr.PubKey(v)
 			case TLVKind:
-				result.Kind = uint16(binary.BigEndian.Uint32(v))
+				result.Kind = nostr.Kind(binary.BigEndian.Uint32(v))
 			default:
 				// ignore
 			}
@@ -185,7 +185,7 @@ func EncodeNevent(id nostr.ID, relays []string, author nostr.PubKey) string {
 	return nevent
 }
 
-func EncodeNaddr(pk nostr.PubKey, kind uint16, identifier string, relays []string) string {
+func EncodeNaddr(pk nostr.PubKey, kind nostr.Kind, identifier string, relays []string) string {
 	buf := &bytes.Buffer{}
 
 	writeTLVEntry(buf, TLVDefault, []byte(identifier))

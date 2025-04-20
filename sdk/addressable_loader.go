@@ -28,7 +28,7 @@ func (sys *System) initializeAddressableDataloaders() {
 	sys.addressableLoaders[kind_30030] = sys.createAddressableDataloader(30030)
 }
 
-func (sys *System) createAddressableDataloader(kind uint16) *dataloader.Loader[nostr.PubKey, []nostr.Event] {
+func (sys *System) createAddressableDataloader(kind nostr.Kind) *dataloader.Loader[nostr.PubKey, []nostr.Event] {
 	return dataloader.NewBatchedLoader(
 		func(ctxs []context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]dataloader.Result[[]nostr.Event] {
 			return sys.batchLoadAddressableEvents(ctxs, kind, pubkeys)
@@ -42,7 +42,7 @@ func (sys *System) createAddressableDataloader(kind uint16) *dataloader.Loader[n
 
 func (sys *System) batchLoadAddressableEvents(
 	ctxs []context.Context,
-	kind uint16,
+	kind nostr.Kind,
 	pubkeys []nostr.PubKey,
 ) map[nostr.PubKey]dataloader.Result[[]nostr.Event] {
 	batchSize := len(pubkeys)
@@ -77,7 +77,7 @@ func (sys *System) batchLoadAddressableEvents(
 					dfilter = nostr.DirectedFilter{
 						Relay: relay,
 						Filter: nostr.Filter{
-							Kinds:   []uint16{kind},
+							Kinds:   []nostr.Kind{kind},
 							Authors: make([]nostr.PubKey, 0, batchSize-i /* this and all pubkeys after this can be added */),
 						},
 					}

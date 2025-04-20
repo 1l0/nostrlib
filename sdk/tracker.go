@@ -8,7 +8,7 @@ import (
 	"fiatjaf.com/nostr/sdk/hints"
 )
 
-func (sys *System) TrackQueryAttempts(relay string, author nostr.PubKey, kind uint16) {
+func (sys *System) TrackQueryAttempts(relay string, author nostr.PubKey, kind nostr.Kind) {
 	if IsVirtualRelay(relay) {
 		return
 	}

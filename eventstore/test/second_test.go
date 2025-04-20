@@ -32,7 +32,7 @@ func runSecondTestOn(t *testing.T, db eventstore.Store) {
 				{"e", hex.EncodeToString(eTag)},
 				{"p", ref.Hex()},
 			},
-			Kind: uint16(i % 10),
+			Kind: nostr.Kind(i % 10),
 		}
 		sk := sk3
 		if i%3 == 0 {
@@ -52,19 +52,20 @@ func runSecondTestOn(t *testing.T, db eventstore.Store) {
 		eTags[i] = hex.EncodeToString(eTag)
 	}
 
-	filters := make([]nostr.Filter, 0, 10)
-	filters = append(filters, nostr.Filter{Kinds: []uint16{1, 4, 8, 16}})
-	filters = append(filters, nostr.Filter{Authors: []nostr.PubKey{pk3, nostr.Generate().Public()}})
-	filters = append(filters, nostr.Filter{Authors: []nostr.PubKey{pk3, nostr.Generate().Public()}, Kinds: []uint16{3, 4}})
-	filters = append(filters, nostr.Filter{})
-	filters = append(filters, nostr.Filter{Limit: 20})
-	filters = append(filters, nostr.Filter{Kinds: []uint16{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex()}}})
-	filters = append(filters, nostr.Filter{Kinds: []uint16{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex(), pk4.Hex()}}})
-	filters = append(filters, nostr.Filter{Kinds: []uint16{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex(), pk4.Hex()}}})
-	filters = append(filters, nostr.Filter{Kinds: []uint16{9}, Tags: nostr.TagMap{"e": eTags}})
-	filters = append(filters, nostr.Filter{Kinds: []uint16{5}, Tags: nostr.TagMap{"e": eTags, "t": []string{"t5"}}})
-	filters = append(filters, nostr.Filter{Tags: nostr.TagMap{"e": eTags}})
-	filters = append(filters, nostr.Filter{Tags: nostr.TagMap{"e": eTags}, Limit: 50})
+	filters := []nostr.Filter{
+		{Kinds: []nostr.Kind{1, 4, 8, 16}},
+		{Authors: []nostr.PubKey{pk3, nostr.Generate().Public()}},
+		{Authors: []nostr.PubKey{pk3, nostr.Generate().Public()}, Kinds: []nostr.Kind{3, 4}},
+		{},
+		{Limit: 20},
+		{Kinds: []nostr.Kind{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex()}}},
+		{Kinds: []nostr.Kind{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex(), pk4.Hex()}}},
+		{Kinds: []nostr.Kind{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex(), pk4.Hex()}}},
+		{Kinds: []nostr.Kind{9}, Tags: nostr.TagMap{"e": eTags}},
+		{Kinds: []nostr.Kind{5}, Tags: nostr.TagMap{"e": eTags, "t": []string{"t5"}}},
+		{Tags: nostr.TagMap{"e": eTags}},
+		{Tags: nostr.TagMap{"e": eTags}, Limit: 50},
+	}
 
 	t.Run("filter", func(t *testing.T) {
 		for q, filter := range filters {

@@ -8,7 +8,7 @@ import (
 
 var kvStoreLastFetchPrefix = byte('f')
 
-func makeLastFetchKey(kind uint16, pubkey nostr.PubKey) []byte {
+func makeLastFetchKey(kind nostr.Kind, pubkey nostr.PubKey) []byte {
 	buf := make([]byte, 1+5+32)
 	buf[0] = kvStoreLastFetchPrefix
 	binary.LittleEndian.PutUint32(buf[1:], uint32(kind))

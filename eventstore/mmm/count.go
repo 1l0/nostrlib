@@ -54,13 +54,13 @@ func (il *IndexingLayer) CountEvents(filter nostr.Filter) (uint32, error) {
 					bin := il.mmmm.mmapf[pos.start : pos.start+uint64(pos.size)]
 
 					// check it against pubkeys without decoding the entire thing
-					if extraAuthors != nil && !slices.Contains(extraAuthors, [32]byte(bin[39:71])) {
+					if extraAuthors != nil && !slices.Contains(extraAuthors, betterbinary.GetPubKey(bin)) {
 						it.next()
 						continue
 					}
 
 					// check it against kinds without decoding the entire thing
-					if extraKinds != nil && !slices.Contains(extraKinds, [2]byte(bin[1:3])) {
+					if extraKinds != nil && !slices.Contains(extraKinds, betterbinary.GetKind(bin)) {
 						it.next()
 						continue
 					}

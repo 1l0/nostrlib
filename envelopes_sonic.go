@@ -499,7 +499,7 @@ type sonicMessageParser struct {
 	reusableIDArray     []ID
 	reusablePubKeyArray []PubKey
 	reusableStringArray []string
-	reusableUint16Array []uint16
+	reusableUint16Array []Kind
 }
 
 // NewMessageParser returns a sonicMessageParser object that is intended to be reused many times.
@@ -510,7 +510,7 @@ func NewMessageParser() sonicMessageParser {
 		reusableStringArray: make([]string, 0, 10000),
 		reusableIDArray:     make([]ID, 0, 10000),
 		reusablePubKeyArray: make([]PubKey, 0, 10000),
-		reusableUint16Array: make([]uint16, 0, 10000),
+		reusableUint16Array: make([]Kind, 0, 10000),
 	}
 }
 
@@ -538,14 +538,14 @@ func (smp *sonicMessageParser) doneWithIDSlice(slice []string) {
 	}
 }
 
-func (smp *sonicMessageParser) doneWithUint16Slice(slice []uint16) {
+func (smp *sonicMessageParser) doneWithUint16Slice(slice []Kind) {
 	if unsafe.SliceData(smp.reusableUint16Array) == unsafe.SliceData(slice) {
 		smp.reusableUint16Array = slice[len(slice):]
 	}
 
 	if cap(smp.reusableUint16Array) < 8 {
 		// create a new one
-		smp.reusableUint16Array = make([]uint16, 0, 10000)
+		smp.reusableUint16Array = make([]Kind, 0, 10000)
 	}
 }
 

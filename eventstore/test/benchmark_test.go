@@ -52,7 +52,7 @@ func runBenchmarkOn(b *testing.B, db eventstore.Store) {
 				{"e", hex.EncodeToString(eTag)},
 				{"p", ref.Hex()},
 			},
-			Kind: uint16(i % 10),
+			Kind: nostr.Kind(i % 10),
 		}
 		sk := sk3
 		if i%3 == 0 {
@@ -63,24 +63,24 @@ func runBenchmarkOn(b *testing.B, db eventstore.Store) {
 	}
 
 	filters := make([]nostr.Filter, 0, 10)
-	filters = append(filters, nostr.Filter{Kinds: []uint16{1, 4, 8, 16}})
+	filters = append(filters, nostr.Filter{Kinds: []nostr.Kind{1, 4, 8, 16}})
 	pk3 := nostr.GetPublicKey(sk3)
 	filters = append(filters, nostr.Filter{Authors: []nostr.PubKey{pk3, nostr.Generate().Public()}})
-	filters = append(filters, nostr.Filter{Authors: []nostr.PubKey{pk3, nostr.Generate().Public()}, Kinds: []uint16{3, 4}})
+	filters = append(filters, nostr.Filter{Authors: []nostr.PubKey{pk3, nostr.Generate().Public()}, Kinds: []nostr.Kind{3, 4}})
 	filters = append(filters, nostr.Filter{})
 	filters = append(filters, nostr.Filter{Limit: 20})
-	filters = append(filters, nostr.Filter{Kinds: []uint16{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex()}}})
+	filters = append(filters, nostr.Filter{Kinds: []nostr.Kind{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex()}}})
 	pk4 := nostr.GetPublicKey(sk4)
-	filters = append(filters, nostr.Filter{Kinds: []uint16{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex(), pk4.Hex()}}})
-	filters = append(filters, nostr.Filter{Kinds: []uint16{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex(), pk4.Hex()}}})
+	filters = append(filters, nostr.Filter{Kinds: []nostr.Kind{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex(), pk4.Hex()}}})
+	filters = append(filters, nostr.Filter{Kinds: []nostr.Kind{8, 9}, Tags: nostr.TagMap{"p": []string{pk3.Hex(), pk4.Hex()}}})
 	eTags := make([]string, 20)
 	for i := 0; i < 20; i++ {
 		eTag := make([]byte, 32)
 		binary.BigEndian.PutUint16(eTag, uint16(i))
 		eTags[i] = hex.EncodeToString(eTag)
 	}
-	filters = append(filters, nostr.Filter{Kinds: []uint16{9}, Tags: nostr.TagMap{"e": eTags}})
-	filters = append(filters, nostr.Filter{Kinds: []uint16{5}, Tags: nostr.TagMap{"e": eTags, "t": []string{"t5"}}})
+	filters = append(filters, nostr.Filter{Kinds: []nostr.Kind{9}, Tags: nostr.TagMap{"e": eTags}})
+	filters = append(filters, nostr.Filter{Kinds: []nostr.Kind{5}, Tags: nostr.TagMap{"e": eTags, "t": []string{"t5"}}})
 	filters = append(filters, nostr.Filter{Tags: nostr.TagMap{"e": eTags}})
 	filters = append(filters, nostr.Filter{Tags: nostr.TagMap{"e": eTags}, Limit: 50})
 

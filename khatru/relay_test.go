@@ -30,7 +30,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 	pk2 := nostr.GetPublicKey(sk2)
 
 	// helper to create signed events
-	createEvent := func(sk nostr.SecretKey, kind uint16, content string, tags nostr.Tags) nostr.Event {
+	createEvent := func(sk nostr.SecretKey, kind nostr.Kind, content string, tags nostr.Tags) nostr.Event {
 		pk := nostr.GetPublicKey(sk)
 		evt := nostr.Event{
 			PubKey:    pk,
@@ -71,7 +71,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		// Query the event back
 		sub, err := client2.Subscribe(ctx, nostr.Filter{
 			Authors: []nostr.PubKey{pk1},
-			Kinds:   []uint16{1},
+			Kinds:   []nostr.Kind{1},
 		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)
@@ -97,7 +97,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		// Setup subscription first
 		sub, err := client1.Subscribe(ctx, nostr.Filter{
 			Authors: []nostr.PubKey{pk2},
-			Kinds:   []uint16{1},
+			Kinds:   []nostr.Kind{1},
 		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)
@@ -202,7 +202,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		// query to verify only the newest event exists
 		sub, err := client2.Subscribe(ctx, nostr.Filter{
 			Authors: []nostr.PubKey{pk1},
-			Kinds:   []uint16{0},
+			Kinds:   []nostr.Kind{0},
 		}, nostr.SubscriptionOptions{})
 		if err != nil {
 			t.Fatalf("failed to subscribe: %v", err)

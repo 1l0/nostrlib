@@ -70,7 +70,7 @@ type EventPointer struct {
 	ID     ID       `json:"id"`
 	Relays []string `json:"relays,omitempty"`
 	Author PubKey   `json:"author,omitempty"`
-	Kind   uint16   `json:"kind,omitempty"`
+	Kind   Kind     `json:"kind,omitempty"`
 }
 
 // EventPointerFromTag creates an EventPointer from an "e" tag (but it could be other tag name, it isn't checked).
@@ -115,7 +115,7 @@ func (ep EventPointer) AsTag() Tag {
 // EntityPointer represents a pointer to a nostr entity (addressable event).
 type EntityPointer struct {
 	PublicKey  PubKey   `json:"pubkey"`
-	Kind       uint16   `json:"kind,omitempty"`
+	Kind       Kind     `json:"kind,omitempty"`
 	Identifier string   `json:"identifier,omitempty"`
 	Relays     []string `json:"relays,omitempty"`
 }
@@ -138,7 +138,7 @@ func EntityPointerFromTag(refTag Tag) (EntityPointer, error) {
 	}
 
 	pointer := EntityPointer{
-		Kind:       uint16(kind),
+		Kind:       Kind(kind),
 		PublicKey:  pk,
 		Identifier: spl[2],
 	}
@@ -164,7 +164,7 @@ func (ep EntityPointer) AsTagReference() string {
 
 func (ep EntityPointer) AsFilter() Filter {
 	return Filter{
-		Kinds:   []uint16{ep.Kind},
+		Kinds:   []Kind{ep.Kind},
 		Authors: []PubKey{ep.PublicKey},
 		Tags:    TagMap{"d": []string{ep.Identifier}},
 	}

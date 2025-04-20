@@ -27,7 +27,7 @@ func SendNutzap(
 	amount uint64,
 	message string,
 ) (chan nostr.PublishResult, error) {
-	ie := pool.QuerySingle(ctx, relays, nostr.Filter{Kinds: []uint16{10019}, Authors: []nostr.PubKey{targetUserPublickey}}, nostr.SubscriptionOptions{})
+	ie := pool.QuerySingle(ctx, relays, nostr.Filter{Kinds: []nostr.Kind{10019}, Authors: []nostr.PubKey{targetUserPublickey}}, nostr.SubscriptionOptions{})
 	if ie == nil {
 		return nil, NutzapsNotAccepted
 	}

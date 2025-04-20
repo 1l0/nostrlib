@@ -17,7 +17,7 @@ func manyAuthorsTest(t *testing.T, db eventstore.Store) {
 	const total = 10000
 	const limit = 500
 	const authors = 1700
-	kinds := []uint16{6, 7, 8}
+	kinds := []nostr.Kind{6, 7, 8}
 
 	bigfilter := nostr.Filter{
 		Authors: make([]nostr.PubKey, authors),
@@ -40,7 +40,7 @@ func manyAuthorsTest(t *testing.T, db eventstore.Store) {
 			CreatedAt: nostr.Timestamp(i*i) / 4,
 			Content:   fmt.Sprintf("lots of stuff %d", i),
 			Tags:      nostr.Tags{},
-			Kind:      uint16(i % 10),
+			Kind:      nostr.Kind(i % 10),
 		}
 		err := evt.Sign([32]byte(sk))
 		require.NoError(t, err)

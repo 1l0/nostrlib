@@ -44,7 +44,7 @@ func (c *Connection) WriteMessage(ctx context.Context, data []byte) error {
 func (c *Connection) ReadMessage(ctx context.Context, buf io.Writer) error {
 	_, reader, err := c.conn.Reader(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get reader: %w", err)
+		return fmt.Errorf("conn reader: %w", err)
 	}
 	if _, err := io.Copy(buf, reader); err != nil {
 		return fmt.Errorf("failed to read message: %w", err)

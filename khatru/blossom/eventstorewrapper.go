@@ -18,7 +18,7 @@ type EventStoreBlobIndexWrapper struct {
 
 func (es EventStoreBlobIndexWrapper) Keep(ctx context.Context, blob BlobDescriptor, pubkey nostr.PubKey) error {
 	next, stop := iter.Pull(
-		es.Store.QueryEvents(nostr.Filter{Authors: []nostr.PubKey{pubkey}, Kinds: []uint16{24242}, Tags: nostr.TagMap{"x": []string{blob.SHA256}}}),
+		es.Store.QueryEvents(nostr.Filter{Authors: []nostr.PubKey{pubkey}, Kinds: []nostr.Kind{24242}, Tags: nostr.TagMap{"x": []string{blob.SHA256}}}),
 	)
 	defer stop()
 
@@ -45,7 +45,7 @@ func (es EventStoreBlobIndexWrapper) List(ctx context.Context, pubkey nostr.PubK
 	return func(yield func(BlobDescriptor) bool) {
 		for evt := range es.Store.QueryEvents(nostr.Filter{
 			Authors: []nostr.PubKey{pubkey},
-			Kinds:   []uint16{24242},
+			Kinds:   []nostr.Kind{24242},
 		}) {
 			yield(es.parseEvent(evt))
 		}
@@ -54,7 +54,7 @@ func (es EventStoreBlobIndexWrapper) List(ctx context.Context, pubkey nostr.PubK
 
 func (es EventStoreBlobIndexWrapper) Get(ctx context.Context, sha256 string) (*BlobDescriptor, error) {
 	next, stop := iter.Pull(
-		es.Store.QueryEvents(nostr.Filter{Tags: nostr.TagMap{"x": []string{sha256}}, Kinds: []uint16{24242}, Limit: 1}),
+		es.Store.QueryEvents(nostr.Filter{Tags: nostr.TagMap{"x": []string{sha256}}, Kinds: []nostr.Kind{24242}, Limit: 1}),
 	)
 
 	defer stop()
@@ -72,7 +72,7 @@ func (es EventStoreBlobIndexWrapper) Delete(ctx context.Context, sha256 string, 
 		es.Store.QueryEvents(nostr.Filter{
 			Authors: []nostr.PubKey{pubkey},
 			Tags:    nostr.TagMap{"x": []string{sha256}},
-			Kinds:   []uint16{24242},
+			Kinds:   []nostr.Kind{24242},
 			Limit:   1,
 		},
 		),

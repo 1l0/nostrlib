@@ -41,7 +41,7 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		case "created_at":
 			out.CreatedAt = Timestamp(in.Int64())
 		case "kind":
-			out.Kind = uint16(in.Int())
+			out.Kind = Kind(in.Int())
 		case "tags":
 			if in.IsNull() {
 				in.Skip()

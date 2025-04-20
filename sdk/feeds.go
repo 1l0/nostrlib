@@ -28,7 +28,7 @@ func makePubkeyStreamKey(prefix byte, pubkey nostr.PubKey) []byte {
 func (sys *System) StreamLiveFeed(
 	ctx context.Context,
 	pubkeys []nostr.PubKey,
-	kinds []uint16,
+	kinds []nostr.Kind,
 ) (<-chan nostr.Event, error) {
 	events := make(chan nostr.Event)
 
@@ -102,7 +102,7 @@ func (sys *System) StreamLiveFeed(
 func (sys *System) FetchFeedPage(
 	ctx context.Context,
 	pubkeys []nostr.PubKey,
-	kinds []uint16,
+	kinds []nostr.Kind,
 	until nostr.Timestamp,
 	totalLimit int,
 ) ([]nostr.Event, error) {

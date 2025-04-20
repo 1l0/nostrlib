@@ -17,7 +17,7 @@ func TestSubscribeBasic(t *testing.T) {
 	rl := mustRelayConnect(t, RELAY)
 	defer rl.Close()
 
-	sub, err := rl.Subscribe(context.Background(), Filter{Kinds: []uint16{KindTextNote}, Limit: 2}, SubscriptionOptions{})
+	sub, err := rl.Subscribe(context.Background(), Filter{Kinds: []Kind{KindTextNote}, Limit: 2}, SubscriptionOptions{})
 	assert.NoError(t, err)
 
 	timeout := time.After(5 * time.Second)
@@ -51,14 +51,14 @@ func TestNestedSubscriptions(t *testing.T) {
 	n := atomic.Uint32{}
 
 	// fetch 2 replies to a note
-	sub, err := rl.Subscribe(context.Background(), Filter{Kinds: []uint16{KindTextNote}, Tags: TagMap{"e": []string{"0e34a74f8547e3b95d52a2543719b109fd0312aba144e2ef95cba043f42fe8c5"}}, Limit: 3}, SubscriptionOptions{})
+	sub, err := rl.Subscribe(context.Background(), Filter{Kinds: []Kind{KindTextNote}, Tags: TagMap{"e": []string{"0e34a74f8547e3b95d52a2543719b109fd0312aba144e2ef95cba043f42fe8c5"}}, Limit: 3}, SubscriptionOptions{})
 	assert.NoError(t, err)
 
 	for {
 		select {
 		case event := <-sub.Events:
 			// now fetch author of this
-			sub, err := rl.Subscribe(context.Background(), Filter{Kinds: []uint16{KindProfileMetadata}, Authors: []PubKey{event.PubKey}, Limit: 1}, SubscriptionOptions{})
+			sub, err := rl.Subscribe(context.Background(), Filter{Kinds: []Kind{KindProfileMetadata}, Authors: []PubKey{event.PubKey}, Limit: 1}, SubscriptionOptions{})
 			assert.NoError(t, err)
 
 			for {

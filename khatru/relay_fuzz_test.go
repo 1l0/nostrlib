@@ -37,7 +37,7 @@ func FuzzReplaceableEvents(f *testing.F) {
 		pk1 := nostr.GetPublicKey(sk1)
 
 		// helper to create signed events
-		createEvent := func(sk nostr.SecretKey, kind uint16, content string, tags nostr.Tags) nostr.Event {
+		createEvent := func(sk nostr.SecretKey, kind nostr.Kind, content string, tags nostr.Tags) nostr.Event {
 			pk := nostr.GetPublicKey(sk)
 			evt := nostr.Event{
 				PubKey:    pk,
@@ -87,7 +87,7 @@ func FuzzReplaceableEvents(f *testing.F) {
 			// query to verify only the newest event exists
 			sub, err := client2.Subscribe(ctx, nostr.Filter{
 				Authors: []nostr.PubKey{pk1},
-				Kinds:   []uint16{0},
+				Kinds:   []nostr.Kind{0},
 			}, nostr.SubscriptionOptions{})
 			if err != nil {
 				t.Fatalf("failed to subscribe: %v", err)

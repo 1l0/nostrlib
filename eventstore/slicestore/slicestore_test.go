@@ -21,7 +21,7 @@ func TestBasicStuff(t *testing.T) {
 		if i%3 == 0 {
 			kind = 12
 		}
-		evt := nostr.Event{CreatedAt: nostr.Timestamp(v), Kind: uint16(kind)}
+		evt := nostr.Event{CreatedAt: nostr.Timestamp(v), Kind: nostr.Kind(kind)}
 		evt.Sign(nostr.Generate())
 		ss.SaveEvent(evt)
 	}
@@ -38,7 +38,7 @@ func TestBasicStuff(t *testing.T) {
 
 	until := nostr.Timestamp(9999)
 	list = make([]nostr.Event, 0, 7)
-	for event := range ss.QueryEvents(nostr.Filter{Limit: 15, Until: &until, Kinds: []uint16{11}}) {
+	for event := range ss.QueryEvents(nostr.Filter{Limit: 15, Until: &until, Kinds: []nostr.Kind{11}}) {
 		list = append(list, event)
 	}
 	if len(list) != 7 {

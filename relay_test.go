@@ -46,7 +46,7 @@ func TestPublish(t *testing.T) {
 		require.True(t, bytes.Equal(event.Serialize(), textNote.Serialize()))
 
 		// send back an ok nip-20 command result
-		res := []any{"OK", textNote.ID, true, ""}
+		res := []any{"OK", textNote.ID.Hex(), true, ""}
 		err = websocket.JSON.Send(conn, res)
 		require.NoError(t, err)
 	})
@@ -54,7 +54,7 @@ func TestPublish(t *testing.T) {
 
 	// connect a client and send the text note
 	rl := mustRelayConnect(t, ws.URL)
-	err = rl.Publish(context.Background(), textNote)
+	err = rl.Publish(t.Context(), textNote)
 	require.NoError(t, err)
 
 	require.True(t, published, "fake relay server saw no event")
@@ -73,15 +73,16 @@ func TestPublishBlocked(t *testing.T) {
 		require.NoError(t, err)
 
 		// send back a not ok nip-20 command result
-		res := []any{"OK", textNote.ID.String(), false, "blocked"}
+		res := []any{"OK", textNote.ID.Hex(), false, "blocked"}
 		websocket.JSON.Send(conn, res)
 	})
 	defer ws.Close()
 
 	// connect a client and send a text note
 	rl := mustRelayConnect(t, ws.URL)
-	err := rl.Publish(context.Background(), textNote)
+	err := rl.Publish(t.Context(), textNote)
 	require.Error(t, err)
+	require.EqualError(t, err, "msg: blocked")
 }
 
 func TestPublishWriteFailed(t *testing.T) {
@@ -100,7 +101,7 @@ func TestPublishWriteFailed(t *testing.T) {
 	rl := mustRelayConnect(t, ws.URL)
 	// Force brief period of time so that publish always fails on closed socket.
 	time.Sleep(1 * time.Millisecond)
-	err := rl.Publish(context.Background(), textNote)
+	err := rl.Publish(t.Context(), textNote)
 	require.Error(t, err)
 }
 
@@ -117,7 +118,7 @@ func TestConnectContext(t *testing.T) {
 	defer ws.Close()
 
 	// relay client
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	r, err := RelayConnect(ctx, ws.URL, RelayOptions{})
 	require.NoError(t, err)
@@ -137,7 +138,7 @@ func TestConnectContextCanceled(t *testing.T) {
 	defer ws.Close()
 
 	// relay client
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // make ctx expired
 	_, err := RelayConnect(ctx, ws.URL, RelayOptions{})
 	require.ErrorIs(t, err, context.Canceled)
@@ -169,7 +170,7 @@ func makeKeyPair(t *testing.T) (priv, pub [32]byte) {
 func mustRelayConnect(t *testing.T, url string) *Relay {
 	t.Helper()
 
-	rl, err := RelayConnect(context.Background(), url, RelayOptions{})
+	rl, err := RelayConnect(t.Context(), url, RelayOptions{})
 	require.NoError(t, err)
 
 	return rl

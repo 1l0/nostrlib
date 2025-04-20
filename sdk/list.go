@@ -30,7 +30,7 @@ func fetchGenericList[V comparable, I TagItemWithValue[V]](
 	sys *System,
 	ctx context.Context,
 	pubkey nostr.PubKey,
-	actualKind uint16,
+	actualKind nostr.Kind,
 	replaceableIndex replaceableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 	cache cache.Cache32[GenericList[V, I]],
@@ -39,7 +39,7 @@ func fetchGenericList[V comparable, I TagItemWithValue[V]](
 	// call that will do it only once, the subsequent ones will wait for a result to be cached
 	// and then return it from cache -- 13 is an arbitrary index for the pubkey
 	n := pubkey[7]
-	lockIdx := (uint16(n) + actualKind) % 60
+	lockIdx := (nostr.Kind(n) + actualKind) % 60
 	genericListMutexes[lockIdx].Lock()
 
 	if valueWasJustCached[lockIdx] {
@@ -57,7 +57,7 @@ func fetchGenericList[V comparable, I TagItemWithValue[V]](
 
 	v := GenericList[V, I]{PubKey: pubkey}
 
-	for evt := range sys.Store.QueryEvents(nostr.Filter{Kinds: []uint16{actualKind}, Authors: []nostr.PubKey{pubkey}}) {
+	for evt := range sys.Store.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{actualKind}, Authors: []nostr.PubKey{pubkey}}) {
 		// ok, we found something locally
 		items := parseItemsFromEventTags(evt, parseTag)
 		v.Event = &evt
@@ -138,7 +138,7 @@ func parseItemsFromEventTags[V comparable, I TagItemWithValue[V]](
 	return result
 }
 
-func getLocalStoreRefreshDaysForKind(kind uint16) nostr.Timestamp {
+func getLocalStoreRefreshDaysForKind(kind nostr.Kind) nostr.Timestamp {
 	switch kind {
 	case 0:
 		return 7

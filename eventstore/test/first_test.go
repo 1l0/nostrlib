@@ -73,7 +73,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 	}
 
 	{
-		results := slices.Collect(db.QueryEvents(nostr.Filter{Kinds: []uint16{1}}))
+		results := slices.Collect(db.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{1}}))
 		require.ElementsMatch(t,
 			[]nostr.Event{allEvents[1], allEvents[3], allEvents[5], allEvents[7], allEvents[9]},
 			results,
@@ -81,7 +81,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 	}
 
 	{
-		results := slices.Collect(db.QueryEvents(nostr.Filter{Kinds: []uint16{9}}))
+		results := slices.Collect(db.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{9}}))
 		require.ElementsMatch(t,
 			[]nostr.Event{allEvents[0], allEvents[2], allEvents[4], allEvents[6], allEvents[8]},
 			results,
@@ -99,7 +99,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 
 	{
 		pk3 := nostr.GetPublicKey(sk3)
-		results := slices.Collect(db.QueryEvents(nostr.Filter{Kinds: []uint16{9}, Authors: []nostr.PubKey{pk3}}))
+		results := slices.Collect(db.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{9}, Authors: []nostr.PubKey{pk3}}))
 		require.ElementsMatch(t,
 			[]nostr.Event{allEvents[2], allEvents[4], allEvents[8]},
 			results,
@@ -109,8 +109,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 	{
 		pk3 := nostr.GetPublicKey(sk3)
 		pk4 := nostr.GetPublicKey(sk4)
-		pk4[1] = 9 // this is so it doesn't match
-		results := slices.Collect(db.QueryEvents(nostr.Filter{Kinds: []uint16{9, 5, 7}, Authors: []nostr.PubKey{pk3, pk4}}))
+		results := slices.Collect(db.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{9, 5, 7}, Authors: []nostr.PubKey{pk3, pk4}}))
 		require.ElementsMatch(t,
 			[]nostr.Event{allEvents[0], allEvents[2], allEvents[4], allEvents[6], allEvents[8]},
 			results,
@@ -183,17 +182,18 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 		}
 
 		sk := nostr.Generate()
-		for _, newEvent := range newEvents {
-			newEvent.Sign(sk)
-			require.NoError(t, db.SaveEvent(newEvent))
+		for i := range newEvents {
+			newEvents[i].Sign(sk)
+			require.NoError(t, db.SaveEvent(newEvents[i]))
 		}
 
 		{
-			results := slices.Collect(db.QueryEvents(nostr.Filter{Tags: nostr.TagMap{"p": []string{p}}, Kinds: []uint16{1984}, Limit: 2}))
+			results := slices.Collect(db.QueryEvents(nostr.Filter{Tags: nostr.TagMap{"p": []string{p}}, Kinds: []nostr.Kind{1984}, Limit: 2}))
 			require.ElementsMatch(t,
 				[]nostr.Event{newEvents[2], newEvents[1]},
 				results,
-				"'p' tag 1 query error")
+				"'p' tag 1 query error",
+			)
 		}
 
 		{
@@ -206,7 +206,7 @@ func runFirstTestOn(t *testing.T, db eventstore.Store) {
 		}
 
 		{
-			results := slices.Collect(db.QueryEvents(nostr.Filter{Tags: nostr.TagMap{"p": []string{p, p2}}, Kinds: []uint16{1}, Limit: 4}))
+			results := slices.Collect(db.QueryEvents(nostr.Filter{Tags: nostr.TagMap{"p": []string{p, p2}}, Kinds: []nostr.Kind{1}, Limit: 4}))
 			for _, idx := range []int{5, 6, 7} {
 				require.True(t,
 					slices.ContainsFunc(

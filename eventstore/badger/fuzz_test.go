@@ -70,11 +70,11 @@ func FuzzQuery(f *testing.F) {
 			Authors: make([]nostr.PubKey, authors),
 			Limit:   int(limit),
 		}
-		var maxKind uint16 = 1
+		var maxKind nostr.Kind = 1
 		if kinds > 0 {
-			filter.Kinds = make([]uint16, kinds)
+			filter.Kinds = make([]nostr.Kind, kinds)
 			for i := range filter.Kinds {
-				filter.Kinds[i] = uint16(kindFactor) * uint16(i)
+				filter.Kinds[i] = nostr.Kind(kindFactor) * nostr.Kind(i)
 			}
 			maxKind = filter.Kinds[len(filter.Kinds)-1]
 		}
@@ -96,7 +96,7 @@ func FuzzQuery(f *testing.F) {
 				CreatedAt: nostr.Timestamp(skseed)*nostr.Timestamp(timestampAuthorFactor) + nostr.Timestamp(i),
 				Content:   fmt.Sprintf("unbalanced %d", i),
 				Tags:      nostr.Tags{},
-				Kind:      uint16(i) % maxKind,
+				Kind:      nostr.Kind(i) % maxKind,
 			}
 			err := evt.Sign(sk)
 			require.NoError(t, err)

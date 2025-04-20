@@ -84,7 +84,7 @@ func (sys *System) FetchSpecificEvent(
 		author = v.PublicKey
 		filter.Authors = []nostr.PubKey{v.PublicKey}
 		filter.Tags = nostr.TagMap{"d": []string{v.Identifier}}
-		filter.Kinds = []uint16{v.Kind}
+		filter.Kinds = []nostr.Kind{v.Kind}
 		relays = append(relays, v.Relays...)
 		relays = appendUnique(relays, sys.FallbackRelays.Next())
 		fallback = append(fallback, sys.FallbackRelays.Next(), sys.FallbackRelays.Next())

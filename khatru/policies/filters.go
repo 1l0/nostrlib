@@ -60,12 +60,12 @@ func RemoveSearchQueries(ctx context.Context, filter *nostr.Filter) {
 	}
 }
 
-func RemoveAllButKinds(kinds ...uint16) func(context.Context, *nostr.Filter) {
+func RemoveAllButKinds(kinds ...nostr.Kind) func(context.Context, *nostr.Filter) {
 	return func(ctx context.Context, filter *nostr.Filter) {
 		if n := len(filter.Kinds); n > 0 {
-			newKinds := make([]uint16, 0, n)
+			newKinds := make([]nostr.Kind, 0, n)
 			for i := 0; i < n; i++ {
-				if k := filter.Kinds[i]; slices.Contains(kinds, uint16(k)) {
+				if k := filter.Kinds[i]; slices.Contains(kinds, nostr.Kind(k)) {
 					newKinds = append(newKinds, k)
 				}
 			}

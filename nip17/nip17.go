@@ -12,7 +12,7 @@ import (
 func GetDMRelays(ctx context.Context, pubkey nostr.PubKey, pool *nostr.Pool, relaysToQuery []string) []string {
 	ie := pool.QuerySingle(ctx, relaysToQuery, nostr.Filter{
 		Authors: []nostr.PubKey{pubkey},
-		Kinds:   []uint16{nostr.KindDMRelayList},
+		Kinds:   []nostr.Kind{nostr.KindDMRelayList},
 	}, nostr.SubscriptionOptions{Label: "dm-relays"})
 	if ie == nil {
 		return nil
@@ -154,7 +154,7 @@ func ListenForMessages(
 		}
 
 		for ie := range pool.SubscribeMany(ctx, ourRelays, nostr.Filter{
-			Kinds: []uint16{nostr.KindGiftWrap},
+			Kinds: []nostr.Kind{nostr.KindGiftWrap},
 			Tags:  nostr.TagMap{"p": []string{pk.Hex()}},
 			Since: &since,
 		}, nostr.SubscriptionOptions{Label: "mydms"}) {

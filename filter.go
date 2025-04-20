@@ -8,7 +8,7 @@ import (
 
 type Filter struct {
 	IDs     []ID
-	Kinds   []uint16
+	Kinds   []Kind
 	Authors []PubKey
 	Tags    TagMap
 	Since   *Timestamp
@@ -171,7 +171,7 @@ func GetTheoreticalLimit(filter Filter) int {
 	if len(filter.Authors) > 0 {
 		allAreReplaceable := true
 		for _, kind := range filter.Kinds {
-			if !IsReplaceableKind(kind) {
+			if !kind.IsReplaceable() {
 				allAreReplaceable = false
 				break
 			}
@@ -183,7 +183,7 @@ func GetTheoreticalLimit(filter Filter) int {
 		if len(filter.Tags["d"]) > 0 {
 			allAreAddressable := true
 			for _, kind := range filter.Kinds {
-				if !IsAddressableKind(kind) {
+				if !kind.IsAddressable() {
 					allAreAddressable = false
 					break
 				}

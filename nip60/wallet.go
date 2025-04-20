@@ -77,7 +77,7 @@ func loadWalletFromPool(
 		return nil
 	}
 
-	kinds := []uint16{17375, 7375}
+	kinds := []nostr.Kind{17375, 7375}
 	if withHistory {
 		kinds = append(kinds, 7376)
 	}
@@ -95,7 +95,7 @@ func loadWalletFromPool(
 	deletions := pool.SubscribeManyNotifyEOSE(
 		ctx,
 		relays,
-		nostr.Filter{Kinds: []uint16{5}, Tags: nostr.TagMap{"k": []string{"7375"}}, Authors: []nostr.PubKey{pk}},
+		nostr.Filter{Kinds: []nostr.Kind{5}, Tags: nostr.TagMap{"k": []string{"7375"}}, Authors: []nostr.PubKey{pk}},
 		eoseChanD,
 		nostr.SubscriptionOptions{},
 	)

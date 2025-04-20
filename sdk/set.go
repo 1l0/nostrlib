@@ -22,13 +22,13 @@ func fetchGenericSets[V comparable, I TagItemWithValue[V]](
 	sys *System,
 	ctx context.Context,
 	pubkey nostr.PubKey,
-	actualKind uint16,
+	actualKind nostr.Kind,
 	addressableIndex addressableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 	cache cache.Cache32[GenericSets[V, I]],
 ) (fl GenericSets[V, I], fromInternal bool) {
 	n := pubkey[7]
-	lockIdx := (uint16(n) + actualKind) % 60
+	lockIdx := (nostr.Kind(n) + actualKind) % 60
 	genericListMutexes[lockIdx].Lock()
 
 	if valueWasJustCached[lockIdx] {
@@ -47,7 +47,7 @@ func fetchGenericSets[V comparable, I TagItemWithValue[V]](
 	v := GenericSets[V, I]{PubKey: pubkey}
 
 	events := slices.Collect(
-		sys.Store.QueryEvents(nostr.Filter{Kinds: []uint16{actualKind}, Authors: []nostr.PubKey{pubkey}}),
+		sys.Store.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{actualKind}, Authors: []nostr.PubKey{pubkey}}),
 	)
 	if len(events) != 0 {
 		// ok, we found something locally

@@ -15,7 +15,7 @@ type StorePublisher struct {
 }
 
 func (w StorePublisher) Publish(ctx context.Context, evt nostr.Event) error {
-	if nostr.IsEphemeralKind(evt.Kind) {
+	if evt.Kind.IsEphemeral() {
 		// do not store ephemeral events
 		return nil
 	}
@@ -23,7 +23,7 @@ func (w StorePublisher) Publish(ctx context.Context, evt nostr.Event) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if nostr.IsRegularKind(evt.Kind) {
+	if evt.Kind.IsRegular() {
 		// regular events are just saved directly
 		if err := w.SaveEvent(evt); err != nil && err != eventstore.ErrDupEvent {
 			return fmt.Errorf("failed to save: %w", err)
