@@ -1,6 +1,7 @@
 package negentropy_test
 
 import (
+	"bytes"
 	"fmt"
 	"slices"
 	"sync"
@@ -64,14 +65,14 @@ func runTestWith(t *testing.T,
 	var n1 *negentropy.Negentropy
 	var n2 *negentropy.Negentropy
 
-	events := make([]*nostr.Event, totalEvents)
+	events := make([]nostr.Event, totalEvents)
 	for i := range events {
 		evt := nostr.Event{}
 		evt.Content = fmt.Sprintf("event %d", i)
 		evt.Kind = 1
 		evt.CreatedAt = nostr.Timestamp(i)
-		evt.ID = fmt.Sprintf("%064d", i)
-		events[i] = &evt
+		evt.ID = nostr.MustIDFromHex(fmt.Sprintf("%064d", i))
+		events[i] = evt
 	}
 
 	{
@@ -115,39 +116,39 @@ func runTestWith(t *testing.T,
 
 	go func() {
 		defer wg.Done()
-		expectedHave := make([]string, 0, 100)
+		expectedHave := make([]nostr.ID, 0, 100)
 		for _, r := range expectedN1HaveRanges {
 			for i := r[0]; i < r[1]; i++ {
 				expectedHave = append(expectedHave, events[i].ID)
 			}
 		}
-		haves := make([]string, 0, 100)
+		haves := make([]nostr.ID, 0, 100)
 		for item := range n1.Haves {
 			if slices.Contains(haves, item) {
 				continue
 			}
 			haves = append(haves, item)
 		}
-		slices.Sort(haves)
+		slices.SortFunc(haves, func(a, b nostr.ID) int { return bytes.Compare(a[:], b[:]) })
 		require.Equal(t, expectedHave, haves, "wrong have")
 	}()
 
 	go func() {
 		defer wg.Done()
-		expectedNeed := make([]string, 0, 100)
+		expectedNeed := make([]nostr.ID, 0, 100)
 		for _, r := range expectedN1NeedRanges {
 			for i := r[0]; i < r[1]; i++ {
 				expectedNeed = append(expectedNeed, events[i].ID)
 			}
 		}
-		havenots := make([]string, 0, 100)
+		havenots := make([]nostr.ID, 0, 100)
 		for item := range n1.HaveNots {
 			if slices.Contains(havenots, item) {
 				continue
 			}
 			havenots = append(havenots, item)
 		}
-		slices.Sort(havenots)
+		slices.SortFunc(havenots, func(a, b nostr.ID) int { return bytes.Compare(a[:], b[:]) })
 		require.Equal(t, expectedNeed, havenots, "wrong need")
 	}()
 

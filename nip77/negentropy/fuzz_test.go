@@ -1,6 +1,7 @@
 package negentropy_test
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -29,10 +30,10 @@ func FuzzWhatever(f *testing.F) {
 
 		// prepare the two sides
 		s1 := vector.New()
-		l1 := make([]string, 0, 500)
+		l1 := make([]nostr.ID, 0, 500)
 		neg1 := negentropy.New(s1, int(frameSizeLimit))
 		s2 := vector.New()
-		l2 := make([]string, 0, 500)
+		l2 := make([]nostr.ID, 0, 500)
 		neg2 := negentropy.New(s2, int(frameSizeLimit))
 
 		start := 0
@@ -47,14 +48,14 @@ func FuzzWhatever(f *testing.F) {
 				item := start + i
 
 				rnd := sha256.Sum256(binary.BigEndian.AppendUint64(nil, uint64(item)))
-				id := fmt.Sprintf("%x%056d", rnd[0:4], item)
+				id := nostr.MustIDFromHex(fmt.Sprintf("%x%056d", rnd[0:4], item))
 
 				if rand.IntN(100) < int(pctChance) {
 					s1.Insert(nostr.Timestamp(item), id)
 					l1 = append(l1, id)
 				}
 				if rand.IntN(100) < int(pctChance) {
-					id := fmt.Sprintf("%064d", item)
+					id := nostr.MustIDFromHex(fmt.Sprintf("%064d", item))
 					s2.Insert(nostr.Timestamp(item), id)
 					l2 = append(l2, id)
 				}
@@ -106,9 +107,9 @@ func FuzzWhatever(f *testing.F) {
 		}
 
 		wg.Wait()
-		slices.Sort(l1)
+		slices.SortFunc(l1, func(a, b nostr.ID) int { return bytes.Compare(a[:], b[:]) })
 		l1 = slices.Compact(l1)
-		slices.Sort(l2)
+		slices.SortFunc(l2, func(a, b nostr.ID) int { return bytes.Compare(a[:], b[:]) })
 		l2 = slices.Compact(l2)
 		require.ElementsMatch(t, l1, l2)
 	})
