@@ -31,7 +31,7 @@ func (sk SecretKey) Public() PubKey { return GetPublicKey(sk) }
 func SecretKeyFromHex(skh string) (SecretKey, error) {
 	id := SecretKey{}
 
-	if len(skh) > 64 {
+	if len(skh) < 64 {
 		skh = strings.Repeat("0", 64-len(skh)) + skh
 	} else if len(skh) > 64 {
 		return id, fmt.Errorf("pubkey should be at most 64-char hex, got '%s'", skh)
