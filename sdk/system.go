@@ -86,7 +86,7 @@ func (rs *RelayStream) Next() string {
 // most internal fields of System can be modified after the System
 // creation -- and in many cases one or another of these will have
 // to be modified, so don't be afraid of doing that.
-func NewSystem(mods ...SystemModifier) *System {
+func NewSystem() *System {
 	sys := &System{
 		KVStore:          kvstore_memory.NewStore(),
 		RelayListRelays:  NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
@@ -125,10 +125,6 @@ func NewSystem(mods ...SystemModifier) *System {
 		PenaltyBox:                true,
 	})
 
-	for _, mod := range mods {
-		mod(sys)
-	}
-
 	if sys.MetadataCache == nil {
 		sys.MetadataCache = cache_memory.New[ProfileMetadata](8000)
 	}
@@ -155,99 +151,5 @@ func (sys *System) Close() {
 	}
 	if sys.Pool != nil {
 		sys.Pool.Close("sdk.System closed")
-	}
-}
-
-// WithHintsDB returns a SystemModifier that sets the HintsDB.
-func WithHintsDB(hdb hints.HintsDB) SystemModifier {
-	return func(sys *System) {
-		sys.Hints = hdb
-	}
-}
-
-// WithRelayListRelays returns a SystemModifier that sets the RelayListRelays.
-func WithRelayListRelays(list []string) SystemModifier {
-	return func(sys *System) {
-		sys.RelayListRelays.URLs = list
-	}
-}
-
-// WithMetadataRelays returns a SystemModifier that sets the MetadataRelays.
-func WithMetadataRelays(list []string) SystemModifier {
-	return func(sys *System) {
-		sys.MetadataRelays.URLs = list
-	}
-}
-
-// WithFollowListRelays returns a SystemModifier that sets the FollowListRelays.
-func WithFollowListRelays(list []string) SystemModifier {
-	return func(sys *System) {
-		sys.FollowListRelays.URLs = list
-	}
-}
-
-// WithFallbackRelays returns a SystemModifier that sets the FallbackRelays.
-func WithFallbackRelays(list []string) SystemModifier {
-	return func(sys *System) {
-		sys.FallbackRelays.URLs = list
-	}
-}
-
-// WithJustIDRelays returns a SystemModifier that sets the JustIDRelays.
-func WithJustIDRelays(list []string) SystemModifier {
-	return func(sys *System) {
-		sys.JustIDRelays.URLs = list
-	}
-}
-
-// WithUserSearchRelays returns a SystemModifier that sets the UserSearchRelays.
-func WithUserSearchRelays(list []string) SystemModifier {
-	return func(sys *System) {
-		sys.UserSearchRelays.URLs = list
-	}
-}
-
-// WithNoteSearchRelays returns a SystemModifier that sets the NoteSearchRelays.
-func WithNoteSearchRelays(list []string) SystemModifier {
-	return func(sys *System) {
-		sys.NoteSearchRelays.URLs = list
-	}
-}
-
-// WithStore returns a SystemModifier that sets the Store.
-func WithStore(store eventstore.Store) SystemModifier {
-	return func(sys *System) {
-		sys.Store = store
-	}
-}
-
-// WithRelayListCache returns a SystemModifier that sets the RelayListCache.
-func WithRelayListCache(cache cache.Cache32[GenericList[string, Relay]]) SystemModifier {
-	return func(sys *System) {
-		sys.RelayListCache = cache
-	}
-}
-
-// WithFollowListCache returns a SystemModifier that sets the FollowListCache.
-func WithFollowListCache(cache cache.Cache32[GenericList[nostr.PubKey, ProfileRef]]) SystemModifier {
-	return func(sys *System) {
-		sys.FollowListCache = cache
-	}
-}
-
-// WithMetadataCache returns a SystemModifier that sets the MetadataCache.
-func WithMetadataCache(cache cache.Cache32[ProfileMetadata]) SystemModifier {
-	return func(sys *System) {
-		sys.MetadataCache = cache
-	}
-}
-
-// WithKVStore returns a SystemModifier that sets the KVStore.
-func WithKVStore(store kvstore.KVStore) SystemModifier {
-	return func(sys *System) {
-		if sys.KVStore != nil {
-			sys.KVStore.Close()
-		}
-		sys.KVStore = store
 	}
 }
