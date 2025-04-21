@@ -17,7 +17,7 @@ type RelayReadWrite struct {
 	Write bool `json:"write"`
 }
 
-func (s Session) ParseRequest(event *nostr.Event) (Request, error) {
+func (s Session) ParseRequest(event nostr.Event) (Request, error) {
 	var req Request
 
 	plain, err := nip44.Decrypt(event.Content, s.ConversationKey)

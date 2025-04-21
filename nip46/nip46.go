@@ -35,7 +35,7 @@ func (r Response) String() string {
 
 type Signer interface {
 	GetSession(client nostr.PubKey) (Session, bool)
-	HandleRequest(context.Context, *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, err error)
+	HandleRequest(context.Context, nostr.Event) (req Request, resp Response, eventResponse nostr.Event, err error)
 }
 
 func IsValidBunkerURL(input string) bool {

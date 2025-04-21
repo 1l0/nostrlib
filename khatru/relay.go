@@ -65,7 +65,7 @@ type Relay struct {
 	OnEventSaved              func(ctx context.Context, event nostr.Event)
 	OnEphemeralEvent          func(ctx context.Context, event nostr.Event)
 	OnRequest                 func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
-	OnCountFilter             func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
+	OnCount                   func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
 	QueryStored               func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event]
 	Count                     func(ctx context.Context, filter nostr.Filter) (uint32, error)
 	CountHLL                  func(ctx context.Context, filter nostr.Filter, offset int) (uint32, *hyperloglog.HyperLogLog, error)

@@ -23,7 +23,7 @@ func SendNutzap(
 	targetUserPublickey nostr.PubKey,
 	getUserReadRelays func(context.Context, nostr.PubKey, int) []string,
 	relays []string,
-	eventId string, // can be "" if not targeting a specific event
+	eventId nostr.ID, // can be "" if not targeting a specific event
 	amount uint64,
 	message string,
 ) (chan nostr.PublishResult, error) {
@@ -33,7 +33,7 @@ func SendNutzap(
 	}
 
 	info := Info{}
-	if err := info.ParseEvent(&ie.Event); err != nil {
+	if err := info.ParseEvent(ie.Event); err != nil {
 		return nil, err
 	}
 
@@ -56,8 +56,8 @@ func SendNutzap(
 	}
 
 	nutzap.Tags = append(nutzap.Tags, nostr.Tag{"p", targetUserPublickey.Hex()})
-	if eventId != "" {
-		nutzap.Tags = append(nutzap.Tags, nostr.Tag{"e", eventId})
+	if eventId != nostr.ZeroID {
+		nutzap.Tags = append(nutzap.Tags, nostr.Tag{"e", eventId.Hex()})
 	}
 
 	// check if we have enough tokens in any of these mints

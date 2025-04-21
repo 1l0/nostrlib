@@ -39,8 +39,8 @@ func (rl *Relay) handleRequest(ctx context.Context, id string, eose *sync.WaitGr
 
 func (rl *Relay) handleCountRequest(ctx context.Context, ws *WebSocket, filter nostr.Filter) uint32 {
 	// check if we'll reject this filter
-	if nil != rl.OnCountFilter {
-		if rejecting, msg := rl.OnCountFilter(ctx, filter); rejecting {
+	if nil != rl.OnCount {
+		if rejecting, msg := rl.OnCount(ctx, filter); rejecting {
 			ws.WriteJSON(nostr.NoticeEnvelope(msg))
 			return 0
 		}
@@ -65,8 +65,8 @@ func (rl *Relay) handleCountRequestWithHLL(
 	offset int,
 ) (uint32, *hyperloglog.HyperLogLog) {
 	// check if we'll reject this filter
-	if nil != rl.OnCountFilter {
-		if rejecting, msg := rl.OnCountFilter(ctx, filter); rejecting {
+	if nil != rl.OnCount {
+		if rejecting, msg := rl.OnCount(ctx, filter); rejecting {
 			ws.WriteJSON(nostr.NoticeEnvelope(msg))
 			return 0, nil
 		}

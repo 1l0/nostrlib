@@ -23,6 +23,15 @@ func CreateUnsignedAuthEvent(challenge string, pubkey nostr.PubKey, relayURL str
 	}
 }
 
+func GetRelayURLFromAuthEvent(event nostr.Event) string {
+	for _, tag := range event.Tags {
+		if len(tag) >= 2 && tag[0] == "relay" {
+			return tag[1]
+		}
+	}
+	return ""
+}
+
 // helper function for ValidateAuthEvent.
 func parseURL(input string) (*url.URL, error) {
 	return url.Parse(

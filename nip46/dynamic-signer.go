@@ -71,7 +71,7 @@ func (p *DynamicSigner) setSession(clientPubkey nostr.PubKey, session Session) {
 	p.sessions[clientPubkey] = session
 }
 
-func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
+func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 	req Request,
 	resp Response,
 	eventResponse nostr.Event,

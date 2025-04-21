@@ -36,7 +36,7 @@ func (zi *Info) ToEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) e
 	return nil
 }
 
-func (zi *Info) ParseEvent(evt *nostr.Event) error {
+func (zi *Info) ParseEvent(evt nostr.Event) error {
 	zi.Mints = make([]string, 0)
 	for _, tag := range evt.Tags {
 		if len(tag) < 2 {

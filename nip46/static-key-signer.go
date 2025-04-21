@@ -60,7 +60,7 @@ func (p *StaticKeySigner) getOrCreateSession(clientPubkey nostr.PubKey) (Session
 	return session, nil
 }
 
-func (p *StaticKeySigner) HandleRequest(_ context.Context, event *nostr.Event) (
+func (p *StaticKeySigner) HandleRequest(_ context.Context, event nostr.Event) (
 	req Request,
 	resp Response,
 	eventResponse nostr.Event,

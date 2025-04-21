@@ -5,11 +5,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strings"
 	"unsafe"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 )
+
+var KeyOne = SecretKey{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 
 func Generate() SecretKey {
 	var sk SecretKey
@@ -25,14 +28,17 @@ func (sk SecretKey) String() string { return "sk::" + sk.Hex() }
 func (sk SecretKey) Hex() string    { return hex.EncodeToString(sk[:]) }
 func (sk SecretKey) Public() PubKey { return GetPublicKey(sk) }
 
-func SecretKeyFromHex(idh string) (SecretKey, error) {
+func SecretKeyFromHex(skh string) (SecretKey, error) {
 	id := SecretKey{}
 
-	if len(idh) != 64 {
-		return id, fmt.Errorf("pubkey should be 64-char hex, got '%s'", idh)
+	if len(skh) > 64 {
+		skh = strings.Repeat("0", 64-len(skh)) + skh
+	} else if len(skh) > 64 {
+		return id, fmt.Errorf("pubkey should be at most 64-char hex, got '%s'", skh)
 	}
-	if _, err := hex.Decode(id[:], unsafe.Slice(unsafe.StringData(idh), 64)); err != nil {
-		return id, fmt.Errorf("'%s' is not valid hex: %w", idh, err)
+
+	if _, err := hex.Decode(id[:], unsafe.Slice(unsafe.StringData(skh), 64)); err != nil {
+		return id, fmt.Errorf("'%s' is not valid hex: %w", skh, err)
 	}
 
 	return id, nil
