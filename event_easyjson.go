@@ -3,16 +3,8 @@ package nostr
 import (
 	"encoding/hex"
 
-	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-)
-
-// suppress unused package warning
-var (
-	_ *jlexer.Lexer
-	_ *jwriter.Writer
-	_ easyjson.Marshaler
 )
 
 func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) {

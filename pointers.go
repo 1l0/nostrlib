@@ -31,8 +31,8 @@ var (
 
 // ProfilePointer represents a pointer to a Nostr profile.
 type ProfilePointer struct {
-	PublicKey PubKey   `json:"pubkey"`
-	Relays    []string `json:"relays,omitempty"`
+	PublicKey PubKey
+	Relays    []string
 }
 
 // ProfilePointerFromTag creates a ProfilePointer from a "p" tag (but it doesn't have to be necessarily a "p" tag, could be something else).
@@ -67,10 +67,10 @@ func (ep ProfilePointer) AsTag() Tag {
 
 // EventPointer represents a pointer to a nostr event.
 type EventPointer struct {
-	ID     ID       `json:"id"`
-	Relays []string `json:"relays,omitempty"`
-	Author PubKey   `json:"author,omitempty"`
-	Kind   Kind     `json:"kind,omitempty"`
+	ID     ID
+	Relays []string
+	Author PubKey
+	Kind   Kind
 }
 
 // EventPointerFromTag creates an EventPointer from an "e" tag (but it could be other tag name, it isn't checked).
@@ -114,10 +114,10 @@ func (ep EventPointer) AsTag() Tag {
 
 // EntityPointer represents a pointer to a nostr entity (addressable event).
 type EntityPointer struct {
-	PublicKey  PubKey   `json:"pubkey"`
-	Kind       Kind     `json:"kind,omitempty"`
-	Identifier string   `json:"identifier,omitempty"`
-	Relays     []string `json:"relays,omitempty"`
+	PublicKey  PubKey
+	Kind       Kind
+	Identifier string
+	Relays     []string
 }
 
 // EntityPointerFromTag creates an EntityPointer from an "a" tag (but it doesn't check if the tag is really "a", it could be anything).
