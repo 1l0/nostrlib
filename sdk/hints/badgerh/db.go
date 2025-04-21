@@ -18,6 +18,7 @@ type BadgerHints struct {
 
 func NewBadgerHints(path string) (*BadgerHints, error) {
 	opts := badger.DefaultOptions(path)
+	opts.Logger = nil
 	db, err := badger.Open(opts)
 	if err != nil {
 		return nil, err
