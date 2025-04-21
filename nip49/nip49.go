@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"fiatjaf.com/nostr"
 	"github.com/btcsuite/btcd/btcutil/bech32"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/scrypt"
@@ -54,9 +55,9 @@ func Encrypt(secretKey [32]byte, password string, logn uint8, ksb KeySecurityByt
 	return bech32.Encode("ncryptsec", bits5)
 }
 
-func Decrypt(bech32string string, password string) (secretKey [32]byte, err error) {
+func Decrypt(bech32string string, password string) (secretKey nostr.SecretKey, err error) {
 	secb, err := DecryptToBytes(bech32string, password)
-	return [32]byte(secb), err
+	return nostr.SecretKey(secb), err
 }
 
 func DecryptToBytes(bech32string string, password string) (secretKey []byte, err error) {
