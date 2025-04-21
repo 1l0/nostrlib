@@ -6,15 +6,15 @@ outline: deep
 
 [NIP-86](https://nips.nostr.com/86) specifies a set of RPC methods for managing the boring aspects of relays, such as whitelisting or banning users, banning individual events, banning IPs and so on.
 
-All [`khatru.Relay`](https://pkg.go.dev/github.com/fiatjaf/khatru#Relay) instances expose a field `ManagementAPI` with a [`RelayManagementAPI`](https://pkg.go.dev/github.com/fiatjaf/khatru#RelayManagementAPI) instance inside, which can be used for creating handlers for each of the RPC methods.
+All [`khatru.Relay`](https://pkg.go.dev/fiatjaf.com/nostr/khatru#Relay) instances expose a field `ManagementAPI` with a [`RelayManagementAPI`](https://pkg.go.dev/fiatjaf.com/nostr/khatru#RelayManagementAPI) instance inside, which can be used for creating handlers for each of the RPC methods.
 
 There is also a generic `RejectAPICall` which is a slice of functions that will be called before any RPC method, if they exist and, if any of them returns true, the request will be rejected.
 
 The most basic implementation of a `RejectAPICall` handler would be one that checks the public key of the caller with a hardcoded public key of the relay owner:
 
 ```go
-var owner = "<my-own-pubkey>"
-var allowedPubkeys = make([]string, 0, 10)
+var owner = nostr.MustPubKeyFromHex("<my-own-pubkey>")
+var allowedPubkeys = make([]nostr.PubKey, 0, 10)
 
 func main () {
 	relay := khatru.NewRelay()
@@ -29,16 +29,17 @@ func main () {
 		}
 	)
 
-	relay.ManagementAPI.AllowPubKey = func(ctx context.Context, pubkey string, reason string) error {
+	relay.ManagementAPI.AllowPubKey = func(ctx context.Context, pubkey nostr.PubKey, reason string) error {
 		allowedPubkeys = append(allowedPubkeys, pubkey)
 		return nil
 	}
-	relay.ManagementAPI.BanPubKey = func(ctx context.Context, pubkey string, reason string) error {
+	relay.ManagementAPI.BanPubKey = func(ctx context.Context, pubkey nostr.PubKey, reason string) error {
 		idx := slices.Index(allowedPubkeys, pubkey)
 		if idx == -1 {
 			return fmt.Errorf("pubkey already not allowed")
 		}
 		allowedPubkeys = slices.Delete(allowedPubkeys, idx, idx+1)
+		return nil
 	}
 }
 ```
@@ -48,12 +49,12 @@ You can also not provide any `RejectAPICall` handler and do the approval specifi
 In the following example any current member can include any other pubkey, and anyone who was added before is able to remove any pubkey that was added afterwards (not a very good idea, but serves as an example).
 
 ```go
-var allowedPubkeys = []string{"<my-own-pubkey>"}
+var allowedPubkeys = []nostr.PubKey{nostr.MustPubKeyFromHex("<my-own-pubkey>")}
 
 func main () {
 	relay := khatru.NewRelay()
 
-	relay.ManagementAPI.AllowPubKey = func(ctx context.Context, pubkey string, reason string) error {
+	relay.ManagementAPI.AllowPubKey = func(ctx context.Context, pubkey nostr.PubKey, reason string) error {
 		caller := khatru.GetAuthed(ctx)
 
 		if slices.Contains(allowedPubkeys, caller) {
@@ -63,7 +64,7 @@ func main () {
 
 		return fmt.Errorf("you're not authorized")
 	}
-	relay.ManagementAPI.BanPubKey = func(ctx context.Context, pubkey string, reason string) error {
+	relay.ManagementAPI.BanPubKey = func(ctx context.Context, pubkey nostr.PubKey, reason string) error {
 		caller := khatru.GetAuthed(ctx)
 
 		callerIdx := slices.Index(allowedPubkeys, caller)
@@ -82,4 +83,3 @@ func main () {
 		return nil
 	}
 }
-```

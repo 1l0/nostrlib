@@ -41,7 +41,7 @@ After a client is authenticated and opens a new subscription with `REQ` or sends
 
 ```go
 relay.RejectFilter = append(relay.RejectFilter, func(ctx context.Context, filter nostr.Filter) (bool, string) {
-	authenticatedUser := khatru.GetAuthed(ctx)
+	authenticatedUser, isAuthenticated := khatru.GetAuthed(ctx)
 })
 ```
 
@@ -77,7 +77,7 @@ You can use that to emulate a listener for these events in case you want to keep
 				case <-ctx.Done():
 					fmt.Println("connection closed")
 				case <-conn.Authed:
-					fmt.Println("authenticated as", conn.AuthedPublicKey)
+					fmt.Println("authenticated as", conn.AuthedPubKey)
 				}
 			}(ctx)
 		},

@@ -21,7 +21,7 @@ func NewBadgerHints(path string) (*BadgerHints, error) {
 	opts.Logger = nil
 	db, err := badger.Open(opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open badger db: %w", err)
 	}
 	return &BadgerHints{db: db}, nil
 }

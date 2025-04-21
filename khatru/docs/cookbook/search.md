@@ -4,7 +4,7 @@ outline: deep
 
 # Implementing NIP-50 `search` support
 
-The [`nostr.Filter` type](https://pkg.go.dev/github.com/nbd-wtf/go-nostr#Filter) has a `Search` field, so you basically just has to handle that if it's present.
+The [`nostr.Filter` type](https://pkg.go.dev/fiatjaf.com/nostr#Filter) has a `Search` field, so you basically just has to handle that if it's present.
 
 It can be tricky to implement fulltext search properly though, so some [eventstores](../core/eventstore) implement it natively, such as [Bluge](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/bluge), [OpenSearch](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/opensearch) and [ElasticSearch](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/elasticsearch) (although for the last two you'll need an instance of these database servers running, while with Bluge it's embedded).
 
@@ -39,7 +39,7 @@ Other adapters, like [SQLite](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/sq
 
 ```go
 	relay.StoreEvent = append(relay.StoreEvent, db.SaveEvent, search.SaveEvent)
-	relay.QueryEvents = append(relay.QueryEvents, func (ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
+	relay.QueryStored = func (ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
         if len(filter.Search) > 0 {
 			return search.QueryEvents(ctx, filter)
         } else {

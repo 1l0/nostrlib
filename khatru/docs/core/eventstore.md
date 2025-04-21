@@ -24,7 +24,7 @@ import (
 	"net/http"
 
 	"fiatjaf.com/nostr/eventstore/badger"
-	"github.com/fiatjaf/khatru"
+	"fiatjaf.com/nostr/khatru"
 )
 
 func main() {
@@ -35,11 +35,7 @@ func main() {
 		panic(err)
 	}
 
-	relay.StoreEvent = append(relay.StoreEvent, db.SaveEvent)
-	relay.QueryEvents = append(relay.QueryEvents, db.QueryEvents)
-	relay.CountEvents = append(relay.CountEvents, db.CountEvents)
-	relay.DeleteEvent = append(relay.DeleteEvent, db.DeleteEvent)
-	relay.ReplaceEvent = append(relay.ReplaceEvent, db.ReplaceEvent)
+	relay.UseEventstore(db)
 
 	fmt.Println("running on :3334")
 	http.ListenAndServe(":3334", relay)
@@ -58,7 +54,7 @@ If you want to use two different adapters at the same time that's easy. Just add
 
 ```go
 	relay.StoreEvent = append(relay.StoreEvent, db1.SaveEvent, db2.SaveEvent)
-	relay.QueryEvents = append(relay.QueryEvents, db1.QueryEvents, db2.SaveEvent)
+	relay.QueryEvents = append(relay.QueryEvents, db1.QueryEvents, db2.QueryEvents)
 ```
 
 But that will duplicate events on both and then return duplicated events on each query.
@@ -72,28 +68,29 @@ For example, maybe you want kind 1 events in `db1` and kind 30023 events in `db3
 ```go
 	relay.StoreEvent = append(relay.StoreEvent, func (ctx context.Context, evt *nostr.Event) error {
 		switch evt.Kind {
-		case 1:
-			return db1.StoreEvent(ctx, evt)
-		case 30023:
-			return db30023.StoreEvent(ctx, evt)
+		case nostr.Kind(1):
+			return db1.SaveEvent(evt)
+		case nostr.Kind(30023):
+			return db30023.SaveEvent(evt)
 		default:
 			return nil
 		}
 	})
-	relay.QueryEvents = append(relay.QueryEvents, func (ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
+	relay.QueryEvents = append(relay.QueryEvents, func (ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
 		for _, kind := range filter.Kinds {
-			switch kind {
-			case 1:
+			switch nostr.Kind(kind) {
+			case nostr.Kind(1):
 				filter1 := filter
-				filter1.Kinds = []int{1}
-				return db1.QueryEvents(ctx, filter1)
-			case 30023:
+				filter1.Kinds = []nostr.Kind{1}
+				return db1.QueryEvents(filter1)
+			case nostr.Kind(30023):
 				filter30023 := filter
-				filter30023.Kinds = []int{30023}
-				return db30023.QueryEvents(ctx, filter30023)
+				filter30023.Kinds = []nostr.Kind{30023}
+				return db30023.QueryEvents(filter30023)
 			default:
-				return nil, nil
+				return nil
 			}
 		}
+		return nil
 	})
 ```

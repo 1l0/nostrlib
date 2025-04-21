@@ -39,7 +39,7 @@ func startPollingGame(relay *khatru.Relay) {
 					Content: "team A has scored!",
 					Tags: nostr.Tags{{"t", "this-game"}}
 				}
-				evt.Sign(global.RelayPrivateKey)
+				evt.Sign(global.RelaySecretKey)
 				// calling BroadcastEvent will send the event to everybody who has been listening for tag "t=[this-game]"
 				// there is no need to do any code to keep track of these clients or who is listening to what, khatru
 				// does that already in the background automatically
@@ -61,4 +61,3 @@ func startPollingGame(relay *khatru.Relay) {
 func fetchGameStatus() (GameStatus, error) {
 	// implementation of calling some external API goes here
 }
-```

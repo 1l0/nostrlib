@@ -21,23 +21,19 @@ func main () {
 	// other stuff here
 }
 
-func handleWeatherQuery(ctx context.Context, filter nostr.Filter) (ch chan *nostr.Event, err error) {
-	if filter.Kind != 10774 {
+func handleWeatherQuery(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
+	if filter.Kind != nostr.Kind(10774) {
 		// this function only handles kind 10774, if the query is for something else we return
 		// a nil channel, which corresponds to no results
-		return nil, nil
+		return nil
 	}
 
 	file, err := os.Open("weatherdata.xml")
 	if err != nil {
-		return nil, fmt.Errorf("we have lost our file: %w", err)
+		return nil
 	}
 
-	// QueryEvents functions are expected to return a channel
-	ch := make(chan *nostr.Event)
-
-	// and they can do their query asynchronously, emitting events to the channel as they come
-	go func () {
+	return func(yield func(nostr.Event) bool) {
 		defer file.Close()
 
 		// we're going to do this for each tag in the filter
@@ -74,14 +70,14 @@ func handleWeatherQuery(ctx context.Context, filter nostr.Filter) (ch chan *nost
 							{"condition", record[3]},
 						}
 					}
-					evt.Sign(global.RelayPrivateKey)
+					evt.Sign(global.RelaySecretKey)
 					ch <- evt
 				}
 			}
 		}
 	}()
-
 	return ch, nil
+	}
 }
 ```
 
