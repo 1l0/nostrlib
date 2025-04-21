@@ -19,7 +19,6 @@ require (
 	github.com/dgraph-io/ristretto v1.0.0
 	github.com/elnosh/gonuts v0.3.1-0.20250123162555-7c0381a585e3
 	github.com/fasthttp/websocket v1.5.12
-	github.com/fiatjaf/khatru v0.17.4
 	github.com/gomarkdown/markdown v0.0.0-20241205020045-f7e15b2f3e62
 	github.com/json-iterator/go v1.1.12
 	github.com/kr/pretty v0.3.1
@@ -69,7 +68,6 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/fiatjaf/eventstore v0.16.2 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -84,7 +82,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
-	github.com/nbd-wtf/go-nostr v0.51.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
