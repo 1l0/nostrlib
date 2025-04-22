@@ -42,6 +42,7 @@ func NewDynamicSigner(
 	onEventSigned func(event nostr.Event),
 ) DynamicSigner {
 	return DynamicSigner{
+		sessions:            make(map[nostr.PubKey]Session),
 		getHandlerSecretKey: getHandlerSecretKey,
 		getUserKeyer:        getUserKeyer,
 		authorizeSigning:    authorizeSigning,
@@ -51,6 +52,9 @@ func NewDynamicSigner(
 }
 
 func (p *DynamicSigner) GetSession(clientPubkey nostr.PubKey) (Session, bool) {
+	p.Lock()
+	defer p.Unlock()
+
 	session, exists := p.sessions[clientPubkey]
 	if exists {
 		return session, true

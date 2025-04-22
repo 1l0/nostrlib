@@ -26,10 +26,14 @@ type StaticKeySigner struct {
 func NewStaticKeySigner(secretKey [32]byte) StaticKeySigner {
 	return StaticKeySigner{
 		secretKey: secretKey,
+		sessions:  make(map[nostr.PubKey]Session),
 	}
 }
 
 func (p *StaticKeySigner) GetSession(clientPubkey nostr.PubKey) (Session, bool) {
+	p.Lock()
+	defer p.Unlock()
+
 	session, ok := p.sessions[clientPubkey]
 	return session, ok
 }
