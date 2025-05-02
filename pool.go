@@ -246,12 +246,14 @@ func (pool *Pool) FetchMany(
 ) chan RelayEvent {
 	seenAlready := xsync.NewMapOf[ID, struct{}]()
 
-	opts.CheckDuplicate = func(id ID, relay string) bool {
-		_, exists := seenAlready.LoadOrStore(id, struct{}{})
-		if exists && pool.duplicateMiddleware != nil {
-			pool.duplicateMiddleware(relay, id)
+	if opts.CheckDuplicate == nil {
+		opts.CheckDuplicate = func(id ID, relay string) bool {
+			_, exists := seenAlready.LoadOrStore(id, struct{}{})
+			if exists && pool.duplicateMiddleware != nil {
+				pool.duplicateMiddleware(relay, id)
+			}
+			return exists
 		}
-		return exists
 	}
 
 	return pool.subManyEoseNonOverwriteCheckDuplicate(ctx, urls, filter, opts)
@@ -393,12 +395,14 @@ func (pool *Pool) subMany(
 		}()
 	}
 
-	opts.CheckDuplicate = func(id ID, relay string) bool {
-		_, exists := seenAlready.Load(id)
-		if exists && pool.duplicateMiddleware != nil {
-			pool.duplicateMiddleware(relay, id)
+	if opts.CheckDuplicate == nil {
+		opts.CheckDuplicate = func(id ID, relay string) bool {
+			_, exists := seenAlready.Load(id)
+			if exists && pool.duplicateMiddleware != nil {
+				pool.duplicateMiddleware(relay, id)
+			}
+			return exists
 		}
-		return exists
 	}
 
 	pending := xsync.NewCounter()
@@ -691,12 +695,14 @@ func (pool *Pool) BatchedSubManyEose(
 	wg.Add(len(dfs))
 	seenAlready := xsync.NewMapOf[ID, struct{}]()
 
-	opts.CheckDuplicate = func(id ID, relay string) bool {
-		_, exists := seenAlready.LoadOrStore(id, struct{}{})
-		if exists && pool.duplicateMiddleware != nil {
-			pool.duplicateMiddleware(relay, id)
+	if opts.CheckDuplicate == nil {
+		opts.CheckDuplicate = func(id ID, relay string) bool {
+			_, exists := seenAlready.LoadOrStore(id, struct{}{})
+			if exists && pool.duplicateMiddleware != nil {
+				pool.duplicateMiddleware(relay, id)
+			}
+			return exists
 		}
-		return exists
 	}
 
 	for _, df := range dfs {
