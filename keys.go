@@ -61,6 +61,21 @@ type PubKey [32]byte
 
 func (pk PubKey) String() string { return "pk::" + pk.Hex() }
 func (pk PubKey) Hex() string    { return hex.EncodeToString(pk[:]) }
+func (pk PubKey) MarshalJSON() ([]byte, error) {
+	res := make([]byte, 66)
+	hex.Encode(res[1:], pk[:])
+	res[0] = '"'
+	res[65] = '"'
+	return res, nil
+}
+
+func (pk *PubKey) UnmarshalJSON(buf []byte) error {
+	if len(buf) != 66 {
+		return fmt.Errorf("must be a hex string of 64 characters")
+	}
+	_, err := hex.Decode(pk[:], buf[1:])
+	return err
+}
 
 func PubKeyFromHex(pkh string) (PubKey, error) {
 	pk := PubKey{}

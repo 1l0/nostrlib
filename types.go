@@ -20,6 +20,22 @@ type ID [32]byte
 func (id ID) String() string { return "id::" + id.Hex() }
 func (id ID) Hex() string    { return hex.EncodeToString(id[:]) }
 
+func (id ID) MarshalJSON() ([]byte, error) {
+	res := make([]byte, 66)
+	hex.Encode(res[1:], id[:])
+	res[0] = '"'
+	res[65] = '"'
+	return res, nil
+}
+
+func (id *ID) UnmarshalJSON(buf []byte) error {
+	if len(buf) != 66 {
+		return fmt.Errorf("must be a hex string of 64 characters")
+	}
+	_, err := hex.Decode(id[:], buf[1:])
+	return err
+}
+
 func IDFromHex(idh string) (ID, error) {
 	id := ID{}
 
