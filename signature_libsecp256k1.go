@@ -27,22 +27,21 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"unsafe"
 
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 )
 
-func (evt Event) CheckSignature() (bool, error) {
+func (evt Event) VerifySignature() bool {
 	msg := sha256.Sum256(evt.Serialize())
 
 	var xonly C.secp256k1_xonly_pubkey
 	if C.secp256k1_xonly_pubkey_parse(globalSecp256k1Context, &xonly, (*C.uchar)(unsafe.Pointer(&evt.PubKey[0]))) != 1 {
-		return false, fmt.Errorf("failed to parse xonly pubkey")
+		return false
 	}
 
 	res := C.secp256k1_schnorrsig_verify(globalSecp256k1Context, (*C.uchar)(unsafe.Pointer(&evt.Sig[0])), (*C.uchar)(unsafe.Pointer(&msg[0])), 32, &xonly)
-	return res == 1, nil
+	return res == 1
 }
 
 // Sign signs an event with a given privateKey.
