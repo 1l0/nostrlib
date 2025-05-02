@@ -55,7 +55,7 @@ func GetPublicKey(sk [32]byte) PubKey {
 	return [32]byte(pk.SerializeCompressed()[1:])
 }
 
-var ZeroPK = [32]byte{}
+var ZeroPK = PubKey{}
 
 type PubKey [32]byte
 
@@ -73,7 +73,7 @@ func (pk *PubKey) UnmarshalJSON(buf []byte) error {
 	if len(buf) != 66 {
 		return fmt.Errorf("must be a hex string of 64 characters")
 	}
-	_, err := hex.Decode(pk[:], buf[1:])
+	_, err := hex.Decode(pk[:], buf[1:65])
 	return err
 }
 

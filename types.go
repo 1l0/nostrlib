@@ -12,7 +12,7 @@ type RelayEvent struct {
 	Relay *Relay
 }
 
-var ZeroID = [32]byte{}
+var ZeroID = ID{}
 
 // ID represents an event id
 type ID [32]byte
@@ -32,7 +32,7 @@ func (id *ID) UnmarshalJSON(buf []byte) error {
 	if len(buf) != 66 {
 		return fmt.Errorf("must be a hex string of 64 characters")
 	}
-	_, err := hex.Decode(id[:], buf[1:])
+	_, err := hex.Decode(id[:], buf[1:65])
 	return err
 }
 
