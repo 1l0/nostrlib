@@ -15,9 +15,7 @@ func main () {
 	// other stuff here
 	relay := khatru.NewRelay()
 
-	relay.QueryEvents = append(relay.QueryEvents,
-		handleWeatherQuery,
-	)
+	relay.QueryStored = handleWeatherQuery
 	// other stuff here
 }
 

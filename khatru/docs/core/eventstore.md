@@ -50,11 +50,11 @@ func main() {
 
 ## Using two at a time
 
-If you want to use two different adapters at the same time that's easy. Just add both to the corresponding slices:
+If you want to use two different adapters at the same time that's easy. Just use the `policies.Seq*` functions:
 
 ```go
-	relay.StoreEvent = append(relay.StoreEvent, db1.SaveEvent, db2.SaveEvent)
-	relay.QueryEvents = append(relay.QueryEvents, db1.QueryEvents, db2.QueryEvents)
+	relay.StoreEvent = policies.SeqStore(db1.SaveEvent, db2.SaveEvent)
+	relay.QueryStored = policies.SeqQuery(db1.QueryEvents, db2.QueryEvents)
 ```
 
 But that will duplicate events on both and then return duplicated events on each query.
@@ -66,7 +66,7 @@ You can do a kind of sharding, for example, by storing some events in one store 
 For example, maybe you want kind 1 events in `db1` and kind 30023 events in `db30023`:
 
 ```go
-	relay.StoreEvent = append(relay.StoreEvent, func (ctx context.Context, evt *nostr.Event) error {
+	relay.StoreEvent = func (ctx context.Context, evt *nostr.Event) error {
 		switch evt.Kind {
 		case nostr.Kind(1):
 			return db1.SaveEvent(evt)
@@ -75,8 +75,8 @@ For example, maybe you want kind 1 events in `db1` and kind 30023 events in `db3
 		default:
 			return nil
 		}
-	})
-	relay.QueryEvents = append(relay.QueryEvents, func (ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
+	}
+	relay.QueryStored = func (ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
 		for _, kind := range filter.Kinds {
 			switch nostr.Kind(kind) {
 			case nostr.Kind(1):
@@ -92,5 +92,5 @@ For example, maybe you want kind 1 events in `db1` and kind 30023 events in `db3
 			}
 		}
 		return nil
-	})
+	}
 ```

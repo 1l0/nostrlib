@@ -66,8 +66,8 @@ func main() {
 
 		// define your own policies
 		func(ctx context.Context, filter nostr.Filter) (reject bool, msg string) {
-			if pubkey, isAuthed := khatru.GetAuthed(ctx); !isAuthed {
-				log.Printf("request from %s\n", pubkey)
+			if authed, is := khatru.GetAuthed(ctx); !is {
+				log.Printf("request from %s\n", authed)
 				return false, ""
 			}
 			return true, "auth-required: only authenticated users can read from this relay"

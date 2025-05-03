@@ -47,11 +47,8 @@ It allows you to create a fully-functional relay in 7 lines of code:
 func main() {
 	relay := khatru.NewRelay()
 	db := badger.BadgerBackend{Path: "/tmp/khatru-badgern-tmp"}
-    db.Init()
-	relay.StoreEvent = append(relay.StoreEvent, db.SaveEvent)
-	relay.QueryEvents = append(relay.QueryEvents, db.QueryEvents)
-	relay.DeleteEvent = append(relay.DeleteEvent, db.DeleteEvent)
-	relay.ReplaceEvent = append(relay.ReplaceEvent, db.ReplaceEvent)
+	db.Init()
+	relay.UseEventStore(db)
 	http.ListenAndServe(":3334", relay)
 }
 ```

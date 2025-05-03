@@ -47,13 +47,13 @@ These are lists of functions that will be called in order every time an `EVENT` 
 The next step is adding some protection, because maybe we don't want to allow _anyone_ to write to our relay. Maybe we want to only allow people that have a pubkey starting with `"a"`, `"b"` or `"c"`:
 
 ```go
-relay.RejectEvent = append(relay.RejectEvent, func (ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+relay.OnEvent = func (ctx context.Context, event *nostr.Event) (reject bool, msg string) {
 	firstHexChar := event.PubKey.Hex()[0:1]
 	if firstHexChar == "a" || firstHexChar == "b" || firstHexChar == "c" {
 		return false, "" // allow
 	}
 	return true, "you're not allowed in this shard"
-})
+}
 ```
 
 We can also make use of some default policies that come bundled with Khatru:
@@ -61,7 +61,11 @@ We can also make use of some default policies that come bundled with Khatru:
 ```go
 import "fiatjaf.com/nostr/khatru/policies" // implied
 
-relay.RejectEvent = append(relay.RejectEvent, policies.PreventLargeTags(120), policies.PreventTimestampsInThePast(time.Hour * 2), policies.PreventTimestampsInTheFuture(time.Minute * 30))
+relay.OnEvent = policies.SeqEvent(
+	policies.PreventLargeTags(120),
+	policies.PreventTimestampsInThePast(time.Hour * 2),
+	policies.PreventTimestampsInTheFuture(time.Minute * 30),
+)
 ```
 
 There are many other ways to customize the relay behavior. Take a look at the [`Relay` struct docs](https://pkg.go.dev/fiatjaf.com/nostr/khatru#Relay) for more, or read the pages on the sidebar.

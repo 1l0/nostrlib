@@ -25,9 +25,9 @@ func main () {
 		panic(err)
 	}
 
-	relay.StoreEvent = append(relay.StoreEvent, normal.SaveEvent, search.SaveEvent)
-	relay.QueryEvents = append(relay.QueryEvents, normal.QueryEvents, search.QueryEvents)
-	relay.DeleteEvent = append(relay.DeleteEvent, normal.DeleteEvent, search.DeleteEvent)
+	relay.StoreEvent = policies.SeqStore(normal.SaveEvent, search.SaveEvent)
+	relay.QueryStored = policies.SeqQuery(normal.QueryEvents, search.QueryEvents)
+	relay.DeleteEvent = policies.SeqDelete(normal.DeleteEvent, search.DeleteEvent)
 
     // other stuff here
 }
@@ -38,7 +38,7 @@ Note that in this case we're using the [LMDB](https://pkg.go.dev/fiatjaf.com/nos
 Other adapters, like [SQLite](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/sqlite3), implement search functionality on their own, so if you don't want to use that you would have to have a middleware between, like:
 
 ```go
-	relay.StoreEvent = append(relay.StoreEvent, db.SaveEvent, search.SaveEvent)
+	relay.StoreEvent = policies.SeqStore(db.SaveEvent, search.SaveEvent)
 	relay.QueryStored = func (ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
         if len(filter.Search) > 0 {
 			return search.QueryEvents(ctx, filter)

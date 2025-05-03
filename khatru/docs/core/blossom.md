@@ -22,18 +22,18 @@ func main() {
 	bl.Store = blossom.EventStoreBlobIndexWrapper{Store: blobdb, ServiceURL: bl.ServiceURL}
 
     // implement the required storage functions
-    bl.StoreBlob = append(bl.StoreBlob, func(ctx context.Context, sha256 string, body []byte) error {
+    bl.StoreBlob = func(ctx context.Context, sha256 string, body []byte) error {
         // store the blob data somewhere
         return nil
-    })
-    bl.LoadBlob = append(bl.LoadBlob, func(ctx context.Context, sha256 string) (io.ReadSeeker, error) {
+    }
+    bl.LoadBlob = func(ctx context.Context, sha256 string) (io.ReadSeeker, error) {
         // load and return the blob data
         return nil, nil
-    })
-    bl.DeleteBlob = append(bl.DeleteBlob, func(ctx context.Context, sha256 string) error {
+    }
+    bl.DeleteBlob = func(ctx context.Context, sha256 string) error {
         // delete the blob data
         return nil
-    })
+    }
 
     http.ListenAndServe(":3334", relay)
 }
@@ -59,7 +59,7 @@ var allowedUsers = map[string]bool{
     "pubkey2": true,
 }
 
-bl.RejectUpload = append(bl.RejectUpload, func(ctx context.Context, auth *nostr.Event, size int, ext string) (bool, string, int) {
+bl.RejectUpload = func(ctx context.Context, auth *nostr.Event, size int, ext string) (bool, string, int) {
     // check file size
     if size > maxFileSize {
         return true, "file too large", 413
@@ -71,7 +71,7 @@ bl.RejectUpload = append(bl.RejectUpload, func(ctx context.Context, auth *nostr.
     }
 
     return false, "", 0
-})
+}
 ```
 
 There are other `Reject*` hooks you can also implement, but this is the most important one.

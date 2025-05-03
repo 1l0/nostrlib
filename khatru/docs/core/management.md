@@ -19,15 +19,13 @@ var allowedPubkeys = make([]nostr.PubKey, 0, 10)
 func main () {
 	relay := khatru.NewRelay()
 
-	relay.ManagementAPI.RejectAPICall = append(relay.ManagementAPI.RejectAPICall,
-		func(ctx context.Context, mp nip86.MethodParams) (reject bool, msg string) {
-			user := khatru.GetAuthed(ctx)
-			if user != owner {
-				return true, "go away, intruder"
-			}
-			return false, ""
+	relay.ManagementAPI.RejectAPICall = func(ctx context.Context, mp nip86.MethodParams) (reject bool, msg string) {
+		authed, _ := khatru.GetAuthed(ctx)
+		if user != owner {
+			return true, "go away, intruder"
 		}
-	)
+		return false, ""
+	}
 
 	relay.ManagementAPI.AllowPubKey = func(ctx context.Context, pubkey nostr.PubKey, reason string) error {
 		allowedPubkeys = append(allowedPubkeys, pubkey)

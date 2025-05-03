@@ -21,10 +21,7 @@ groupsRelay, _ := khatru29.Init(relay29.Options{Domain: "example.com", DB: group
 publicStore := slicestore.SliceStore{}
 publicStore.Init()
 publicRelay := khatru.NewRelay()
-publicRelay.StoreEvent = append(publicRelay.StoreEvent, publicStore.SaveEvent)
-publicRelay.QueryEvents = append(publicRelay.QueryEvents, publicStore.QueryEvents)
-publicRelay.CountEvents = append(publicRelay.CountEvents, publicStore.CountEvents)
-publicRelay.DeleteEvent = append(publicRelay.DeleteEvent, publicStore.DeleteEvent)
+publicRelay.UseEventStore(publicStore)
 // ...
 
 // a higher-level relay that just routes between the two above

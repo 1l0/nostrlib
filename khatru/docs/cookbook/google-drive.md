@@ -11,8 +11,8 @@ func main () {
 	// other stuff here
 	relay := khatru.NewRelay()
 
-	relay.StoreEvent = append(relay.StoreEvent, handleEvent)
-	relay.QueryEvents = append(relay.QueryEvents, handleQuery)
+	relay.StoreEvent = handleEvent
+	relay.QueryStored = handleQuery
 	// other stuff here
 }
 

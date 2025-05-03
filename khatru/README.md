@@ -40,31 +40,25 @@ func main() {
 	store := make(map[nostr.ID]*nostr.Event, 120)
 
 	// set up the basic relay functions
-	relay.StoreEvent = append(relay.StoreEvent,
-		func(ctx context.Context, event *nostr.Event) error {
-			store[event.ID] = event
-			return nil
-		},
-	)
-	relay.QueryEvents = append(relay.QueryEvents,
-		func(ctx context.Context, filter nostr.Filter) (iter.Seq[*nostr.Event], error) {
-			return func(yield func(*nostr.Event) bool) {
-				for _, evt := range store {
-					if filter.Matches(evt) {
-						if !yield(evt) {
-							break
-						}
+	relay.StoreEvent = func(ctx context.Context, event *nostr.Event) error {
+		store[event.ID] = event
+		return nil
+	}
+	relay.QueryStored = func(ctx context.Context, filter nostr.Filter) iter.Seq[*nostr.Event] {
+		return func(yield func(*nostr.Event) bool) {
+			for _, evt := range store {
+				if filter.Matches(evt) {
+					if !yield(evt) {
+						break
 					}
 				}
-			}, nil
-		},
-	)
-	relay.DeleteEvent = append(relay.DeleteEvent,
-		func(ctx context.Context, id nostr.ID) error {
-			delete(store, id)
-			return nil
-		},
-	)
+			}
+		}
+	}
+	relay.DeleteEvent = func(ctx context.Context, id nostr.ID) error {
+		delete(store, id)
+		return nil
+	}
 
 	// there are many other configurable things you can set
 	relay.RejectEvent = append(relay.RejectEvent,
@@ -88,8 +82,8 @@ func main() {
 
 		// define your own policies
 		func(ctx context.Context, filter nostr.Filter) (reject bool, msg string) {
-			if pubkey, isAuthed := khatru.GetAuthed(ctx); isAuthed {
-				log.Printf("request from %s\n", pubkey)
+			if authed, is := khatru.GetAuthed(ctx); is {
+				log.Printf("request from %s\n", authed)
 				return false, ""
 			}
 			return true, "auth-required: only authenticated users can read from this relay"
