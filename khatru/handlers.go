@@ -176,8 +176,8 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 					// check NIP-70 protected
 					if nip70.IsProtected(env.Event) {
-						authed, isAuthed := GetAuthed(ctx)
-						if isAuthed {
+						authed, is := GetAuthed(ctx)
+						if !is {
 							RequestAuth(ctx)
 							ws.WriteJSON(nostr.OKEnvelope{
 								EventID: env.Event.ID,
