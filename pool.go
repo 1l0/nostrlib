@@ -149,7 +149,7 @@ func (pool *Pool) EnsureRelay(url string) (*Relay, error) {
 	// we use this ctx here so when the pool dies everything dies
 	ctx, cancel := context.WithTimeoutCause(
 		pool.Context,
-		time.Second*15,
+		time.Second*7,
 		errors.New("connecting to the relay took too long"),
 	)
 	defer cancel()
