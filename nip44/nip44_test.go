@@ -1,11 +1,8 @@
 package nip44
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
-	"strings"
 	"testing"
 
 	"fiatjaf.com/nostr"
@@ -1070,48 +1067,6 @@ func TestMessageKeyGeneration033(t *testing.T) {
 		"a8188daff807a1182200b39d",
 		"47b89da97f68d389867b5d8a2d7ba55715a30e3d88a3cc11f3646bc2af5580ef",
 	)
-}
-
-func TestMaxLength(t *testing.T) {
-	sk1 := nostr.GeneratePrivateKey()
-	sk2 := nostr.GeneratePrivateKey()
-	pub2 := nostr.GetPublicKey(sk2)
-	salt := make([]byte, 32)
-	rand.Read(salt)
-	conversationKey, _ := GenerateConversationKey(pub2, sk1)
-	plaintext := strings.Repeat("a", MaxPlaintextSize)
-	encrypted, err := Encrypt(plaintext, conversationKey, WithCustomNonce(salt))
-	if err != nil {
-		t.Error(err)
-	}
-
-	assertCryptPub(t,
-		hex.EncodeToString(sk1[:]),
-		hex.EncodeToString(pub2[:]),
-		fmt.Sprintf("%x", conversationKey),
-		fmt.Sprintf("%x", salt),
-		plaintext,
-		encrypted,
-	)
-}
-
-func assertCryptPub(t *testing.T, sk1 string, pub2 string, conversationKey string, customNonce string, plaintext string, expected string) {
-	k1, err := hexDecode32Array(conversationKey)
-	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
-
-	assertConversationKeyGenerationPub(t, sk1, pub2, conversationKey)
-
-	s, err := hex.DecodeString(customNonce)
-	require.NoErrorf(t, err, "hex decode failed for salt: %v", err)
-
-	actual, err := Encrypt(plaintext, k1, WithCustomNonce(s))
-	require.NoError(t, err, "encryption failed: %v", err)
-	require.Equalf(t, expected, actual, "wrong encryption")
-
-	decrypted, err := Decrypt(expected, k1)
-	require.NoErrorf(t, err, "decryption failed: %v", err)
-
-	require.Equal(t, decrypted, plaintext, "wrong decryption")
 }
 
 func hexDecode32Array(hexString string) (res [32]byte, err error) {

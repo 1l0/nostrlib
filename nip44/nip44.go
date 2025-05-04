@@ -22,7 +22,6 @@ import (
 const version byte = 2
 
 const (
-	MinPlaintextSize = 0x0001 // 1b msg => padded to 32b
 	MaxPlaintextSize = 0xffff // 65535 (64kb-1) => padded to 64kb
 )
 
@@ -59,14 +58,14 @@ func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(op
 		}
 	}
 
-	cc20key, cc20nonce, hmackey, err := messageKeys(conversationKey, nonce)
+	cc20key, cc20nonce, hmacKey, err := messageKeys(conversationKey, nonce)
 	if err != nil {
 		return "", err
 	}
 
 	plain := []byte(plaintext)
 	size := len(plain)
-	if size < MinPlaintextSize || size > MaxPlaintextSize {
+	if size == 0 || size > MaxPlaintextSize {
 		return "", fmt.Errorf("plaintext should be between 1b and 64kB")
 	}
 
@@ -80,7 +79,7 @@ func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(op
 		return "", err
 	}
 
-	mac, err := sha256Hmac(hmackey, ciphertext, nonce)
+	mac, err := sha256Hmac(hmacKey, ciphertext, nonce)
 	if err != nil {
 		return "", err
 	}
@@ -97,7 +96,7 @@ func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(op
 func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, error) {
 	cLen := len(b64ciphertextWrapped)
 	if cLen < 132 || cLen > 87472 {
-		return "", fmt.Errorf(fmt.Sprintf("invalid payload length: %d", cLen))
+		return "", fmt.Errorf("invalid payload length: %d", cLen)
 	}
 	if b64ciphertextWrapped[0:1] == "#" {
 		return "", fmt.Errorf("unknown version")
@@ -109,24 +108,24 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 	}
 
 	if decoded[0] != version {
-		return "", fmt.Errorf(fmt.Sprintf("unknown version %d", decoded[0]))
+		return "", fmt.Errorf("unknown version %d", decoded[0])
 	}
 
 	dLen := len(decoded)
 	if dLen < 99 || dLen > 65603 {
-		return "", fmt.Errorf(fmt.Sprintf("invalid data length: %d", dLen))
+		return "", fmt.Errorf("invalid data length: %d", dLen)
 	}
 
 	var nonce [32]byte
 	copy(nonce[:], decoded[1:33])
 	ciphertext := decoded[33 : dLen-32]
 	givenMac := decoded[dLen-32:]
-	cc20key, cc20nonce, hmackey, err := messageKeys(conversationKey, nonce)
+	cc20key, cc20nonce, hmacKey, err := messageKeys(conversationKey, nonce)
 	if err != nil {
 		return "", err
 	}
 
-	expectedMac, err := sha256Hmac(hmackey, ciphertext, nonce)
+	expectedMac, err := sha256Hmac(hmacKey, ciphertext, nonce)
 	if err != nil {
 		return "", err
 	}
@@ -141,8 +140,7 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 	}
 
 	unpaddedLen := binary.BigEndian.Uint16(padded[0:2])
-	if unpaddedLen < uint16(MinPlaintextSize) || unpaddedLen > uint16(MaxPlaintextSize) ||
-		len(padded) != 2+calcPadding(int(unpaddedLen)) {
+	if unpaddedLen == 0 || unpaddedLen > MaxPlaintextSize || len(padded) != 2+calcPadding(int(unpaddedLen)) {
 		return "", fmt.Errorf("invalid padding")
 	}
 
@@ -160,7 +158,7 @@ func GenerateConversationKey(pub nostr.PubKey, sk [32]byte) ([32]byte, error) {
 	var ck [32]byte
 
 	if bytes.Compare(sk[:], maxThreshold) != -1 || sk == [32]byte{} {
-		return ck, fmt.Errorf("invalid private key: x coordinate %s is not on the secp256k1 curve", sk)
+		return ck, fmt.Errorf("invalid private key: x coordinate %x is not on the secp256k1 curve", sk)
 	}
 
 	shared, err := computeSharedSecret(pub, sk)
