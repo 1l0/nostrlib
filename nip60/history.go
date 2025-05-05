@@ -131,7 +131,7 @@ func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Eve
 			}
 			id, err := nostr.IDFromHex(tag[1])
 			if err != nil {
-				return fmt.Errorf("'e' tag has invalid event id %s: %w", tag[1])
+				return fmt.Errorf("'e' tag has invalid event id %s: %w", tag[1], err)
 			}
 
 			tf := TokenRef{EventID: id}

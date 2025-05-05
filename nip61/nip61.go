@@ -11,6 +11,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip60"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 var NutzapsNotAccepted = errors.New("user doesn't accept nutzaps")
@@ -27,7 +28,11 @@ func SendNutzap(
 	amount uint64,
 	message string,
 ) (chan nostr.PublishResult, error) {
-	ie := pool.QuerySingle(ctx, relays, nostr.Filter{Kinds: []nostr.Kind{10019}, Authors: []nostr.PubKey{targetUserPublickey}}, nostr.SubscriptionOptions{})
+	ie := pool.QuerySingle(ctx, relays, nostr.Filter{
+		Kinds:   []nostr.Kind{10019},
+		Authors: []nostr.PubKey{targetUserPublickey},
+	},
+		nostr.SubscriptionOptions{Label: "pre-nutzap"})
 	if ie == nil {
 		return nil, NutzapsNotAccepted
 	}
@@ -60,9 +65,17 @@ func SendNutzap(
 		nutzap.Tags = append(nutzap.Tags, nostr.Tag{"e", eventId.Hex()})
 	}
 
+	p2pk, err := btcec.ParsePubKey(append([]byte{2}, info.PublicKey[:]...))
+	if err != nil {
+		return nil, fmt.Errorf("invalid p2pk target '%s': %w", info.PublicKey.Hex(), err)
+	}
+
 	// check if we have enough tokens in any of these mints
 	for mint := range getEligibleTokensWeHave(info.Mints, w.Tokens, amount) {
-		proofs, _, err := w.Send(ctx, amount, nip60.WithP2PK(info.PublicKey), nip60.WithMint(mint))
+		proofs, _, err := w.Send(ctx, amount, nip60.SendOptions{
+			P2PK:               p2pk,
+			SpecificSourceMint: mint,
+		})
 		if err != nil {
 			continue
 		}
@@ -83,7 +96,9 @@ func SendNutzap(
 
 	// we don't have tokens at the desired target mint, so we first have to create some
 	for _, mint := range info.Mints {
-		proofs, err := w.SendExternal(ctx, mint, amount)
+		proofs, err := w.SendExternal(ctx, mint, amount, nip60.SendOptions{
+			P2PK: p2pk,
+		})
 		if err != nil {
 			if strings.Contains(err.Error(), "generate mint quote") {
 				continue

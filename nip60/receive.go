@@ -11,42 +11,24 @@ import (
 	"github.com/elnosh/gonuts/cashu/nuts/nut10"
 )
 
-type receiveSettings struct {
-	intoMint []string
-	isNutzap bool
-}
-
-type ReceiveOption func(*receiveSettings)
-
-func WithMintDestination(url string) ReceiveOption {
-	return func(rs *receiveSettings) {
-		rs.intoMint = append(rs.intoMint, url)
-	}
-}
-
-func WithNutzap() ReceiveOption {
-	return func(rs *receiveSettings) {
-		rs.isNutzap = true
-	}
+// ReceiveOptions contains options for receiving tokens
+type ReceiveOptions struct {
+	IntoMint []string
+	IsNutzap bool
 }
 
 func (w *Wallet) Receive(
 	ctx context.Context,
 	proofs cashu.Proofs,
 	mint string,
-	opts ...ReceiveOption,
+	opts ReceiveOptions,
 ) error {
 	if w.PublishUpdate == nil {
 		return fmt.Errorf("can't do write operations: missing PublishUpdate function")
 	}
 
-	rs := receiveSettings{}
-	for _, opt := range opts {
-		opt(&rs)
-	}
-
 	source, _ := nostr.NormalizeHTTPURL(mint)
-	destination := rs.intoMint
+	destination := opts.IntoMint
 
 	swapSettings := swapSettings{}
 
@@ -138,7 +120,7 @@ saveproofs:
 			{
 				EventID:  newToken.event.ID,
 				Created:  true,
-				IsNutzap: rs.isNutzap,
+				IsNutzap: opts.IsNutzap,
 			},
 		},
 		createdAt: nostr.Now(),

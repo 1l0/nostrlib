@@ -14,6 +14,11 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
+// WalletOptions contains options for loading a wallet
+type WalletOptions struct {
+	WithHistory bool
+}
+
 type Wallet struct {
 	sync.Mutex
 	tokensMu sync.Mutex
@@ -52,17 +57,9 @@ func LoadWallet(
 	kr nostr.Keyer,
 	pool *nostr.Pool,
 	relays []string,
+	opts WalletOptions,
 ) *Wallet {
-	return loadWalletFromPool(ctx, kr, pool, relays, false)
-}
-
-func LoadWalletWithHistory(
-	ctx context.Context,
-	kr nostr.Keyer,
-	pool *nostr.Pool,
-	relays []string,
-) *Wallet {
-	return loadWalletFromPool(ctx, kr, pool, relays, true)
+	return loadWalletFromPool(ctx, kr, pool, relays, opts)
 }
 
 func loadWalletFromPool(
@@ -70,7 +67,7 @@ func loadWalletFromPool(
 	kr nostr.Keyer,
 	pool *nostr.Pool,
 	relays []string,
-	withHistory bool,
+	opts WalletOptions,
 ) *Wallet {
 	pk, err := kr.GetPublicKey(ctx)
 	if err != nil {
@@ -78,7 +75,7 @@ func loadWalletFromPool(
 	}
 
 	kinds := []nostr.Kind{17375, 7375}
-	if withHistory {
+	if opts.WithHistory {
 		kinds = append(kinds, 7376)
 	}
 

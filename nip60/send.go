@@ -15,30 +15,11 @@ import (
 	"github.com/elnosh/gonuts/cashu/nuts/nut11"
 )
 
-type SendOption func(opts *sendSettings)
-
-type sendSettings struct {
-	specificMint   string
-	p2pk           *btcec.PublicKey
-	refundtimelock int64
-}
-
-func WithP2PK(pubkey nostr.PubKey) SendOption {
-	return func(opts *sendSettings) {
-		opts.p2pk, _ = btcec.ParsePubKey(append([]byte{2}, pubkey[:]...))
-	}
-}
-
-func WithRefundable(timelock nostr.Timestamp) SendOption {
-	return func(opts *sendSettings) {
-		opts.refundtimelock = int64(timelock)
-	}
-}
-
-func WithMint(url string) SendOption {
-	return func(opts *sendSettings) {
-		opts.specificMint = url
-	}
+// SendOptions contains options for sending tokens
+type SendOptions struct {
+	SpecificSourceMint string
+	P2PK               *btcec.PublicKey
+	RefundTimelock     nostr.Timestamp
 }
 
 type chosenTokens struct {
@@ -49,26 +30,21 @@ type chosenTokens struct {
 	keysets      []nut02.Keyset
 }
 
-func (w *Wallet) Send(ctx context.Context, amount uint64, opts ...SendOption) (cashu.Proofs, string, error) {
+func (w *Wallet) Send(ctx context.Context, amount uint64, opts SendOptions) (cashu.Proofs, string, error) {
 	if w.PublishUpdate == nil {
 		return nil, "", fmt.Errorf("can't do write operations: missing PublishUpdate function")
-	}
-
-	ss := &sendSettings{}
-	for _, opt := range opts {
-		opt(ss)
 	}
 
 	w.tokensMu.Lock()
 	defer w.tokensMu.Unlock()
 
-	chosen, _, err := w.getProofsForSending(ctx, amount, ss.specificMint, nil)
+	chosen, _, err := w.getProofsForSending(ctx, amount, opts.SpecificSourceMint, nil)
 	if err != nil {
 		return nil, "", err
 	}
 
 	swapSettings := swapSettings{}
-	if ss.p2pk != nil {
+	if opts.P2PK != nil {
 		if info, err := client.GetMintInfo(ctx, chosen.mint); err != nil || !info.Nuts.Nut11.Supported {
 			return nil, chosen.mint, fmt.Errorf("mint doesn't support p2pk: %w", err)
 		}
@@ -76,16 +52,16 @@ func (w *Wallet) Send(ctx context.Context, amount uint64, opts ...SendOption) (c
 		tags := nut11.P2PKTags{
 			NSigs:    1,
 			Locktime: 0,
-			Pubkeys:  []*btcec.PublicKey{ss.p2pk},
+			Pubkeys:  []*btcec.PublicKey{opts.P2PK},
 		}
-		if ss.refundtimelock != 0 {
+		if opts.RefundTimelock != 0 {
 			tags.Refund = []*btcec.PublicKey{w.PublicKey}
-			tags.Locktime = ss.refundtimelock
+			tags.Locktime = int64(opts.RefundTimelock)
 		}
 
 		swapSettings.spendingCondition = &nut10.SpendingCondition{
 			Kind: nut10.P2PK,
-			Data: hex.EncodeToString(ss.p2pk.SerializeCompressed()),
+			Data: hex.EncodeToString(opts.P2PK.SerializeCompressed()),
 			Tags: nut11.SerializeP2PKTags(tags),
 		}
 	}
@@ -188,12 +164,12 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 func (w *Wallet) getProofsForSending(
 	ctx context.Context,
 	amount uint64,
-	specificMint string,
+	fromMint string,
 	excludeMints []string,
 ) (chosenTokens, uint64, error) {
 	byMint := make(map[string]chosenTokens)
 	for t, token := range w.Tokens {
-		if specificMint != "" && token.Mint != specificMint {
+		if fromMint != "" && token.Mint != fromMint {
 			continue
 		}
 		if slices.Contains(excludeMints, token.Mint) {

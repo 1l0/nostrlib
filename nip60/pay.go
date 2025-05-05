@@ -5,20 +5,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/elnosh/gonuts/cashu"
-	"github.com/elnosh/gonuts/cashu/nuts/nut05"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip60/client"
+	"github.com/elnosh/gonuts/cashu"
+	"github.com/elnosh/gonuts/cashu/nuts/nut05"
 )
 
-func (w *Wallet) PayBolt11(ctx context.Context, invoice string, opts ...SendOption) (string, error) {
+// PayOptions contains options for paying a bolt11 invoice
+type PayOptions struct {
+	FromMint string
+}
+
+func (w *Wallet) PayBolt11(ctx context.Context, invoice string, opts PayOptions) (string, error) {
 	if w.PublishUpdate == nil {
 		return "", fmt.Errorf("can't do write operations: missing PublishUpdate function")
-	}
-
-	ss := &sendSettings{}
-	for _, opt := range opts {
-		opt(ss)
 	}
 
 	invoiceAmount, err := GetSatoshisAmountFromBolt11(invoice)
@@ -41,7 +41,7 @@ func (w *Wallet) PayBolt11(ctx context.Context, invoice string, opts ...SendOpti
 	for range 5 {
 		amount := invoiceAmount*(100+feeReservePct)/100 + feeReserveAbs
 		var fee uint64
-		chosen, fee, err = w.getProofsForSending(ctx, amount, ss.specificMint, excludeMints)
+		chosen, fee, err = w.getProofsForSending(ctx, amount, opts.FromMint, excludeMints)
 		if err != nil {
 			return "", err
 		}

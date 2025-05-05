@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 
+	"fiatjaf.com/nostr/nip60/client"
 	"github.com/elnosh/gonuts/cashu"
 	"github.com/elnosh/gonuts/cashu/nuts/nut04"
-	"fiatjaf.com/nostr/nip60/client"
 )
 
 func (w *Wallet) SendExternal(
 	ctx context.Context,
 	mint string,
 	targetAmount uint64,
-	opts ...SendOption,
+	opts SendOptions,
 ) (cashu.Proofs, error) {
 	if w.PublishUpdate == nil {
 		return nil, fmt.Errorf("can't do write operations: missing PublishUpdate function")
@@ -28,7 +28,9 @@ func (w *Wallet) SendExternal(
 		return nil, fmt.Errorf("failed to generate mint quote: %w", err)
 	}
 
-	if _, err := w.PayBolt11(ctx, mintResp.Request, opts...); err != nil {
+	if _, err := w.PayBolt11(ctx, mintResp.Request, PayOptions{
+		FromMint: opts.SpecificSourceMint,
+	}); err != nil {
 		return nil, err
 	}
 
