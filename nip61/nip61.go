@@ -16,21 +16,34 @@ import (
 
 var NutzapsNotAccepted = errors.New("user doesn't accept nutzaps")
 
+type NutzapOptions struct {
+	// Optionally specify the event we'll reference in the nutzap,
+	// if not specified we'll just send money to the receiver
+	EventID nostr.ID
+
+	// string message to include in the nutzap
+	Message string
+
+	// We'll send the nutzap to these relays besides any relay found in the kind:10019
+	SendToRelays []string
+
+	// Send specifically from this mint
+	SpecificSourceMint string
+}
+
 func SendNutzap(
 	ctx context.Context,
 	kr nostr.Keyer,
 	w *nip60.Wallet,
 	pool *nostr.Pool,
-	targetUserPublickey nostr.PubKey,
-	getUserReadRelays func(context.Context, nostr.PubKey, int) []string,
-	relays []string,
-	eventId nostr.ID, // can be "" if not targeting a specific event
 	amount uint64,
-	message string,
+	targetUser nostr.PubKey,
+	targetUserRelays []string,
+	opts NutzapOptions,
 ) (chan nostr.PublishResult, error) {
-	ie := pool.QuerySingle(ctx, relays, nostr.Filter{
+	ie := pool.QuerySingle(ctx, targetUserRelays, nostr.Filter{
 		Kinds:   []nostr.Kind{10019},
-		Authors: []nostr.PubKey{targetUserPublickey},
+		Authors: []nostr.PubKey{targetUser},
 	},
 		nostr.SubscriptionOptions{Label: "pre-nutzap"})
 	if ie == nil {
@@ -46,12 +59,9 @@ func SendNutzap(
 		return nil, NutzapsNotAccepted
 	}
 
-	targetRelays := info.Relays
+	targetRelays := nostr.AppendUnique(info.Relays, opts.SendToRelays...)
 	if len(targetRelays) == 0 {
-		targetRelays = getUserReadRelays(ctx, targetUserPublickey, 3)
-		if len(targetRelays) == 0 {
-			return nil, fmt.Errorf("no relays found for sending the nutzap")
-		}
+		return nil, fmt.Errorf("no relays found for sending the nutzap")
 	}
 
 	nutzap := nostr.Event{
@@ -60,9 +70,9 @@ func SendNutzap(
 		Tags:      make(nostr.Tags, 0, 8),
 	}
 
-	nutzap.Tags = append(nutzap.Tags, nostr.Tag{"p", targetUserPublickey.Hex()})
-	if eventId != nostr.ZeroID {
-		nutzap.Tags = append(nutzap.Tags, nostr.Tag{"e", eventId.Hex()})
+	nutzap.Tags = append(nutzap.Tags, nostr.Tag{"p", targetUser.Hex()})
+	if opts.EventID != nostr.ZeroID {
+		nutzap.Tags = append(nutzap.Tags, nostr.Tag{"e", opts.EventID.Hex()})
 	}
 
 	p2pk, err := btcec.ParsePubKey(append([]byte{2}, info.PublicKey[:]...))
@@ -72,6 +82,10 @@ func SendNutzap(
 
 	// check if we have enough tokens in any of these mints
 	for mint := range getEligibleTokensWeHave(info.Mints, w.Tokens, amount) {
+		if opts.SpecificSourceMint != "" && opts.SpecificSourceMint != mint {
+			continue
+		}
+
 		proofs, _, err := w.Send(ctx, amount, nip60.SendOptions{
 			P2PK:               p2pk,
 			SpecificSourceMint: mint,
@@ -97,7 +111,8 @@ func SendNutzap(
 	// we don't have tokens at the desired target mint, so we first have to create some
 	for _, mint := range info.Mints {
 		proofs, err := w.SendExternal(ctx, mint, amount, nip60.SendOptions{
-			P2PK: p2pk,
+			P2PK:               p2pk,
+			SpecificSourceMint: opts.SpecificSourceMint,
 		})
 		if err != nil {
 			if strings.Contains(err.Error(), "generate mint quote") {

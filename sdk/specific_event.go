@@ -76,9 +76,9 @@ func (sys *System) FetchSpecificEvent(
 		author = v.Author
 		filter.IDs = []nostr.ID{v.ID}
 		relays = append(relays, v.Relays...)
-		relays = appendUnique(relays, sys.FallbackRelays.Next())
+		relays = nostr.AppendUnique(relays, sys.FallbackRelays.Next())
 		fallback = append(fallback, sys.JustIDRelays.URLs...)
-		fallback = appendUnique(fallback, sys.FallbackRelays.Next())
+		fallback = nostr.AppendUnique(fallback, sys.FallbackRelays.Next())
 		priorityRelays = append(priorityRelays, v.Relays...)
 	case nostr.EntityPointer:
 		author = v.PublicKey
@@ -86,7 +86,7 @@ func (sys *System) FetchSpecificEvent(
 		filter.Tags = nostr.TagMap{"d": []string{v.Identifier}}
 		filter.Kinds = []nostr.Kind{v.Kind}
 		relays = append(relays, v.Relays...)
-		relays = appendUnique(relays, sys.FallbackRelays.Next())
+		relays = nostr.AppendUnique(relays, sys.FallbackRelays.Next())
 		fallback = append(fallback, sys.FallbackRelays.Next(), sys.FallbackRelays.Next())
 		priorityRelays = append(priorityRelays, v.Relays...)
 	}
@@ -110,8 +110,8 @@ func (sys *System) FetchSpecificEvent(
 		}
 
 		// arrange these
-		relays = appendUnique(relays, authorRelays...)
-		priorityRelays = appendUnique(priorityRelays, authorRelays...)
+		relays = nostr.AppendUnique(relays, authorRelays...)
+		priorityRelays = nostr.AppendUnique(priorityRelays, authorRelays...)
 	}
 
 	var result *nostr.Event
