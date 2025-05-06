@@ -99,9 +99,8 @@ func TestStreamLiveFeed(t *testing.T) {
 	relay.Close()
 
 	// create a new system instance pointing only to relay1 as the "indexer"
-	sys := NewSystem(WithRelayListRelays([]string{
-		"ws://localhost:48481",
-	}))
+	sys := NewSystem()
+	sys.RelayListRelays = NewRelayStream("ws://localhost:48481")
 	defer sys.Close()
 
 	// prepublish some events

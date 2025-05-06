@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	domainRe = regexp.MustCompile(`(?:https?:\/\/)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.(?:[a-zA-Z]{2,})`)
-	nostrRe  = regexp.MustCompile(`(?:nostr:)?(npub|nprofile|naddr|nevent|note)1([a-zA-Z0-9]+`)
-	tagRe    = regexp.MustCompile(`\b#+\w+`)
+	domainRe = regexp.MustCompile(`\b(?:https?:\/\/)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.(?:[a-zA-Z]{2,}))`)
+	nostrRe  = regexp.MustCompile(`\b(?:nostr:)?(npub|nprofile|naddr|nevent|note)1([a-zA-Z0-9]+)`)
+	tagRe    = regexp.MustCompile(`^#+\w+\b|\s#+\w+\b`)
 )
 
 // PrepareNoteEvent takes an event with content that may include any number of URLs, partial URLs without the scheme, npub references with or without the "nostr:" prefix, tags and whatnot, then edits the content so it contains properly formatted URLs and references and adds the required tags based on these.
@@ -82,12 +82,17 @@ func (sys *System) PrepareNoteEvent(ctx context.Context, evt *nostr.Event) (targ
 					tag = append(tag, relay) // shove this relay hint here
 				}
 			} else {
-				evt.Tags = append(evt.Tags, append(b.AsTag(), relay))
+				b.Relays = append(b.Relays, relay)
+				tag = b.AsTag()
+				tag[0] = "q"
+				evt.Tags = append(evt.Tags, tag)
 			}
 		case nostr.EntityPointer:
 			pk = b.PublicKey
 			if tag := evt.Tags.FindWithValue("q", b.AsTagReference()); tag == nil {
-				evt.Tags = append(evt.Tags, b.AsTag())
+				tag := b.AsTag()
+				tag[0] = "q"
+				evt.Tags = append(evt.Tags, tag)
 			}
 		}
 
