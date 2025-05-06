@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +15,10 @@ import (
 	"fiatjaf.com/nostr"
 	"github.com/liamg/magic"
 )
+
+type mirrorRequest struct {
+	URL string `json:"url"`
+}
 
 func (bs BlossomServer) handleUploadCheck(w http.ResponseWriter, r *http.Request) {
 	auth, err := readAuthorization(r)
@@ -355,6 +360,92 @@ func (bs BlossomServer) handleReport(w http.ResponseWriter, r *http.Request) {
 }
 
 func (bs BlossomServer) handleMirror(w http.ResponseWriter, r *http.Request) {
+	auth, err := readAuthorization(r)
+	if err != nil {
+		blossomError(w, "invalid \"Authorization\": "+err.Error(), 400)
+		return
+	}
+	if auth == nil {
+		blossomError(w, "missing \"Authorization\" header", 401)
+		return
+	}
+	if auth.Tags.FindWithValue("t", "upload") == nil {
+		blossomError(w, "invalid \"Authorization\" event \"t\" tag", 403)
+		return
+	}
+
+	var req mirrorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		blossomError(w, "invalid request body: "+err.Error(), 400)
+		return
+	}
+
+	// download the blob
+	resp, err := http.Get(req.URL)
+	if err != nil {
+		blossomError(w, "failed to download from url: "+err.Error(), 503)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		blossomError(w, "failed to read response body: "+err.Error(), 503)
+		return
+	}
+
+	// calculate sha256
+	hash := sha256.Sum256(body)
+	hhash := hex.EncodeToString(hash[:])
+
+	// verify hash against x tag
+	if auth.Tags.FindWithValue("x", hhash) == nil {
+		blossomError(w, "blob hash does not match any \"x\" tag in authorization event", 403)
+		return
+	}
+
+	// determine content type and extension
+	var ext string
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "" {
+		ext = getExtension(contentType)
+	} else {
+		// try to detect from url
+		ext = filepath.Ext(req.URL)
+	}
+
+	// run reject hook if defined
+	if bs.RejectUpload != nil {
+		reject, reason, code := bs.RejectUpload(r.Context(), auth, len(body), ext)
+		if reject {
+			blossomError(w, reason, code)
+			return
+		}
+	}
+
+	// keep track of the blob descriptor
+	bd := BlobDescriptor{
+		URL:      bs.ServiceURL + "/" + hhash + ext,
+		SHA256:   hhash,
+		Size:     len(body),
+		Type:     contentType,
+		Uploaded: nostr.Now(),
+	}
+	if err := bs.Store.Keep(r.Context(), bd, auth.PubKey); err != nil {
+		blossomError(w, "failed to save event: "+err.Error(), 400)
+		return
+	}
+
+	// save actual blob
+	if bs.StoreBlob != nil {
+		if err := bs.StoreBlob(r.Context(), hhash, body); err != nil {
+			blossomError(w, "failed to save: "+err.Error(), 500)
+			return
+		}
+	}
+
+	// return response
+	json.NewEncoder(w).Encode(bd)
 }
 
 func (bs BlossomServer) handleNegentropy(w http.ResponseWriter, r *http.Request) {
