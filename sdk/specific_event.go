@@ -18,8 +18,10 @@ type FetchSpecificEventParameters struct {
 	WithRelays bool
 
 	// SkipLocalStore indicates whether to skip checking the local store for the event
-	// and storing the result in the local store.
 	SkipLocalStore bool
+
+	// SaveToLocalStore indicates the result should be saved to local store
+	SaveToLocalStore bool
 }
 
 // FetchSpecificEventFromInput tries to get a specific event from a NIP-19 code or event ID.
@@ -165,7 +167,7 @@ attempts:
 	}
 
 	// save stuff in cache and in internal store
-	if !params.SkipLocalStore {
+	if params.SaveToLocalStore {
 		sys.Publisher.Publish(ctx, *result)
 	}
 
