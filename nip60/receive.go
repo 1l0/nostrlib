@@ -13,8 +13,9 @@ import (
 
 // ReceiveOptions contains options for receiving tokens
 type ReceiveOptions struct {
-	IntoMint []string
-	IsNutzap bool
+	IntoMint                               []string
+	IsNutzap                               bool
+	AcceptTokensInSourceMintInTheWorseCase bool
 }
 
 func (w *Wallet) Receive(
@@ -28,7 +29,13 @@ func (w *Wallet) Receive(
 	}
 
 	source, _ := nostr.NormalizeHTTPURL(mint)
-	destination := opts.IntoMint
+	for i, url := range opts.IntoMint {
+		var err error
+		opts.IntoMint[i], err = nostr.NormalizeHTTPURL(url)
+		if err != nil {
+			return fmt.Errorf("invalid IntoMint URL '%s'", url)
+		}
+	}
 
 	swapSettings := swapSettings{}
 
@@ -68,9 +75,9 @@ func (w *Wallet) Receive(
 
 	// if we have to swap to our own mint we do it now by getting a bolt11 invoice from our mint
 	// and telling the current mint to pay it
-	lightningSwap := slices.Contains(destination, source)
+	lightningSwap := !slices.Contains(opts.IntoMint, source)
 	if lightningSwap {
-		for _, targetMint := range destination {
+		for _, targetMint := range opts.IntoMint {
 			swappedProofs, err, status := lightningMeltMint(
 				ctx,
 				newProofs,
@@ -79,18 +86,20 @@ func (w *Wallet) Receive(
 				targetMint,
 			)
 			if err != nil {
-				if status == tryAnotherTargetMint {
+				switch status {
+				case tryAnotherTargetMint:
 					continue
-				}
-				if status == manualActionRequired {
+				case manualActionRequired:
 					return fmt.Errorf("failed to swap (needs manual action): %w", err)
-				}
-				if status == nothingCanBeDone {
+				case nothingCanBeDone:
 					return fmt.Errorf("failed to swap (nothing can be done, we probably lost the money): %w", err)
+				case storeTokenFromSourceMint:
+					if opts.AcceptTokensInSourceMintInTheWorseCase {
+						goto saveproofs
+					} else {
+						return fmt.Errorf("unable to swap out of source mint: %w", err)
+					}
 				}
-
-				// if we get here that means we still have our proofs from the untrusted mint, so save those
-				goto saveproofs
 			} else {
 				// everything went well
 				newProofs = swappedProofs
@@ -99,8 +108,12 @@ func (w *Wallet) Receive(
 			}
 		}
 
-		// if we got here that means we ran out of our trusted mints to swap to, so save the untrusted proofs
-		goto saveproofs
+		// if we got here that means we ran out of our trusted mints to swap to
+		if opts.AcceptTokensInSourceMintInTheWorseCase {
+			goto saveproofs
+		} else {
+			return fmt.Errorf("unable to swap in to one of our mints: %w", err)
+		}
 	}
 
 saveproofs:
