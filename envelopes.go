@@ -22,11 +22,11 @@ type MessageParser interface {
 
 // Deprecated: use NewMessageParser instead
 func ParseMessage(message string) Envelope {
-	firstQuote := strings.IndexRune(message, '"')
+	firstQuote := strings.IndexByte(message, '"')
 	if firstQuote == -1 {
 		return nil
 	}
-	secondQuote := strings.IndexRune(message[firstQuote+1:], '"')
+	secondQuote := strings.IndexByte(message[firstQuote+1:], '"')
 	if secondQuote == -1 {
 		return nil
 	}

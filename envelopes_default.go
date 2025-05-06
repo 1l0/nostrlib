@@ -14,11 +14,11 @@ func NewMessageParser() MessageParser {
 type messageParser struct{}
 
 func (messageParser) ParseMessage(message string) (Envelope, error) {
-	firstQuote := strings.IndexRune(message, '"')
+	firstQuote := strings.IndexByte(message, '"')
 	if firstQuote == -1 {
 		return nil, errors.New("malformed json")
 	}
-	secondQuote := strings.IndexRune(message[firstQuote+1:], '"')
+	secondQuote := strings.IndexByte(message[firstQuote+1:], '"')
 	if secondQuote == -1 {
 		return nil, errors.New("malformed json")
 	}

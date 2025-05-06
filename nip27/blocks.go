@@ -29,7 +29,7 @@ func Parse(content string) iter.Seq[Block] {
 		prevIndex := 0
 
 		for index < max {
-			pu := strings.IndexRune(content[index:], ':')
+			pu := strings.IndexByte(content[index:], ':')
 			if pu == -1 {
 				// reached end
 				break

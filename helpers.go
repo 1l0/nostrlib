@@ -191,7 +191,7 @@ func extractEventID(jsonStr string) ID {
 	}
 
 	// move to the next quote
-	offset := strings.IndexRune(jsonStr[start+4:], '"')
+	offset := strings.IndexByte(jsonStr[start+4:], '"')
 	start += 4 + offset + 1
 
 	// get 64 characters of the id
@@ -208,7 +208,7 @@ func extractEventPubKey(jsonStr string) PubKey {
 	}
 
 	// move to the next quote
-	offset := strings.IndexRune(jsonStr[start+8:], '"')
+	offset := strings.IndexByte(jsonStr[start+8:], '"')
 	start += 8 + offset + 1
 
 	// get 64 characters of the pubkey
@@ -225,11 +225,11 @@ func extractDTag(jsonStr string) string {
 	}
 
 	// move to the next quote
-	offset := strings.IndexRune(jsonStr[start+4:], '"')
+	offset := strings.IndexByte(jsonStr[start+4:], '"')
 	start += 4 + offset + 1
 
 	// find the ending quote
-	end := strings.IndexRune(jsonStr[start:], '"')
+	end := strings.IndexByte(jsonStr[start:], '"')
 	if end == -1 {
 		return ""
 	}
