@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"fiatjaf.com/nostr/nip60/client"
 	"github.com/elnosh/gonuts/cashu"
 	"github.com/elnosh/gonuts/cashu/nuts/nut02"
 	"github.com/elnosh/gonuts/cashu/nuts/nut04"
 	"github.com/elnosh/gonuts/cashu/nuts/nut05"
-	"fiatjaf.com/nostr/nip60/client"
+	"github.com/elnosh/gonuts/cashu/nuts/nut10"
 )
 
 type lightningSwapStatus int
@@ -95,7 +96,7 @@ inspectmeltstatusresponse:
 		}
 	}
 
-	proofs, err = redeemMinted(ctx, to, mintQuote, amount)
+	proofs, err = redeemMinted(ctx, to, mintQuote, amount, nil)
 	if err != nil {
 		return nil,
 			fmt.Errorf("failed to redeem minted proofs at %s (after successfully melting at %s): %w", to, from, err),
@@ -105,11 +106,13 @@ inspectmeltstatusresponse:
 	return proofs, nil, nothingCanBeDone
 }
 
+// redeemMinted just downloads proofs from a lightning invoice paid at some mint.
 func redeemMinted(
 	ctx context.Context,
 	mint string,
 	mintQuote string,
 	mintAmount uint64,
+	spendingCondition *nut10.SpendingCondition,
 ) (cashu.Proofs, error) {
 	// source mint says it has paid the invoice, now check it against the target mint
 	// check if the _mint_ invoice was paid
@@ -139,7 +142,7 @@ func redeemMinted(
 		return nil, fmt.Errorf("target mint %s sent us an invalid keyset: %w", mint, err)
 	}
 	split := cashu.AmountSplit(mintAmount)
-	blindedMessages, secrets, rs, err := createBlindedMessages(split, keyset.Id, nil)
+	blindedMessages, secrets, rs, err := createBlindedMessages(split, keyset.Id, spendingCondition)
 	if err != nil {
 		return nil, fmt.Errorf("error creating blinded messages: %w", err)
 	}

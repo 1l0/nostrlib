@@ -34,5 +34,5 @@ func (w *Wallet) SendExternal(
 		return nil, err
 	}
 
-	return redeemMinted(ctx, mint, mintResp.Quote, targetAmount)
+	return redeemMinted(ctx, mint, mintResp.Quote, targetAmount, opts.asSpendingCondition(w.PublicKey))
 }

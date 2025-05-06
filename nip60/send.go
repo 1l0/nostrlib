@@ -20,6 +20,54 @@ type SendOptions struct {
 	SpecificSourceMint string
 	P2PK               *btcec.PublicKey
 	RefundTimelock     nostr.Timestamp
+	Hashlock           [32]byte
+}
+
+func (opts SendOptions) asSpendingCondition(refund *btcec.PublicKey) *nut10.SpendingCondition {
+	if opts.Hashlock != [32]byte{} {
+		// when we have an HTLC condition:
+		// (it can also include a P2PK and a timelock)
+		tags := nut11.P2PKTags{
+			NSigs:    1,
+			Locktime: 0,
+			Sigflag:  nut11.SIGINPUTS,
+		}
+		if opts.P2PK != nil {
+			tags.Pubkeys = []*btcec.PublicKey{opts.P2PK}
+		}
+		if opts.RefundTimelock != 0 {
+			tags.Refund = []*btcec.PublicKey{refund}
+			tags.Locktime = int64(opts.RefundTimelock)
+		}
+
+		return &nut10.SpendingCondition{
+			Kind: nut10.HTLC,
+			Data: hex.EncodeToString(opts.Hashlock[:]),
+			Tags: nut11.SerializeP2PKTags(tags),
+		}
+	} else if opts.P2PK != nil {
+		// otherwise when it is just a P2PK condition with no hashlock
+		// (may also have a timelock)
+
+		tags := nut11.P2PKTags{
+			NSigs:    1,
+			Locktime: 0,
+			Pubkeys:  []*btcec.PublicKey{opts.P2PK},
+			Sigflag:  nut11.SIGINPUTS,
+		}
+		if opts.RefundTimelock != 0 {
+			tags.Refund = []*btcec.PublicKey{refund}
+			tags.Locktime = int64(opts.RefundTimelock)
+		}
+
+		return &nut10.SpendingCondition{
+			Kind: nut10.P2PK,
+			Data: hex.EncodeToString(opts.P2PK.SerializeCompressed()),
+			Tags: nut11.SerializeP2PKTags(tags),
+		}
+	} else {
+		return nil
+	}
 }
 
 type chosenTokens struct {
@@ -28,69 +76,6 @@ type chosenTokens struct {
 	tokenIndexes []int
 	proofs       cashu.Proofs
 	keysets      []nut02.Keyset
-}
-
-func (w *Wallet) Send(ctx context.Context, amount uint64, opts SendOptions) (cashu.Proofs, string, error) {
-	if w.PublishUpdate == nil {
-		return nil, "", fmt.Errorf("can't do write operations: missing PublishUpdate function")
-	}
-
-	w.tokensMu.Lock()
-	defer w.tokensMu.Unlock()
-
-	chosen, _, err := w.getProofsForSending(ctx, amount, opts.SpecificSourceMint, nil)
-	if err != nil {
-		return nil, "", err
-	}
-
-	swapSettings := swapSettings{}
-	if opts.P2PK != nil {
-		if info, err := client.GetMintInfo(ctx, chosen.mint); err != nil || !info.Nuts.Nut11.Supported {
-			return nil, chosen.mint, fmt.Errorf("mint doesn't support p2pk: %w", err)
-		}
-
-		tags := nut11.P2PKTags{
-			NSigs:    1,
-			Locktime: 0,
-			Pubkeys:  []*btcec.PublicKey{opts.P2PK},
-		}
-		if opts.RefundTimelock != 0 {
-			tags.Refund = []*btcec.PublicKey{w.PublicKey}
-			tags.Locktime = int64(opts.RefundTimelock)
-		}
-
-		swapSettings.spendingCondition = &nut10.SpendingCondition{
-			Kind: nut10.P2PK,
-			Data: hex.EncodeToString(opts.P2PK.SerializeCompressed()),
-			Tags: nut11.SerializeP2PKTags(tags),
-		}
-	}
-
-	// get new proofs
-	proofsToSend, changeProofs, err := w.swapProofs(ctx, chosen.mint, chosen.proofs, amount, swapSettings)
-	if err != nil {
-		return nil, chosen.mint, err
-	}
-
-	he := HistoryEntry{
-		event:           &nostr.Event{},
-		TokenReferences: make([]TokenRef, 0, 5),
-		createdAt:       nostr.Now(),
-		In:              false,
-		Amount:          chosen.proofs.Amount() - changeProofs.Amount(),
-	}
-
-	if err := w.saveChangeAndDeleteUsedTokens(ctx, chosen.mint, changeProofs, chosen.tokenIndexes, &he); err != nil {
-		return nil, chosen.mint, err
-	}
-
-	w.Lock()
-	if err := he.toEvent(ctx, w.kr, he.event); err == nil {
-		w.PublishUpdate(*he.event, nil, nil, nil, true)
-	}
-	w.Unlock()
-
-	return proofsToSend, chosen.mint, nil
 }
 
 func (w *Wallet) saveChangeAndDeleteUsedTokens(

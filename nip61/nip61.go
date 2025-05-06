@@ -86,7 +86,7 @@ func SendNutzap(
 			continue
 		}
 
-		proofs, _, err := w.Send(ctx, amount, nip60.SendOptions{
+		proofs, _, err := w.SendInternal(ctx, amount, nip60.SendOptions{
 			P2PK:               p2pk,
 			SpecificSourceMint: mint,
 		})

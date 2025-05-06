@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"slices"
 
+	"fiatjaf.com/nostr/nip60/client"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elnosh/gonuts/cashu"
 	"github.com/elnosh/gonuts/cashu/nuts/nut02"
 	"github.com/elnosh/gonuts/cashu/nuts/nut03"
 	"github.com/elnosh/gonuts/cashu/nuts/nut10"
-	"fiatjaf.com/nostr/nip60/client"
 )
 
 type swapSettings struct {
