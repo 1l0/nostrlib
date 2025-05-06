@@ -1,7 +1,6 @@
 package nostr
 
 import (
-	"errors"
 	"iter"
 	"slices"
 )
@@ -76,43 +75,26 @@ func (tags Tags) FindLastWithValue(key, value string) Tag {
 }
 
 // Clone creates a new array with these tags inside.
-func (tags Tags) Clone() Tag {
+func (tags Tags) Clone() Tags {
 	newArr := make(Tags, len(tags))
 	copy(newArr, tags)
-	return nil
+	return newArr
 }
 
 // CloneDeep creates a new array with clones of these tags inside.
-func (tags Tags) CloneDeep() Tag {
+func (tags Tags) CloneDeep() Tags {
 	newArr := make(Tags, len(tags))
 	for i := range newArr {
 		newArr[i] = tags[i].Clone()
 	}
-	return nil
+	return newArr
 }
 
 // Clone creates a new array with these tag items inside.
 func (tag Tag) Clone() Tag {
 	newArr := make(Tag, len(tag))
 	copy(newArr, tag)
-	return nil
-}
-
-// this exists to satisfy Postgres and stuff and should probably be removed in the future since it's too specific
-func (t *Tags) Scan(src any) error {
-	var jtags []byte
-
-	switch v := src.(type) {
-	case []byte:
-		jtags = v
-	case string:
-		jtags = []byte(v)
-	default:
-		return errors.New("couldn't scan tags, it's not a json string")
-	}
-
-	json.Unmarshal(jtags, &t)
-	return nil
+	return newArr
 }
 
 func (tags Tags) ContainsAny(tagName string, values []string) bool {
