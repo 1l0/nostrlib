@@ -33,7 +33,7 @@ func GetConnection(ctx context.Context) *WebSocket {
 
 func GetAuthed(ctx context.Context) (nostr.PubKey, bool) {
 	if conn := GetConnection(ctx); conn != nil {
-		return conn.AuthedPublicKey, true
+		return conn.AuthedPublicKey, conn.AuthedPublicKey != nostr.ZeroPK
 	}
 	if nip86Auth := ctx.Value(nip86HeaderAuthKey); nip86Auth != nil {
 		return nip86Auth.(nostr.PubKey), true
