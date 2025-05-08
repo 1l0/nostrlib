@@ -11,7 +11,7 @@ import (
 //
 // It returns -1 when the filter is not eligible for hyperloglog calculation.
 func HyperLogLogEventPubkeyOffsetForFilter(filter nostr.Filter) int {
-	if filter.IDs != nil || filter.Since != nil || filter.Until != nil || filter.Authors != nil ||
+	if filter.IDs != nil || filter.Since != 0 || filter.Until != 0 || filter.Authors != nil ||
 		len(filter.Kinds) != 1 || filter.Search != "" || len(filter.Tags) != 1 {
 		// obvious cases in which we won't bother to do hyperloglog stuff
 		return -1

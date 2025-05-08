@@ -156,7 +156,7 @@ func ListenForMessages(
 		for ie := range pool.SubscribeMany(ctx, ourRelays, nostr.Filter{
 			Kinds: []nostr.Kind{nostr.KindGiftWrap},
 			Tags:  nostr.TagMap{"p": []string{pk.Hex()}},
-			Since: &since,
+			Since: since,
 		}, nostr.SubscriptionOptions{Label: "mydms"}) {
 			rumor, err := nip59.GiftUnwrap(
 				ie.Event,

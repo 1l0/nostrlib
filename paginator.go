@@ -11,8 +11,8 @@ func (pool *Pool) PaginatorWithInterval(
 ) func(ctx context.Context, urls []string, filter Filter, opts SubscriptionOptions) chan RelayEvent {
 	return func(ctx context.Context, urls []string, filter Filter, opts SubscriptionOptions) chan RelayEvent {
 		nextUntil := Now()
-		if filter.Until != nil {
-			nextUntil = *filter.Until
+		if filter.Until != 0 {
+			nextUntil = filter.Until
 		}
 
 		globalLimit := uint64(filter.Limit)
@@ -29,7 +29,7 @@ func (pool *Pool) PaginatorWithInterval(
 			defer close(globalCh)
 
 			for {
-				filter.Until = &nextUntil
+				filter.Until = nextUntil
 				time.Sleep(interval)
 
 				keepGoing := false
@@ -48,7 +48,7 @@ func (pool *Pool) PaginatorWithInterval(
 						return
 					}
 
-					if evt.CreatedAt < *filter.Until {
+					if evt.CreatedAt < filter.Until {
 						nextUntil = evt.CreatedAt
 					}
 				}

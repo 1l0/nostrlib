@@ -41,7 +41,7 @@ func (rl *Relay) handleDeleteRequest(ctx context.Context, evt nostr.Event) error
 					Kinds:   []nostr.Kind{nostr.Kind(kind)},
 					Authors: []nostr.PubKey{author},
 					Tags:    nostr.TagMap{"d": []string{identifier}},
-					Until:   &evt.CreatedAt,
+					Until:   evt.CreatedAt,
 				}
 			default:
 				continue

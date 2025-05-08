@@ -492,8 +492,7 @@ func (pool *Pool) subMany(
 							// this means the connection was closed for weird reasons, like the server shut down
 							// so we will update the filters here to include only events seem from now on
 							// and try to reconnect until we succeed
-							now := Now()
-							filter.Since = &now
+							filter.Since = Now()
 							debugLogf("%s reconnecting because sub.Events is broken\n", nm)
 							goto reconnect
 						}

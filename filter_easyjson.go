@@ -97,22 +97,16 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 		case "since":
 			if in.IsNull() {
 				in.Skip()
-				out.Since = nil
+				out.Since = 0
 			} else {
-				if out.Since == nil {
-					out.Since = new(Timestamp)
-				}
-				*out.Since = Timestamp(in.Int64())
+				out.Since = Timestamp(in.Int64())
 			}
 		case "until":
 			if in.IsNull() {
 				in.Skip()
-				out.Until = nil
+				out.Until = 0
 			} else {
-				if out.Until == nil {
-					out.Until = new(Timestamp)
-				}
-				*out.Until = Timestamp(in.Int64())
+				out.Until = Timestamp(in.Int64())
 			}
 		case "limit":
 			out.Limit = int(in.Int())
@@ -211,7 +205,7 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 			out.RawByte(']')
 		}
 	}
-	if in.Since != nil {
+	if in.Since != 0 {
 		const prefix string = ",\"since\":"
 		if first {
 			first = false
@@ -219,9 +213,9 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 		} else {
 			out.RawString(prefix)
 		}
-		out.Int64(int64(*in.Since))
+		out.Int64(int64(in.Since))
 	}
-	if in.Until != nil {
+	if in.Until != 0 {
 		const prefix string = ",\"until\":"
 		if first {
 			first = false
@@ -229,7 +223,7 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 		} else {
 			out.RawString(prefix)
 		}
-		out.Int64(int64(*in.Until))
+		out.Int64(int64(in.Until))
 	}
 	if in.Limit != 0 || in.LimitZero {
 		const prefix string = ",\"limit\":"

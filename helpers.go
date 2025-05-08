@@ -132,16 +132,6 @@ func escapeString(dst []byte, s string) []byte {
 	return dst
 }
 
-func arePointerValuesEqual[V comparable](a *V, b *V) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a != nil && b != nil {
-		return *a == *b
-	}
-	return false
-}
-
 func subIdToSerial(subId string) int64 {
 	n := strings.Index(subId, ":")
 	if n < 0 || n > len(subId) {

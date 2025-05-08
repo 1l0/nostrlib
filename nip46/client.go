@@ -109,11 +109,10 @@ func NewBunker(
 	}
 
 	go func() {
-		now := nostr.Now()
 		events := pool.SubscribeMany(ctx, relays, nostr.Filter{
 			Tags:      nostr.TagMap{"p": []string{clientPublicKey.Hex()}},
 			Kinds:     []nostr.Kind{nostr.KindNostrConnect},
-			Since:     &now,
+			Since:     nostr.Now(),
 			LimitZero: true,
 		}, nostr.SubscriptionOptions{
 			Label: "bunker46client",

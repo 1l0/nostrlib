@@ -41,11 +41,11 @@ func (b *SliceStore) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
 		// efficiently determine where to start and end
 		start := 0
 		end := len(b.internal)
-		if filter.Until != nil {
-			start, _ = slices.BinarySearchFunc(b.internal, *filter.Until, eventTimestampComparator)
+		if filter.Until != 0 {
+			start, _ = slices.BinarySearchFunc(b.internal, filter.Until, eventTimestampComparator)
 		}
-		if filter.Since != nil {
-			end, _ = slices.BinarySearchFunc(b.internal, *filter.Since, eventTimestampComparator)
+		if filter.Since != 0 {
+			end, _ = slices.BinarySearchFunc(b.internal, filter.Since, eventTimestampComparator)
 		}
 
 		// ham

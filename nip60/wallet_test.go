@@ -19,10 +19,7 @@ import (
 
 func TestWallet(t *testing.T) {
 	ctx := context.Background()
-	kr, err := keyer.NewPlainKeySigner(nostr.MustSecretKeyFromHex("040cbf11f24b080ad9d8669d7514d9f3b7b1f58e5a6dcb75549352b041656537"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	kr := keyer.NewPlainKeySigner(nostr.MustSecretKeyFromHex("040cbf11f24b080ad9d8669d7514d9f3b7b1f58e5a6dcb75549352b041656537"))
 
 	privateKey, _ := btcec.NewPrivateKey()
 
@@ -85,7 +82,7 @@ func TestWallet(t *testing.T) {
 
 	// wallet metadata event
 	metaEvent := nostr.Event{}
-	err = w.toEvent(ctx, kr, &metaEvent)
+	err := w.toEvent(ctx, kr, &metaEvent)
 	require.NoError(t, err)
 	events = append(events, metaEvent)
 

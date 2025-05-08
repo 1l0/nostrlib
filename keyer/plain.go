@@ -20,8 +20,8 @@ type KeySigner struct {
 
 // NewPlainKeySigner creates a new KeySigner from a private key.
 // Returns an error if the private key is invalid.
-func NewPlainKeySigner(sec [32]byte) (KeySigner, error) {
-	return KeySigner{sec, nostr.GetPublicKey(sec), xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
+func NewPlainKeySigner(sec [32]byte) KeySigner {
+	return KeySigner{sec, nostr.GetPublicKey(sec), xsync.NewMapOf[nostr.PubKey, [32]byte]()}
 }
 
 // SignEvent signs the provided event with the signer's private key.

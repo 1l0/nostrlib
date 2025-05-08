@@ -52,10 +52,10 @@ func (sys *System) StreamLiveFeed(
 
 		serial := 0
 
-		var since *nostr.Timestamp
+		var since nostr.Timestamp
 		if data, _ := sys.KVStore.Get(latestKey); data != nil {
 			latest = decodeTimestamp(data)
-			since = &latest
+			since = latest
 		}
 
 		filter := nostr.Filter{
@@ -127,7 +127,7 @@ func (sys *System) FetchFeedPage(
 
 		if until > oldestTimestamp {
 			// we can use our local database
-			filter.Until = &until
+			filter.Until = until
 
 			count := 0
 			for evt := range sys.Store.QueryEvents(filter) {
@@ -150,9 +150,8 @@ func (sys *System) FetchFeedPage(
 			wg.Done()
 			continue
 		}
-		fUntil := oldestTimestamp + 1
-		filter.Until = &fUntil
-		filter.Since = nil
+		filter.Until = oldestTimestamp + 1
+		filter.Since = 0
 		for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{
 			Label: "feedpage",
 		}) {

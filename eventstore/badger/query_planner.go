@@ -27,8 +27,8 @@ func prepareQueries(filter nostr.Filter) (
 		}
 
 		var until uint32 = 4294967295
-		if filter.Until != nil {
-			if fu := uint32(*filter.Until); fu < until {
+		if filter.Until != 0 {
+			if fu := uint32(filter.Until); fu < until {
 				until = fu + 1
 			}
 		}
@@ -38,8 +38,8 @@ func prepareQueries(filter nostr.Filter) (
 		}
 
 		// this is where we'll end the iteration
-		if filter.Since != nil {
-			if fs := uint32(*filter.Since); fs > since {
+		if filter.Since != 0 {
+			if fs := uint32(filter.Since); fs > since {
 				since = fs
 			}
 		}

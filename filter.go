@@ -11,8 +11,8 @@ type Filter struct {
 	Kinds   []Kind
 	Authors []PubKey
 	Tags    TagMap
-	Since   *Timestamp
-	Until   *Timestamp
+	Since   Timestamp
+	Until   Timestamp
 	Limit   int
 	Search  string
 
@@ -32,11 +32,11 @@ func (ef Filter) Matches(event Event) bool {
 		return false
 	}
 
-	if ef.Since != nil && event.CreatedAt < *ef.Since {
+	if ef.Since != 0 && event.CreatedAt < ef.Since {
 		return false
 	}
 
-	if ef.Until != nil && event.CreatedAt > *ef.Until {
+	if ef.Until != 0 && event.CreatedAt > ef.Until {
 		return false
 	}
 
@@ -92,11 +92,11 @@ func FilterEqual(a Filter, b Filter) bool {
 		}
 	}
 
-	if !arePointerValuesEqual(a.Since, b.Since) {
+	if a.Since != b.Since {
 		return false
 	}
 
-	if !arePointerValuesEqual(a.Until, b.Until) {
+	if a.Until != b.Until {
 		return false
 	}
 
@@ -117,6 +117,8 @@ func (ef Filter) Clone() Filter {
 		Limit:     ef.Limit,
 		Search:    ef.Search,
 		LimitZero: ef.LimitZero,
+		Since:     ef.Since,
+		Until:     ef.Until,
 	}
 
 	if ef.IDs != nil {
@@ -138,16 +140,6 @@ func (ef Filter) Clone() Filter {
 		for k, v := range ef.Tags {
 			clone.Tags[k] = slices.Clone(v)
 		}
-	}
-
-	if ef.Since != nil {
-		since := *ef.Since
-		clone.Since = &since
-	}
-
-	if ef.Until != nil {
-		until := *ef.Until
-		clone.Until = &until
 	}
 
 	return clone

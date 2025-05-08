@@ -54,14 +54,14 @@ func (b *BlugeBackend) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
 			q = complicatedQuery
 		}
 
-		if filter.Since != nil || filter.Until != nil {
+		if filter.Since != 0 || filter.Until != 0 {
 			min := 0.0
-			if filter.Since != nil {
-				min = float64(*filter.Since)
+			if filter.Since != 0 {
+				min = float64(filter.Since)
 			}
 			max := float64(nostr.Now())
-			if filter.Until != nil {
-				max = float64(*filter.Until)
+			if filter.Until != 0 {
+				max = float64(filter.Until)
 			}
 			dateRangeQ := bluge.NewNumericRangeInclusiveQuery(min, max, true, true)
 			dateRangeQ.SetField(createdAtField)
