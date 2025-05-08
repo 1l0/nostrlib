@@ -47,10 +47,6 @@ func (b *MultiMmapManager) queryByIDs(yield func(nostr.Event) bool, ids []nostr.
 		}
 
 		for _, id := range ids {
-			if len(id) != 64 {
-				continue
-			}
-
 			val, err := txn.Get(b.indexId, id[0:8])
 			if err == nil {
 				pos := positionFromBytes(val[0:12])
