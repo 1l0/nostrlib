@@ -233,6 +233,10 @@ func (bs BlossomServer) handleHasBlob(w http.ResponseWriter, r *http.Request) {
 		blossomError(w, "file not found", 404)
 		return
 	}
+
+	w.Header().Set("Content-Length", strconv.Itoa(bd.Size))
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Content-Type", bd.Type)
 }
 
 func (bs BlossomServer) handleList(w http.ResponseWriter, r *http.Request) {
@@ -447,6 +451,11 @@ func (bs BlossomServer) handleMirror(w http.ResponseWriter, r *http.Request) {
 
 	// return response
 	json.NewEncoder(w).Encode(bd)
+}
+
+func (bs BlossomServer) handleMedia(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/upload", 307)
+	return
 }
 
 func (bs BlossomServer) handleNegentropy(w http.ResponseWriter, r *http.Request) {
