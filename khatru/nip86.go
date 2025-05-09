@@ -18,7 +18,7 @@ import (
 )
 
 type RelayManagementAPI struct {
-	RejectAPICall []func(ctx context.Context, mp nip86.MethodParams) (reject bool, msg string)
+	OnAPICall func(ctx context.Context, mp nip86.MethodParams) (reject bool, msg string)
 
 	BanPubKey                   func(ctx context.Context, pubkey nostr.PubKey, reason string) error
 	ListBannedPubKeys           func(ctx context.Context) ([]nip86.PubKeyReason, error)
@@ -110,8 +110,8 @@ func (rl *Relay) HandleNIP86(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx = context.WithValue(ctx, nip86HeaderAuthKey, evt.PubKey)
-	for _, rac := range rl.ManagementAPI.RejectAPICall {
-		if reject, msg := rac(ctx, mp); reject {
+	if rl.ManagementAPI.OnAPICall != nil {
+		if reject, msg := rl.ManagementAPI.OnAPICall(ctx, mp); reject {
 			resp.Error = msg
 			goto respond
 		}
