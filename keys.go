@@ -74,6 +74,9 @@ func (pk *PubKey) UnmarshalJSON(buf []byte) error {
 		return fmt.Errorf("must be a hex string of 64 characters")
 	}
 	_, err := hex.Decode(pk[:], buf[1:65])
+	if _, err := schnorr.ParsePubKey(pk[:]); err != nil {
+		return fmt.Errorf("pubkey is not valid %w", err)
+	}
 	return err
 }
 

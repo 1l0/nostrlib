@@ -18,37 +18,24 @@ type DynamicSigner struct {
 
 	sync.Mutex
 
-	getHandlerSecretKey func(handlerPubkey nostr.PubKey) ([32]byte, error)
-	getUserKeyer        func(handlerPubkey nostr.PubKey) (nostr.Keyer, error)
-	authorizeSigning    func(event nostr.Event, from nostr.PubKey, secret string) bool
-	authorizeEncryption func(from nostr.PubKey, secret string) bool
-	onEventSigned       func(event nostr.Event)
-}
-
-func NewDynamicSigner(
 	// the handler is the keypair we use to communicate with the NIP-46 client, decrypt requests, encrypt responses etc
-	getHandlerSecretKey func(handlerPubkey nostr.PubKey) ([32]byte, error),
+	GetHandlerSecretKey func(handlerPubkey nostr.PubKey) (nostr.SecretKey, error)
 
 	// this should correspond to the actual user on behalf of which we will respond to requests
-	getUserKeyer func(handlerPubkey nostr.PubKey) (nostr.Keyer, error),
+	GetUserKeyer func(handlerPubkey nostr.PubKey) (nostr.Keyer, error)
 
 	// this is called on every sign_event call, if it is nil it will be assumed that everything is authorized
-	authorizeSigning func(event nostr.Event, from nostr.PubKey, secret string) bool,
+	AuthorizeSigning func(event nostr.Event, from nostr.PubKey, secret string) bool
 
 	// this is called on every encrypt or decrypt calls, if it is nil it will be assumed that everything is authorized
-	authorizeEncryption func(from nostr.PubKey, secret string) bool,
+	AuthorizeEncryption func(from nostr.PubKey, secret string) bool
 
 	// unless it is nil, this is called after every event is signed
-	onEventSigned func(event nostr.Event),
-) DynamicSigner {
-	return DynamicSigner{
-		sessions:            make(map[nostr.PubKey]Session),
-		getHandlerSecretKey: getHandlerSecretKey,
-		getUserKeyer:        getUserKeyer,
-		authorizeSigning:    authorizeSigning,
-		authorizeEncryption: authorizeEncryption,
-		onEventSigned:       onEventSigned,
-	}
+	OnEventSigned func(event nostr.Event)
+}
+
+func (p *DynamicSigner) Init() {
+	p.sessions = make(map[nostr.PubKey]Session)
 }
 
 func (p *DynamicSigner) GetSession(clientPubkey nostr.PubKey) (Session, bool) {
@@ -95,11 +82,11 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 	if err != nil {
 		return req, resp, eventResponse, fmt.Errorf("%x is invalid pubkey: %w", handler[1], err)
 	}
-	handlerSecret, err := p.getHandlerSecretKey(handlerPubkey)
+	handlerSecret, err := p.GetHandlerSecretKey(handlerPubkey)
 	if err != nil {
 		return req, resp, eventResponse, fmt.Errorf("no private key for %s: %w", handlerPubkey, err)
 	}
-	userKeyer, err := p.getUserKeyer(handlerPubkey)
+	userKeyer, err := p.GetUserKeyer(handlerPubkey)
 	if err != nil {
 		return req, resp, eventResponse, fmt.Errorf("failed to get user keyer for %s: %w", handlerPubkey, err)
 	}
@@ -149,7 +136,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			resultErr = fmt.Errorf("failed to decode event/2: %w", err)
 			break
 		}
-		if p.authorizeSigning != nil && !p.authorizeSigning(evt, event.PubKey, secret) {
+		if p.AuthorizeSigning != nil && !p.AuthorizeSigning(evt, event.PubKey, secret) {
 			resultErr = fmt.Errorf("refusing to sign this event")
 			break
 		}
@@ -171,7 +158,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip44_encrypt' is not a valid pubkey string")
 			break
 		}
-		if p.authorizeEncryption != nil && !p.authorizeEncryption(event.PubKey, secret) {
+		if p.AuthorizeEncryption != nil && !p.AuthorizeEncryption(event.PubKey, secret) {
 			resultErr = fmt.Errorf("refusing to encrypt")
 			break
 		}
@@ -193,7 +180,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey string")
 			break
 		}
-		if p.authorizeEncryption != nil && !p.authorizeEncryption(event.PubKey, secret) {
+		if p.AuthorizeEncryption != nil && !p.AuthorizeEncryption(event.PubKey, secret) {
 			resultErr = fmt.Errorf("refusing to decrypt")
 			break
 		}

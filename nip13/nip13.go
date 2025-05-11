@@ -22,7 +22,7 @@ var (
 //
 // if the target is smaller than the actual difficulty then the value of the target is used.
 // if the target is bigger than the actual difficulty then it returns 0.
-func CommittedDifficulty(event *nostr.Event) int {
+func CommittedDifficulty(event nostr.Event) int {
 	work := 0
 	if nonceTag := event.Tags.Find("nonce"); nonceTag != nil && len(nonceTag) >= 3 {
 		work = Difficulty(event.ID)

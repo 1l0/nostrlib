@@ -2,18 +2,20 @@ package nip11
 
 import (
 	"slices"
+
+	"fiatjaf.com/nostr"
 )
 
 type RelayInformationDocument struct {
 	URL string `json:"-"`
 
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	PubKey        string `json:"pubkey"`
-	Contact       string `json:"contact"`
-	SupportedNIPs []any  `json:"supported_nips"`
-	Software      string `json:"software"`
-	Version       string `json:"version"`
+	Name          string       `json:"name"`
+	Description   string       `json:"description"`
+	PubKey        nostr.PubKey `json:"pubkey"`
+	Contact       string       `json:"contact"`
+	SupportedNIPs []any        `json:"supported_nips"`
+	Software      string       `json:"software"`
+	Version       string       `json:"version"`
 
 	Limitation     *RelayLimitationDocument  `json:"limitation,omitempty"`
 	RelayCountries []string                  `json:"relay_countries,omitempty"`
