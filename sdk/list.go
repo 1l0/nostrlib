@@ -57,7 +57,10 @@ func fetchGenericList[V comparable, I TagItemWithValue[V]](
 
 	v := GenericList[V, I]{PubKey: pubkey}
 
-	for evt := range sys.Store.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{actualKind}, Authors: []nostr.PubKey{pubkey}}) {
+	for evt := range sys.Store.QueryEvents(nostr.Filter{
+		Kinds:   []nostr.Kind{actualKind},
+		Authors: []nostr.PubKey{pubkey},
+	}, 1) {
 		// ok, we found something locally
 		items := parseItemsFromEventTags(evt, parseTag)
 		v.Event = &evt

@@ -12,13 +12,13 @@ func (b *BlugeBackend) ReplaceEvent(evt nostr.Event) error {
 	b.Lock()
 	defer b.Unlock()
 
-	filter := nostr.Filter{Limit: 1, Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
-	if evt.Kind.IsReplaceable() {
+	filter := nostr.Filter{Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
+	if evt.Kind.IsAddressable() {
 		filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}
 	}
 
 	shouldStore := true
-	for previous := range b.QueryEvents(filter) {
+	for previous := range b.QueryEvents(filter, 1) {
 		if internal.IsOlder(previous, evt) {
 			if err := b.DeleteEvent(previous.ID); err != nil {
 				return fmt.Errorf("failed to delete event for replacing: %w", err)

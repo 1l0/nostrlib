@@ -117,9 +117,14 @@ type Relay struct {
 	expirationManager *expirationManager
 }
 
-func (rl *Relay) UseEventstore(store eventstore.Store) {
+// UseEventstore hooks up an eventstore.Store into the relay in the default way.
+// It should be used in 85% of the cases, when you don't want to do any complicated scheme with your event storage.
+//
+// maxQueryLimit is the default max limit to be enforced when querying events, to prevent users for downloading way
+// too much, setting it to something like 500 or 1000 should be ok in most cases.
+func (rl *Relay) UseEventstore(store eventstore.Store, maxQueryLimit int) {
 	rl.QueryStored = func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
-		return store.QueryEvents(filter)
+		return store.QueryEvents(filter, maxQueryLimit)
 	}
 	rl.Count = func(ctx context.Context, filter nostr.Filter) (uint32, error) {
 		return store.CountEvents(filter)

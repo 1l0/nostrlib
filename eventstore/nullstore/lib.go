@@ -21,7 +21,7 @@ func (b NullStore) DeleteEvent(id nostr.ID) error {
 	return nil
 }
 
-func (b NullStore) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
+func (b NullStore) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event] {
 	return func(yield func(nostr.Event) bool) {}
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"slices"
 	"time"
 
@@ -18,7 +19,7 @@ func main() {
 	db.Init()
 
 	sk := nostr.Generate()
-	local := wrappers.StorePublisher{Store: db}
+	local := wrappers.StorePublisher{Store: db, MaxLimit: math.MaxInt}
 
 	for {
 		for i := 0; i < 20; i++ {

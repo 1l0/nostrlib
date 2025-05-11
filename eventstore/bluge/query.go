@@ -10,8 +10,15 @@ import (
 	"github.com/blugelabs/bluge/search"
 )
 
-func (b *BlugeBackend) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
+func (b *BlugeBackend) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event] {
 	return func(yield func(nostr.Event) bool) {
+		limit := maxLimit
+		if filter.LimitZero {
+			return
+		} else if filter.Limit < limit {
+			limit = filter.Limit
+		}
+
 		if len(filter.Search) < 2 {
 			return
 		}
@@ -69,14 +76,6 @@ func (b *BlugeBackend) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
 			q = complicatedQuery
 		}
 
-		limit := 40
-		if filter.Limit != 0 {
-			limit = filter.Limit
-			if filter.Limit > 150 {
-				limit = 150
-			}
-		}
-
 		req := bluge.NewTopNSearch(limit, q)
 
 		dmi, err := reader.Search(context.Background(), req)
@@ -92,7 +91,7 @@ func (b *BlugeBackend) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
 			next.VisitStoredFields(func(field string, value []byte) bool {
 				id, err := nostr.IDFromHex(string(value))
 				if err == nil {
-					for evt := range b.RawEventStore.QueryEvents(nostr.Filter{IDs: []nostr.ID{id}}) {
+					for evt := range b.RawEventStore.QueryEvents(nostr.Filter{IDs: []nostr.ID{id}}, 1) {
 						yield(evt)
 					}
 				}

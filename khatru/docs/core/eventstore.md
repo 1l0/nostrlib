@@ -35,7 +35,7 @@ func main() {
 		panic(err)
 	}
 
-	relay.UseEventstore(db)
+	relay.UseEventstore(db, 500)
 
 	fmt.Println("running on :3334")
 	http.ListenAndServe(":3334", relay)
@@ -43,10 +43,6 @@ func main() {
 ```
 
 [LMDB](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/lmdb) works the same way.
-
-[SQLite](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/sqlite3) also stores things locally so it only needs a `Path`.
-
-[PostgreSQL](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/postgresql) and [MySQL](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/mysql) use remote connections to database servers, so they take a `DatabaseURL` parameter, but after that it's the same.
 
 ## Using two at a time
 

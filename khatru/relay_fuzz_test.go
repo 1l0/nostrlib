@@ -24,7 +24,7 @@ func FuzzReplaceableEvents(f *testing.F) {
 		relay := NewRelay()
 		store := &lmdb.LMDBBackend{Path: "/tmp/fuzz"}
 		store.Init()
-		relay.UseEventstore(store)
+		relay.UseEventstore(store, 4000)
 
 		defer store.Close()
 

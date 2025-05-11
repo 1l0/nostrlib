@@ -14,8 +14,7 @@ type IndexingLayer struct {
 	isInitialized bool
 	name          string
 
-	MaxLimit int
-	mmmm     *MultiMmapManager
+	mmmm *MultiMmapManager
 
 	// this is stored in the knownLayers db as a value, and used to keep track of which layer owns each event
 	id uint16
@@ -52,10 +51,6 @@ func (il *IndexingLayer) Init() error {
 	il.isInitialized = true
 
 	path := filepath.Join(il.mmmm.Dir, il.name)
-
-	if il.MaxLimit == 0 {
-		il.MaxLimit = 500
-	}
 
 	// open lmdb
 	env, err := lmdb.NewEnv()

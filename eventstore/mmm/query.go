@@ -73,32 +73,30 @@ func (b *MultiMmapManager) queryByIDs(yield func(nostr.Event) bool, ids []nostr.
 	})
 }
 
-func (il *IndexingLayer) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
+func (il *IndexingLayer) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event] {
 	return func(yield func(nostr.Event) bool) {
 		if len(filter.IDs) > 0 {
 			il.mmmm.queryByIDs(yield, filter.IDs, nil)
 			return
 		}
-
 		if filter.Search != "" {
 			return
 		}
 
 		// max number of events we'll return
-		limit := il.MaxLimit / 4
-		if filter.Limit > 0 && filter.Limit < il.MaxLimit {
-			limit = filter.Limit
-		}
-		if tlimit := nostr.GetTheoreticalLimit(filter); tlimit == 0 {
+		if tlimit := filter.GetTheoreticalLimit(); tlimit == 0 || filter.LimitZero {
 			return
-		} else if tlimit > 0 {
-			limit = tlimit
+		} else if tlimit < maxLimit {
+			maxLimit = tlimit
+		}
+		if filter.Limit < maxLimit {
+			maxLimit = filter.Limit
 		}
 
 		il.lmdbEnv.View(func(txn *lmdb.Txn) error {
 			txn.RawRead = true
 
-			results, err := il.query(txn, filter, limit)
+			results, err := il.query(txn, filter, filter.Limit)
 
 			for _, ie := range results {
 				if !yield(ie.Event) {

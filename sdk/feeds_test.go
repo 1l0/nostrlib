@@ -22,7 +22,7 @@ func TestStreamLiveFeed(t *testing.T) {
 	for _, r := range []*khatru.Relay{relay1, relay2, relay3} {
 		db := &slicestore.SliceStore{}
 		db.Init()
-		r.UseEventstore(db)
+		r.UseEventstore(db, 4000)
 		defer db.Close()
 	}
 

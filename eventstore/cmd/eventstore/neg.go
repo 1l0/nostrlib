@@ -44,7 +44,7 @@ var neg = &cli.Command{
 		// create negentropy object and initialize it with events
 		vec := vector.New()
 		neg := negentropy.New(vec, frameSizeLimit)
-		for evt := range db.QueryEvents(filter) {
+		for evt := range db.QueryEvents(filter, math.MaxInt) {
 			vec.Insert(evt.CreatedAt, evt.ID)
 		}
 

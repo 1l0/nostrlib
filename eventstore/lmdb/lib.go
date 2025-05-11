@@ -14,10 +14,8 @@ import (
 var _ eventstore.Store = (*LMDBBackend)(nil)
 
 type LMDBBackend struct {
-	Path               string
-	MaxLimit           int
-	MaxLimitNegentropy int
-	MapSize            int64
+	Path    string
+	MapSize int64
 
 	lmdbEnv    *lmdb.Env
 	extraFlags uint // (for debugging and testing)
@@ -41,15 +39,6 @@ type LMDBBackend struct {
 }
 
 func (b *LMDBBackend) Init() error {
-	if b.MaxLimit != 0 {
-		b.MaxLimitNegentropy = b.MaxLimit
-	} else {
-		b.MaxLimit = 1500
-		if b.MaxLimitNegentropy == 0 {
-			b.MaxLimitNegentropy = 16777216
-		}
-	}
-
 	// create directory if it doesn't exist and open it
 	if err := os.MkdirAll(b.Path, 0755); err != nil {
 		return err

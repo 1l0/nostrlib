@@ -16,7 +16,7 @@ type Store interface {
 	Close()
 
 	// QueryEvents returns events that match the filter
-	QueryEvents(nostr.Filter) iter.Seq[nostr.Event]
+	QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event]
 
 	// DeleteEvent deletes an event atomically by ID
 	DeleteEvent(nostr.ID) error

@@ -136,7 +136,7 @@ func NewSystem() *System {
 		sys.Store = &nullstore.NullStore{}
 		sys.Store.Init()
 	}
-	sys.Publisher = wrappers.StorePublisher{Store: sys.Store}
+	sys.Publisher = wrappers.StorePublisher{Store: sys.Store, MaxLimit: 1000}
 
 	sys.initializeReplaceableDataloaders()
 	sys.initializeAddressableDataloaders()

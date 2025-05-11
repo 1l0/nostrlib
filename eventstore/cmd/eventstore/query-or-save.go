@@ -47,7 +47,7 @@ func doSave(ctx context.Context, line string, evt nostr.Event) error {
 }
 
 func doQuery(ctx context.Context, f *nostr.Filter) error {
-	for evt := range db.QueryEvents(*f) {
+	for evt := range db.QueryEvents(*f, 1_000_000) {
 		fmt.Println(evt)
 	}
 	return nil

@@ -124,19 +124,18 @@ func (sys *System) FetchFeedPage(
 		}
 
 		filter := nostr.Filter{Authors: []nostr.PubKey{pubkey}, Kinds: kinds}
-
 		if until > oldestTimestamp {
 			// we can use our local database
 			filter.Until = until
 
 			count := 0
-			for evt := range sys.Store.QueryEvents(filter) {
+			for evt := range sys.Store.QueryEvents(filter, limitPerKey) {
 				events = append(events, evt)
 				count++
 				if count >= limitPerKey {
 					// we got enough from the local store
 					wg.Done()
-					continue
+					break
 				}
 			}
 		}

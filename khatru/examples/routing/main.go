@@ -15,17 +15,17 @@ func main() {
 	db1 := &slicestore.SliceStore{}
 	db1.Init()
 	r1 := khatru.NewRelay()
-	r1.UseEventstore(db1)
+	r1.UseEventstore(db1, 400)
 
 	db2 := &badger.BadgerBackend{Path: "/tmp/t"}
 	db2.Init()
 	r2 := khatru.NewRelay()
-	r2.UseEventstore(db2)
+	r2.UseEventstore(db2, 400)
 
 	db3 := &slicestore.SliceStore{}
 	db3.Init()
 	r3 := khatru.NewRelay()
-	r3.UseEventstore(db3)
+	r3.UseEventstore(db3, 400)
 
 	router := khatru.NewRouter()
 

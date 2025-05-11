@@ -20,7 +20,7 @@ func main() {
 		panic(err)
 	}
 
-	relay.UseEventstore(db)
+	relay.UseEventstore(db, 400)
 
 	bdb := &badger.BadgerBackend{Path: "/tmp/khatru-badger-blossom-tmp"}
 	if err := bdb.Init(); err != nil {

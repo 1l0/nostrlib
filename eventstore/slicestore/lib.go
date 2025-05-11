@@ -18,24 +18,19 @@ var _ eventstore.Store = (*SliceStore)(nil)
 type SliceStore struct {
 	sync.Mutex
 	internal []nostr.Event
-
-	MaxLimit int
 }
 
 func (b *SliceStore) Init() error {
 	b.internal = make([]nostr.Event, 0, 5000)
-	if b.MaxLimit == 0 {
-		b.MaxLimit = 500
-	}
 	return nil
 }
 
 func (b *SliceStore) Close() {}
 
-func (b *SliceStore) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
+func (b *SliceStore) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event] {
 	return func(yield func(nostr.Event) bool) {
-		if filter.Limit > b.MaxLimit || (filter.Limit == 0 && !filter.LimitZero) {
-			filter.Limit = b.MaxLimit
+		if filter.Limit > maxLimit || (filter.Limit == 0 && !filter.LimitZero) {
+			filter.Limit = maxLimit
 		}
 
 		// efficiently determine where to start and end
@@ -136,7 +131,7 @@ func (b *SliceStore) ReplaceEvent(evt nostr.Event) error {
 	}
 
 	shouldStore := true
-	for previous := range b.QueryEvents(filter) {
+	for previous := range b.QueryEvents(filter, 1) {
 		if internal.IsOlder(previous, evt) {
 			if err := b.delete(previous.ID); err != nil {
 				return fmt.Errorf("failed to delete event for replacing: %w", err)

@@ -70,9 +70,9 @@ var app = &cli.Command{
 
 		switch typ {
 		case "lmdb":
-			db = &lmdb.LMDBBackend{Path: path, MaxLimit: 1_000_000}
+			db = &lmdb.LMDBBackend{Path: path}
 		case "badger":
-			db = &badger.BadgerBackend{Path: path, MaxLimit: 1_000_000}
+			db = &badger.BadgerBackend{Path: path}
 		case "mmm":
 			var err error
 			if db, err = doMmmInit(path); err != nil {

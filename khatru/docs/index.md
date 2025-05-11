@@ -24,7 +24,7 @@ features:
   - title: It plugs into event stores easily
     icon: 📦
     link: /core/eventstore
-    details: khatru's companion, the `eventstore` library, provides all methods for storing and querying events efficiently from SQLite, LMDB, Postgres, Badger and others.
+    details: khatru's companion, the `eventstore` library, provides all methods for storing and querying events efficiently from LMDB, Badger and others.
   - title: It supports NIP-42 AUTH
     icon: 🪪
     link: /core/auth
@@ -48,7 +48,7 @@ func main() {
 	relay := khatru.NewRelay()
 	db := badger.BadgerBackend{Path: "/tmp/khatru-badgern-tmp"}
 	db.Init()
-	relay.UseEventStore(db)
+	relay.UseEventStore(db, 400)
 	http.ListenAndServe(":3334", relay)
 }
 ```

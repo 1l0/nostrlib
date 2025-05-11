@@ -16,7 +16,7 @@ func main() {
 		panic(err)
 	}
 
-	relay.UseEventstore(db)
+	relay.UseEventstore(db, 400)
 
 	relay.Negentropy = true
 

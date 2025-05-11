@@ -31,15 +31,15 @@ relay.Info.Description = "this is my custom relay"
 relay.Info.Icon = "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fliquipedia.net%2Fcommons%2Fimages%2F3%2F35%2FSCProbe.jpg&f=1&nofb=1&ipt=0cbbfef25bce41da63d910e86c3c343e6c3b9d63194ca9755351bb7c2efa3359&ipo=images"
 ```
 
-Now we must set up the basic functions for accepting events and answering queries. We could make our own querying engine from scratch, but we can also use [eventstore](https://fiatjaf.com/nostr/eventstore). In this example we'll use the SQLite adapter:
+Now we must set up the basic functions for accepting events and answering queries. We could make our own querying engine from scratch, but we can also use [eventstore](https://pkg.go.dev/fiatjaf.com/nostr/eventstore). In this example we'll use the Badger adapter:
 
 ```go
-db := sqlite3.SQLite3Backend{DatabaseURL: "/tmp/khatru-sqlite-tmp"}
+db := badger.BadgerBackend{Path: "/tmp/khatru-badger-tmp"}
 if err := db.Init(); err != nil {
 	panic(err)
 }
 
-relay.UseEventstore(db)
+relay.UseEventstore(db, 500)
 ```
 
 These are lists of functions that will be called in order every time an `EVENT` is received, or a `REQ` query is received. You can add more than one handler there, you can have a function that reads from some other server, but just in some cases, you can do anything.

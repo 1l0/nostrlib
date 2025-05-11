@@ -14,27 +14,25 @@ import (
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (b *LMDBBackend) QueryEvents(filter nostr.Filter) iter.Seq[nostr.Event] {
+func (b *LMDBBackend) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event] {
 	return func(yield func(nostr.Event) bool) {
 		if filter.Search != "" {
 			return
 		}
 
 		// max number of events we'll return
-		var limit int
-		limit = b.MaxLimit / 4
-		if filter.Limit > 0 && filter.Limit <= b.MaxLimit {
-			limit = filter.Limit
-		}
-		if tlimit := nostr.GetTheoreticalLimit(filter); tlimit == 0 {
+		if tlimit := filter.GetTheoreticalLimit(); tlimit == 0 || filter.LimitZero {
 			return
-		} else if tlimit > 0 {
-			limit = tlimit
+		} else if tlimit < maxLimit {
+			maxLimit = tlimit
+		}
+		if filter.Limit < maxLimit {
+			maxLimit = filter.Limit
 		}
 
 		b.lmdbEnv.View(func(txn *lmdb.Txn) error {
 			txn.RawRead = true
-			results, err := b.query(txn, filter, limit)
+			results, err := b.query(txn, filter, maxLimit)
 
 			for _, ie := range results {
 				if !yield(ie.Event) {

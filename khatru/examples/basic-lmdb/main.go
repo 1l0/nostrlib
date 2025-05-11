@@ -18,7 +18,7 @@ func main() {
 		panic(err)
 	}
 
-	relay.UseEventstore(db)
+	relay.UseEventstore(db, 400)
 
 	fmt.Println("running on :3334")
 	http.ListenAndServe(":3334", relay)

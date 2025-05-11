@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"math"
 	"slices"
 
 	"github.com/mailru/easyjson"
@@ -148,19 +149,19 @@ func (ef Filter) Clone() Filter {
 // GetTheoreticalLimit gets the maximum number of events that a normal filter would ever return, for example, if
 // there is a number of "ids" in the filter, the theoretical limit will be that number of ids.
 //
-// It returns -1 if there are no theoretical limits.
+// It returns math.MaxInt if there are no theoretical limits.
 //
 // The given .Limit present in the filter is ignored.
-func GetTheoreticalLimit(filter Filter) int {
-	if len(filter.IDs) > 0 {
+func (filter Filter) GetTheoreticalLimit() int {
+	if filter.IDs != nil {
 		return len(filter.IDs)
 	}
 
-	if len(filter.Kinds) == 0 {
-		return -1
+	if filter.Kinds != nil {
+		return math.MaxInt
 	}
 
-	if len(filter.Authors) > 0 {
+	if filter.Authors != nil {
 		allAreReplaceable := true
 		for _, kind := range filter.Kinds {
 			if !kind.IsReplaceable() {
@@ -186,5 +187,5 @@ func GetTheoreticalLimit(filter Filter) int {
 		}
 	}
 
-	return -1
+	return math.MaxInt
 }

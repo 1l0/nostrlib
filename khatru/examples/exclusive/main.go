@@ -21,7 +21,7 @@ func main() {
 		panic(err)
 	}
 
-	relay.UseEventstore(db)
+	relay.UseEventstore(db, 400)
 
 	relay.OnEvent = policies.PreventTooManyIndexableTags(10, nil, nil)
 	relay.OnRequest = policies.NoComplexFilters

@@ -34,18 +34,3 @@ func main () {
 ```
 
 Note that in this case we're using the [LMDB](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/lmdb) adapter for normal queries and it explicitly rejects any filter that contains a `Search` field, while [Bluge](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/bluge) rejects any filter _without_ a `Search` value, which make them pair well together.
-
-Other adapters, like [SQLite](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/sqlite3), implement search functionality on their own, so if you don't want to use that you would have to have a middleware between, like:
-
-```go
-	relay.StoreEvent = policies.SeqStore(db.SaveEvent, search.SaveEvent)
-	relay.QueryStored = func (ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
-        if len(filter.Search) > 0 {
-			return search.QueryEvents(ctx, filter)
-        } else {
-			filterNoSearch := filter
-            filterNoSearch.Search = ""
-			return normal.QueryEvents(ctx, filterNoSearch)
-		}
-	})
-```

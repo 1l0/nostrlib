@@ -17,7 +17,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 	store := &slicestore.SliceStore{}
 	store.Init()
 
-	relay.UseEventstore(store)
+	relay.UseEventstore(store, 400)
 
 	// start test server
 	server := httptest.NewServer(relay)
@@ -239,7 +239,7 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		relay.expirationManager.interval = 3 * time.Second // check every 3 seconds
 		store := &slicestore.SliceStore{}
 		store.Init()
-		relay.UseEventstore(store)
+		relay.UseEventstore(store, 400)
 
 		// start test server
 		server := httptest.NewServer(relay)
