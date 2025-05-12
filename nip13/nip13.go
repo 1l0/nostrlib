@@ -3,7 +3,6 @@ package nip13
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"math/bits"
 	"runtime"
@@ -39,16 +38,12 @@ func CommittedDifficulty(event nostr.Event) int {
 // Difficulty counts the number of leading zero bits in an event ID.
 func Difficulty(id nostr.ID) int {
 	var zeros int
-	var b [1]byte
-	for i := 0; i < 32; i += 2 {
+	for i := 0; i < 32; i++ {
 		if id[i] == 0 {
 			zeros += 8
 			continue
 		}
-		if _, err := hex.Decode(b[:], []byte{id[i], id[i+1]}); err != nil {
-			return -1
-		}
-		zeros += bits.LeadingZeros8(b[0])
+		zeros += bits.LeadingZeros8(id[i])
 		break
 	}
 	return zeros
