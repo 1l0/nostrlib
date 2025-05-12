@@ -230,7 +230,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 							// the number of notified listeners matters in ephemeral events
 							if env.Event.Kind.IsEphemeral() {
-								if n == 0 {
+								if n == 0 && nil == rl.OnEphemeralEvent {
 									ok = false
 									reason = "mute: no one was listening for this"
 								} else {
