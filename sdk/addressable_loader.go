@@ -103,7 +103,7 @@ func (sys *System) batchLoadAddressableEvents(
 	wg.Wait()
 
 	// query all relays with the prepared filters
-	multiSubs := sys.Pool.BatchedSubManyEose(aggregatedContext, relayFilter, nostr.SubscriptionOptions{
+	multiSubs := sys.Pool.BatchedQueryMany(aggregatedContext, relayFilter, nostr.SubscriptionOptions{
 		Label: "loadaddrs",
 	})
 nextEvent:
