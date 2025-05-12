@@ -26,7 +26,7 @@ func (b *LMDBBackend) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[no
 		} else if tlimit < maxLimit {
 			maxLimit = tlimit
 		}
-		if filter.Limit < maxLimit {
+		if filter.Limit > 0 && filter.Limit < maxLimit {
 			maxLimit = filter.Limit
 		}
 

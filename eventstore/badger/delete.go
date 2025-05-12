@@ -12,8 +12,6 @@ import (
 var serialDelete uint32 = 0
 
 func (b *BadgerBackend) DeleteEvent(id nostr.ID) error {
-	fmt.Println("...", id)
-
 	deletionHappened := false
 
 	err := b.Update(func(txn *badger.Txn) error {

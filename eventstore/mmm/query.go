@@ -89,7 +89,7 @@ func (il *IndexingLayer) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq
 		} else if tlimit < maxLimit {
 			maxLimit = tlimit
 		}
-		if filter.Limit < maxLimit {
+		if filter.Limit > 0 && filter.Limit < maxLimit {
 			maxLimit = filter.Limit
 		}
 
