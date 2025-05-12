@@ -61,7 +61,6 @@ func FuzzQuery(f *testing.F) {
 			return
 		}
 
-		db.MaxLimit = 500
 		defer db.Close()
 
 		// ~ start actual test
@@ -116,7 +115,7 @@ func FuzzQuery(f *testing.F) {
 
 		start := time.Now()
 		// fmt.Println(filter)
-		res := slices.Collect(db.QueryEvents(filter))
+		res := slices.Collect(db.QueryEvents(filter, 500))
 		end := time.Now()
 
 		require.NoError(t, err)

@@ -46,7 +46,7 @@ func TestBlugeFlow(t *testing.T) {
 
 	{
 		n := 0
-		for range bl.QueryEvents(nostr.Filter{Search: "good"}) {
+		for range bl.QueryEvents(nostr.Filter{Search: "good"}, 400) {
 			n++
 		}
 		assert.Equal(t, 3, n)
@@ -58,7 +58,7 @@ func TestBlugeFlow(t *testing.T) {
 
 	{
 		n := 0
-		for res := range bl.QueryEvents(nostr.Filter{Search: "good"}) {
+		for res := range bl.QueryEvents(nostr.Filter{Search: "good"}, 400) {
 			n++
 			assert.Equal(t, res.Content, "good night")
 			assert.Equal(t,

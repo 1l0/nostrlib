@@ -27,7 +27,7 @@ func TestBasicStuff(t *testing.T) {
 	}
 
 	list := make([]nostr.Event, 0, 20)
-	for event := range ss.QueryEvents(nostr.Filter{}) {
+	for event := range ss.QueryEvents(nostr.Filter{}, 500) {
 		list = append(list, event)
 	}
 	require.Len(t, list, 20)
@@ -36,18 +36,16 @@ func TestBasicStuff(t *testing.T) {
 		t.Fatalf("order is incorrect")
 	}
 
-	until := nostr.Timestamp(9999)
 	list = make([]nostr.Event, 0, 7)
-	for event := range ss.QueryEvents(nostr.Filter{Limit: 15, Until: &until, Kinds: []nostr.Kind{11}}) {
+	for event := range ss.QueryEvents(nostr.Filter{Limit: 15, Until: nostr.Timestamp(9999), Kinds: []nostr.Kind{11}}, 500) {
 		list = append(list, event)
 	}
 	if len(list) != 7 {
 		t.Fatalf("should have gotten 7, not %d", len(list))
 	}
 
-	since := nostr.Timestamp(10009)
 	list = make([]nostr.Event, 0, 5)
-	for event := range ss.QueryEvents(nostr.Filter{Since: &since}) {
+	for event := range ss.QueryEvents(nostr.Filter{Since: nostr.Timestamp(10009)}, 500) {
 		list = append(list, event)
 	}
 	require.Len(t, list, 5)

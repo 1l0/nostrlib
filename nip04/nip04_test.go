@@ -11,8 +11,8 @@ import (
 
 func TestSharedKeysAreTheSame(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		sk1 := nostr.GeneratePrivateKey()
-		sk2 := nostr.GeneratePrivateKey()
+		sk1 := nostr.Generate()
+		sk2 := nostr.Generate()
 
 		pk1 := nostr.GetPublicKey(sk1)
 		pk2 := nostr.GetPublicKey(sk2)

@@ -60,7 +60,7 @@ func unbalancedTest(t *testing.T, db eventstore.Store) {
 	}
 	require.Len(t, expected, limit)
 
-	res := slices.Collect(db.QueryEvents(bigfilter))
+	res := slices.Collect(db.QueryEvents(bigfilter, 500))
 
 	require.Equal(t, limit, len(res))
 	require.True(t, slices.IsSortedFunc(res, nostr.CompareEventReverse))

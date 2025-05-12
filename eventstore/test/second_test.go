@@ -71,7 +71,7 @@ func runSecondTestOn(t *testing.T, db eventstore.Store) {
 		for q, filter := range filters {
 			label := fmt.Sprintf("filter %d: %s", q, filter)
 			t.Run(fmt.Sprintf("q-%d", q), func(t *testing.T) {
-				results := slices.Collect(db.QueryEvents(filter))
+				results := slices.Collect(db.QueryEvents(filter, 500))
 				require.NotEmpty(t, results, label)
 			})
 		}

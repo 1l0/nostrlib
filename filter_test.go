@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"math"
 	"slices"
 	"testing"
 
@@ -15,8 +16,8 @@ func TestFilterUnmarshal(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Condition(t, func() (success bool) {
-		if f.Since == nil || f.Since.Time().UTC().Format("2006-01-02") != "2022-02-07" ||
-			f.Until != nil ||
+		if f.Since == 0 || f.Since.Time().UTC().Format("2006-01-02") != "2022-02-07" ||
+			f.Until != 0 ||
 			f.Tags == nil || len(f.Tags) != 2 || !slices.Contains(f.Tags["something"], "bab") ||
 			f.Search != "test" {
 			return false
@@ -26,11 +27,10 @@ func TestFilterUnmarshal(t *testing.T) {
 }
 
 func TestFilterMarshal(t *testing.T) {
-	until := Timestamp(12345678)
 	filterj, err := json.Marshal(Filter{
 		Kinds: []Kind{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
 		Tags:  TagMap{"fruit": {"banana", "mango"}},
-		Until: &until,
+		Until: Timestamp(12345678),
 	})
 	assert.NoError(t, err)
 
@@ -45,9 +45,9 @@ func TestFilterUnmarshalWithLimitZero(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Condition(t, func() (success bool) {
-		if f.Since == nil ||
+		if f.Since == 0 ||
 			f.Since.Time().UTC().Format("2006-01-02") != "2022-02-07" ||
-			f.Until != nil ||
+			f.Until != 0 ||
 			f.Tags == nil || len(f.Tags) != 2 || !slices.Contains(f.Tags["something"], "bab") ||
 			f.Search != "test" ||
 			f.LimitZero == false {
@@ -58,11 +58,10 @@ func TestFilterUnmarshalWithLimitZero(t *testing.T) {
 }
 
 func TestFilterMarshalWithLimitZero(t *testing.T) {
-	until := Timestamp(12345678)
 	filterj, err := json.Marshal(Filter{
 		Kinds:     []Kind{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
 		Tags:      TagMap{"fruit": {"banana", "mango"}},
-		Until:     &until,
+		Until:     Timestamp(12345678),
 		LimitZero: true,
 	})
 	assert.NoError(t, err)
@@ -97,13 +96,13 @@ func TestFilterEquality(t *testing.T) {
 		Filter{
 			Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion},
 			Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
-			Since: &tm,
+			Since: tm,
 			IDs:   []ID{{'a', 'a'}, {'b', 'b'}},
 		},
 		Filter{
 			Kinds: []Kind{KindDeletion, KindEncryptedDirectMessage},
 			Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
-			Since: &tm,
+			Since: tm,
 			IDs:   []ID{{'a', 'a'}, {'b', 'b'}},
 		},
 	), "kind+2tags+since+ids filters should be equal")
@@ -115,11 +114,10 @@ func TestFilterEquality(t *testing.T) {
 }
 
 func TestFilterClone(t *testing.T) {
-	ts := Now() - 60*60
 	flt := Filter{
 		Kinds: []Kind{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 		Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
-		Since: &ts,
+		Since: Now() - 60*60,
 		IDs:   []ID{MustIDFromHex("9894b4b5cb5166d23ee8899a4151cf0c66aec00bde101982a13b8e8ceb972df9")},
 	}
 	clone := flt.Clone()
@@ -138,16 +136,16 @@ func TestFilterClone(t *testing.T) {
 	assert.False(t, FilterEqual(flt, clone3), "modifying the clone tag map should cause it to not be equal anymore")
 
 	clone4 := flt.Clone()
-	*clone4.Since++
+	clone4.Since++
 	assert.False(t, FilterEqual(flt, clone4), "modifying the clone since should cause it to not be equal anymore")
 }
 
 func TestTheoreticalLimit(t *testing.T) {
-	require.Equal(t, 6, GetTheoreticalLimit(Filter{IDs: []ID{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}}))
-	require.Equal(t, 9, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}}, Kinds: []Kind{3, 0, 10002}}))
-	require.Equal(t, 4, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}}, Kinds: []Kind{10050}}))
-	require.Equal(t, -1, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}}}))
-	require.Equal(t, -1, GetTheoreticalLimit(Filter{Kinds: []Kind{3, 0, 10002}}))
-	require.Equal(t, 24, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}, Kinds: []Kind{30023, 30024}, Tags: TagMap{"d": []string{"aaa", "bbb"}}}))
-	require.Equal(t, -1, GetTheoreticalLimit(Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}, Kinds: []Kind{30023, 30024}}))
+	require.Equal(t, 6, Filter{IDs: []ID{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}}.GetTheoreticalLimit())
+	require.Equal(t, 9, Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}}, Kinds: []Kind{3, 0, 10002}}.GetTheoreticalLimit())
+	require.Equal(t, 4, Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}}, Kinds: []Kind{10050}}.GetTheoreticalLimit())
+	require.Equal(t, math.MaxInt, Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}}}.GetTheoreticalLimit())
+	require.Equal(t, math.MaxInt, Filter{Kinds: []Kind{3, 0, 10002}}.GetTheoreticalLimit())
+	require.Equal(t, 24, Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}, Kinds: []Kind{30023, 30024}, Tags: TagMap{"d": []string{"aaa", "bbb"}}}.GetTheoreticalLimit())
+	require.Equal(t, math.MaxInt, Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}, Kinds: []Kind{30023, 30024}}.GetTheoreticalLimit())
 }

@@ -154,7 +154,7 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 
 var maxThreshold, _ = hex.DecodeString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 
-func GenerateConversationKey(pub nostr.PubKey, sk [32]byte) ([32]byte, error) {
+func GenerateConversationKey(pub nostr.PubKey, sk nostr.SecretKey) ([32]byte, error) {
 	var ck [32]byte
 
 	if bytes.Compare(sk[:], maxThreshold) != -1 || sk == [32]byte{} {

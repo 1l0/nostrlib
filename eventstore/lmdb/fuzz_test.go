@@ -36,7 +36,6 @@ func FuzzQuery(f *testing.F) {
 		db := &LMDBBackend{}
 		db.Path = "/tmp/lmdbtest"
 		db.extraFlags = lmdb.NoSync
-		db.MaxLimit = 500
 		if err := db.Init(); err != nil {
 			t.Fatal(err)
 			return
@@ -95,7 +94,7 @@ func FuzzQuery(f *testing.F) {
 
 		start := time.Now()
 
-		res := slices.Collect(db.QueryEvents(filter))
+		res := slices.Collect(db.QueryEvents(filter, 500))
 		end := time.Now()
 
 		require.Equal(t, len(expected), len(res), "number of results is different than expected")

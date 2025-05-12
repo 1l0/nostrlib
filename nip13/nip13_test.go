@@ -13,7 +13,7 @@ import (
 )
 
 func TestCheck(t *testing.T) {
-	const eventID = "000000000e9d97a1ab09fc381030b346cdd7a142ad57e6df0b46dc9bef6c7e2d"
+	eventID := nostr.MustIDFromHex("000000000e9d97a1ab09fc381030b346cdd7a142ad57e6df0b46dc9bef6c7e2d")
 	tests := []struct {
 		minDifficulty int
 		wantErr       error
@@ -47,7 +47,8 @@ func TestCommittedDifficulty(t *testing.T) {
 	}
 	for i, tc := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			work := CommittedDifficulty(&nostr.Event{ID: tc.id, Tags: tc.tags})
+			id := nostr.MustIDFromHex(tc.id)
+			work := CommittedDifficulty(nostr.Event{ID: id, Tags: tc.tags})
 			require.Equal(t, tc.result, work)
 		})
 	}
@@ -57,7 +58,7 @@ func TestDoWorkShort(t *testing.T) {
 	event := nostr.Event{
 		Kind:    nostr.KindTextNote,
 		Content: "It's just me mining my own business",
-		PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
+		PubKey:  nostr.MustPubKeyFromHex("a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243"),
 	}
 	pow, err := DoWork(context.Background(), event, 2)
 	if err != nil {
@@ -77,7 +78,7 @@ func TestDoWorkLong(t *testing.T) {
 			event := nostr.Event{
 				Kind:    nostr.KindTextNote,
 				Content: "It's just me mining my own business",
-				PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
+				PubKey:  nostr.MustPubKeyFromHex("a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243"),
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
@@ -111,7 +112,7 @@ func TestDoWorkTimeout(t *testing.T) {
 	event := nostr.Event{
 		Kind:    nostr.KindTextNote,
 		Content: "It's just me mining my own business",
-		PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
+		PubKey:  nostr.MustPubKeyFromHex("a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243"),
 	}
 	done := make(chan error)
 	go func() {

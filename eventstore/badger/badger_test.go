@@ -47,7 +47,7 @@ func TestBasicStoreAndQuery(t *testing.T) {
 
 	// collect results
 	results := make([]nostr.Event, 0)
-	for event := range db.QueryEvents(filter) {
+	for event := range db.QueryEvents(filter, 500) {
 		results = append(results, event)
 	}
 

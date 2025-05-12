@@ -88,7 +88,7 @@ func runBenchmarkOn(b *testing.B, db eventstore.Store) {
 		for q, filter := range filters {
 			b.Run(fmt.Sprintf("q-%d", q), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					_ = db.QueryEvents(filter)
+					_ = db.QueryEvents(filter, 500)
 				}
 			})
 		}

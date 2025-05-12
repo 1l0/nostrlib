@@ -40,9 +40,7 @@ func FuzzTest(f *testing.F) {
 
 		for i := range nlayers {
 			name := string([]byte{97 + byte(i)})
-			err = mmm.EnsureLayer(name, &IndexingLayer{
-				MaxLimit: 1000,
-			})
+			err = mmm.EnsureLayer(name, &IndexingLayer{})
 			require.NoError(t, err, "layer %s/%d", name, i)
 		}
 
@@ -90,7 +88,7 @@ func FuzzTest(f *testing.F) {
 		// verify each layer has the correct events
 		for _, layer := range mmm.layers {
 			count := 0
-			for evt := range layer.QueryEvents(nostr.Filter{}) {
+			for evt := range layer.QueryEvents(nostr.Filter{}, 500) {
 				require.True(t, evt.Tags.ContainsAny("t", []string{layer.name}))
 				count++
 			}
@@ -148,13 +146,13 @@ func FuzzTest(f *testing.F) {
 				for _, layer := range mmm.layers {
 					// verify event still accessible from other layers
 					if slices.Contains(foundlayers, layer) {
-						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}})) // hack
+						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}}, 500)) // hack
 						_, fetched := next()
 						require.True(t, fetched)
 						stop()
 					} else {
 						// and not accessible from this layer we just deleted
-						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}})) // hack
+						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}}, 500)) // hack
 						_, fetched := next()
 						require.True(t, fetched)
 						stop()
@@ -166,7 +164,7 @@ func FuzzTest(f *testing.F) {
 		// now delete a layer and events that only exist in that layer should vanish
 		layer := mmm.layers[rnd.Int()%len(mmm.layers)]
 		eventsThatShouldVanish := make([]nostr.ID, 0, nevents/2)
-		for evt := range layer.QueryEvents(nostr.Filter{}) {
+		for evt := range layer.QueryEvents(nostr.Filter{}, 500) {
 			if len(evt.Tags) == 1+len(deleted[evt.ID]) {
 				eventsThatShouldVanish = append(eventsThatShouldVanish, evt.ID)
 			}

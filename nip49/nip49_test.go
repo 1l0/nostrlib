@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +36,8 @@ func TestEncryptAndDecrypt(t *testing.T) {
 		{"ÅΩẛ̣", "11b25a101667dd9208db93c0827c6bdad66729a5b521156a7e9d3b22b3ae8944", 9, 0x01},
 		{"ÅΩṩ", "11b25a101667dd9208db93c0827c6bdad66729a5b521156a7e9d3b22b3ae8944", 9, 0x01},
 	} {
-		bech32code, err := Encrypt(f.secretkey, f.password, f.logn, f.ksb)
+		sk := nostr.MustSecretKeyFromHex(f.secretkey)
+		bech32code, err := Encrypt(sk, f.password, f.logn, f.ksb)
 		assert.NoError(t, err)
 		assert.True(t, strings.HasPrefix(bech32code, "ncryptsec1"), "bech32 code is wrong %d: %s", i, bech32code)
 		assert.Equal(t, 162, len(bech32code), "bech32 code is wrong %d: %s", i, bech32code)
