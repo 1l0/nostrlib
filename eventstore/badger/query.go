@@ -32,7 +32,6 @@ func (b *BadgerBackend) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[
 			maxLimit = filter.Limit
 		}
 
-		// fmt.Println("limit", limit)
 		b.View(func(txn *badger.Txn) error {
 			results, err := b.query(txn, filter, maxLimit)
 			if err != nil {
@@ -161,7 +160,7 @@ func (b *BadgerBackend) query(txn *badger.Txn, filter nostr.Filter, limit int) (
 				}
 
 				if err := item.Value(func(bin []byte) error {
-					// fmt.Println("      event", betterbinary.GetID(bin ), "kind", betterbinary.GetKind(bin ).Num(), "author", betterbinary.GetPubKey(bin ), "ts", betterbinary.GetCreatedAt(bin ), hex.EncodeToString(it.key), it.valIdx)
+					// fmt.Println("      event", betterbinary.GetID(bin), "kind", betterbinary.GetKind(bin).Num(), "author", betterbinary.GetPubKey(bin), "ts", betterbinary.GetCreatedAt(bin))
 
 					// check it against pubkeys without decoding the entire thing
 					if extraFilter != nil && extraFilter.Authors != nil &&

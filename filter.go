@@ -157,11 +157,7 @@ func (filter Filter) GetTheoreticalLimit() int {
 		return len(filter.IDs)
 	}
 
-	if filter.Kinds != nil {
-		return math.MaxInt
-	}
-
-	if filter.Authors != nil {
+	if filter.Authors != nil && filter.Kinds != nil {
 		allAreReplaceable := true
 		for _, kind := range filter.Kinds {
 			if !kind.IsReplaceable() {

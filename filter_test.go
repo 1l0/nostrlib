@@ -143,6 +143,7 @@ func TestFilterClone(t *testing.T) {
 func TestTheoreticalLimit(t *testing.T) {
 	require.Equal(t, 6, Filter{IDs: []ID{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}}}.GetTheoreticalLimit())
 	require.Equal(t, 9, Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}}, Kinds: []Kind{3, 0, 10002}}.GetTheoreticalLimit())
+	require.Equal(t, math.MaxInt, Filter{Authors: []PubKey{{'a'}}}.GetTheoreticalLimit())
 	require.Equal(t, 4, Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}}, Kinds: []Kind{10050}}.GetTheoreticalLimit())
 	require.Equal(t, math.MaxInt, Filter{Authors: []PubKey{{'a'}, {'b'}, {'c'}, {'d'}}}.GetTheoreticalLimit())
 	require.Equal(t, math.MaxInt, Filter{Kinds: []Kind{3, 0, 10002}}.GetTheoreticalLimit())
