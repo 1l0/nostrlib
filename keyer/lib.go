@@ -2,7 +2,6 @@ package keyer
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -91,12 +90,9 @@ func New(ctx context.Context, pool *nostr.Pool, input string, opts *SignerOption
 		sec := parsed.(nostr.SecretKey)
 		pk := nostr.GetPublicKey(sec)
 		return KeySigner{sec, pk, xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
-	} else if _, err := hex.DecodeString(input); err == nil && len(input) <= 64 {
-		input := nostr.MustSecretKeyFromHex(
-			strings.Repeat("0", 64-len(input)) + input, // if the key is like '01', fill all the left zeroes
-		)
-		pk := nostr.GetPublicKey(input)
-		return KeySigner{input, pk, xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
+	} else if sk, err := nostr.SecretKeyFromHex(input); err == nil {
+		pk := nostr.GetPublicKey(sk)
+		return KeySigner{sk, pk, xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
 	}
 
 	return nil, fmt.Errorf("unsupported input '%s'", input)
