@@ -1,12 +1,13 @@
 package negentropy
 
 import (
+	"bytes"
 	"fmt"
 
 	"fiatjaf.com/nostr"
 )
 
-func (n *Negentropy) readTimestamp(reader *StringHexReader) (nostr.Timestamp, error) {
+func (n *Negentropy) readTimestamp(reader *bytes.Reader) (nostr.Timestamp, error) {
 	delta, err := readVarInt(reader)
 	if err != nil {
 		return 0, err
@@ -31,7 +32,7 @@ func (n *Negentropy) readTimestamp(reader *StringHexReader) (nostr.Timestamp, er
 	return timestamp, nil
 }
 
-func (n *Negentropy) readBound(reader *StringHexReader) (Bound, error) {
+func (n *Negentropy) readBound(reader *bytes.Reader) (Bound, error) {
 	timestamp, err := n.readTimestamp(reader)
 	if err != nil {
 		return Bound{}, fmt.Errorf("failed to decode bound timestamp: %w", err)
@@ -43,14 +44,14 @@ func (n *Negentropy) readBound(reader *StringHexReader) (Bound, error) {
 	}
 
 	pfb := make([]byte, length)
-	if err := reader.ReadHexBytes(pfb); err != nil {
+	if _, err := reader.Read(pfb); err != nil {
 		return Bound{}, fmt.Errorf("failed to read bound id: %w", err)
 	}
 
 	return Bound{timestamp, pfb}, nil
 }
 
-func (n *Negentropy) writeTimestamp(w *StringHexWriter, timestamp nostr.Timestamp) {
+func (n *Negentropy) writeTimestamp(w *bytes.Buffer, timestamp nostr.Timestamp) {
 	if timestamp == maxTimestamp {
 		// zeroes are infinite
 		n.lastTimestampOut = maxTimestamp // cache this (see below)
@@ -69,10 +70,10 @@ func (n *Negentropy) writeTimestamp(w *StringHexWriter, timestamp nostr.Timestam
 	return
 }
 
-func (n *Negentropy) writeBound(w *StringHexWriter, bound Bound) {
+func (n *Negentropy) writeBound(w *bytes.Buffer, bound Bound) {
 	n.writeTimestamp(w, bound.Timestamp)
 	writeVarInt(w, len(bound.IDPrefix))
-	w.WriteBytes(bound.IDPrefix)
+	w.Write(bound.IDPrefix)
 }
 
 func getMinimalBound(prev, curr Item) Bound {
@@ -92,11 +93,11 @@ func getMinimalBound(prev, curr Item) Bound {
 	return Bound{curr.Timestamp, curr.ID[:(sharedPrefixBytes + 1)]}
 }
 
-func readVarInt(reader *StringHexReader) (int, error) {
+func readVarInt(reader *bytes.Reader) (int, error) {
 	var res int = 0
 
 	for {
-		b, err := reader.ReadHexByte()
+		b, err := reader.ReadByte()
 		if err != nil {
 			return 0, err
 		}
@@ -110,13 +111,13 @@ func readVarInt(reader *StringHexReader) (int, error) {
 	return res, nil
 }
 
-func writeVarInt(w *StringHexWriter, n int) {
+func writeVarInt(w *bytes.Buffer, n int) {
 	if n == 0 {
 		w.WriteByte(0)
 		return
 	}
 
-	w.WriteBytes(EncodeVarInt(n))
+	w.Write(EncodeVarInt(n))
 }
 
 func EncodeVarInt(n int) []byte {

@@ -23,6 +23,6 @@ func (Empty) GetBound(idx int) negentropy.Bound {
 	return negentropy.InfiniteBound
 }
 
-func (Empty) Fingerprint(begin, end int) string {
+func (Empty) Fingerprint(begin, end int) [negentropy.FingerprintSize]byte {
 	return acc.GetFingerprint(end - begin)
 }

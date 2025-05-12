@@ -2,6 +2,7 @@ package negentropy
 
 import (
 	"fmt"
+	"iter"
 
 	"fiatjaf.com/nostr"
 )
@@ -46,4 +47,12 @@ func (b Bound) String() string {
 		return "Bound<infinite>"
 	}
 	return fmt.Sprintf("Bound<%d:%x>", b.Timestamp, b.IDPrefix)
+}
+
+type Storage interface {
+	Size() int
+	Range(begin, end int) iter.Seq2[int, Item]
+	FindLowerBound(begin, end int, value Bound) int
+	GetBound(idx int) Bound
+	Fingerprint(begin, end int) [FingerprintSize]byte
 }

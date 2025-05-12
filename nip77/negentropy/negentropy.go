@@ -1,10 +1,11 @@
 package negentropy
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"math"
-	"strings"
 	"unsafe"
 
 	"fiatjaf.com/nostr"
@@ -60,55 +61,60 @@ func (n *Negentropy) Start() string {
 	n.initialized = true
 	n.isClient = true
 
-	output := NewStringHexWriter(make([]byte, 0, 1+n.storage.Size()*64))
+	output := bytes.NewBuffer(make([]byte, 0, 1+n.storage.Size()*64))
 	output.WriteByte(protocolVersion)
 	n.SplitRange(0, n.storage.Size(), InfiniteBound, output)
 
-	return output.Hex()
+	return hex.EncodeToString(output.Bytes())
 }
 
-func (n *Negentropy) Reconcile(msg string) (output string, err error) {
+func (n *Negentropy) Reconcile(msg string) (string, error) {
 	n.initialized = true
-	reader := NewStringHexReader(msg)
-
-	output, err = n.reconcileAux(reader)
+	msgb, err := hex.DecodeString(msg)
 	if err != nil {
 		return "", err
 	}
 
-	if len(output) == 2 && n.isClient {
+	reader := bytes.NewReader(msgb)
+
+	output, err := n.reconcileAux(reader)
+	if err != nil {
+		return "", err
+	}
+
+	if len(output) == 1 && n.isClient {
 		close(n.Haves)
 		close(n.HaveNots)
 		return "", nil
 	}
 
-	return output, nil
+	return hex.EncodeToString(output), nil
 }
 
-func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
+func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {
 	n.lastTimestampIn, n.lastTimestampOut = 0, 0 // reset for each message
 
-	fullOutput := NewStringHexWriter(make([]byte, 0, 5000))
+	fullOutput := bytes.NewBuffer(make([]byte, 0, 5000))
 	fullOutput.WriteByte(protocolVersion)
 
-	pv, err := reader.ReadHexByte()
+	pv, err := reader.ReadByte()
 	if err != nil {
-		return "", fmt.Errorf("failed to read pv: %w", err)
+		return nil, fmt.Errorf("failed to read pv: %w", err)
 	}
 	if pv != protocolVersion {
 		if n.isClient {
-			return "", fmt.Errorf("unsupported negentropy protocol version %v", pv)
+			return nil, fmt.Errorf("unsupported negentropy protocol version %v", pv)
 		}
 
 		// if we're a server we just return our protocol version
-		return fullOutput.Hex(), nil
+		return fullOutput.Bytes(), nil
 	}
 
 	var prevBound Bound
 	prevIndex := 0
 	skipping := false // this means we are currently coalescing ranges into skip
 
-	partialOutput := NewStringHexWriter(make([]byte, 0, 100))
+	partialOutput := bytes.NewBuffer(make([]byte, 0, 100))
 	for reader.Len() > 0 {
 		partialOutput.Reset()
 
@@ -123,11 +129,11 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 
 		currBound, err := n.readBound(reader)
 		if err != nil {
-			return "", fmt.Errorf("failed to decode bound: %w", err)
+			return nil, fmt.Errorf("failed to decode bound: %w", err)
 		}
 		modeVal, err := readVarInt(reader)
 		if err != nil {
-			return "", fmt.Errorf("failed to decode mode: %w", err)
+			return nil, fmt.Errorf("failed to decode mode: %w", err)
 		}
 		mode := Mode(modeVal)
 
@@ -139,9 +145,10 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			skipping = true
 
 		case FingerprintMode:
-			theirFingerprint, err := reader.ReadString(FingerprintSize * 2)
+			theirFingerprint := [FingerprintSize]byte{}
+			_, err := reader.Read(theirFingerprint[:])
 			if err != nil {
-				return "", fmt.Errorf("failed to read fingerprint: %w", err)
+				return nil, fmt.Errorf("failed to read fingerprint: %w", err)
 			}
 			ourFingerprint := n.storage.Fingerprint(lower, upper)
 
@@ -155,15 +162,15 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 		case IdListMode:
 			numIds, err := readVarInt(reader)
 			if err != nil {
-				return "", fmt.Errorf("failed to decode number of ids: %w", err)
+				return nil, fmt.Errorf("failed to decode number of ids: %w", err)
 			}
 
 			// what they have
 			theirItems := make(map[nostr.ID]struct{}, numIds)
 			for i := 0; i < numIds; i++ {
 				var id [32]byte
-				if err := reader.ReadHexBytes(id[:]); err != nil {
-					return "", fmt.Errorf("failed to read id (#%d/%d) in list: %w", i, numIds, err)
+				if _, err := reader.Read(id[:]); err != nil {
+					return nil, fmt.Errorf("failed to read id (#%d/%d) in list: %w", i, numIds, err)
 				} else {
 					theirItems[id] = struct{}{}
 				}
@@ -197,33 +204,32 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 				// server got list of ids, reply with their own ids for the same range
 				finishSkip()
 
-				responseIds := strings.Builder{}
-				responseIds.Grow(64 * 100)
+				responseIds := make([]byte, 0, 32*100)
 				responses := 0
 
 				endBound := currBound
 
 				for index, item := range n.storage.Range(lower, upper) {
-					if n.frameSizeLimit-200 < fullOutput.Len()/2+responseIds.Len()/2 {
+					if n.frameSizeLimit-200 < fullOutput.Len()/2+len(responseIds)/2 {
 						endBound = Bound{item.Timestamp, item.ID[:]}
 						upper = index
 						break
 					}
-					responseIds.WriteString(hex.EncodeToString(item.ID[:]))
+					responseIds = append(responseIds, item.ID[:]...)
 					responses++
 				}
 
 				n.writeBound(partialOutput, endBound)
 				partialOutput.WriteByte(byte(IdListMode))
 				writeVarInt(partialOutput, responses)
-				partialOutput.WriteHex(responseIds.String())
+				partialOutput.Write(responseIds)
 
-				fullOutput.WriteHex(partialOutput.Hex())
+				io.Copy(fullOutput, partialOutput)
 				partialOutput.Reset()
 			}
 
 		default:
-			return "", fmt.Errorf("unexpected mode %d", mode)
+			return nil, fmt.Errorf("unexpected mode %d", mode)
 		}
 
 		if n.frameSizeLimit-200 < fullOutput.Len()/2+partialOutput.Len()/2 {
@@ -231,22 +237,22 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			remainingFingerprint := n.storage.Fingerprint(upper, n.storage.Size())
 			n.writeBound(fullOutput, InfiniteBound)
 			fullOutput.WriteByte(byte(FingerprintMode))
-			fullOutput.WriteHex(remainingFingerprint)
+			fullOutput.Write(remainingFingerprint[:])
 
 			break // stop processing further
 		} else {
 			// append the constructed output for this iteration
-			fullOutput.WriteHex(partialOutput.Hex())
+			io.Copy(fullOutput, partialOutput)
 		}
 
 		prevIndex = upper
 		prevBound = currBound
 	}
 
-	return fullOutput.Hex(), nil
+	return fullOutput.Bytes(), nil
 }
 
-func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *StringHexWriter) {
+func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *bytes.Buffer) {
 	numElems := upper - lower
 
 	if numElems < buckets*2 {
@@ -256,7 +262,7 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *Stri
 		writeVarInt(output, numElems)
 
 		for _, item := range n.storage.Range(lower, upper) {
-			output.WriteBytes(item.ID[:])
+			output.Write(item.ID[:])
 		}
 	} else {
 		itemsPerBucket := numElems / buckets
@@ -291,7 +297,7 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *Stri
 
 			n.writeBound(output, nextBound)
 			output.WriteByte(byte(FingerprintMode))
-			output.WriteHex(ourFingerprint)
+			output.Write(ourFingerprint[:])
 		}
 	}
 }

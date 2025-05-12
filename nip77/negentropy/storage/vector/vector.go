@@ -59,7 +59,7 @@ func (v *Vector) FindLowerBound(begin, end int, bound negentropy.Bound) int {
 	return begin + idx
 }
 
-func (v *Vector) Fingerprint(begin, end int) string {
+func (v *Vector) Fingerprint(begin, end int) [negentropy.FingerprintSize]byte {
 	v.acc.Reset()
 
 	for _, item := range v.Range(begin, end) {
