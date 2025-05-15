@@ -21,7 +21,7 @@ func (c *Client) UploadFilePath(ctx context.Context, filePath string) (*BlobDesc
 	}
 	defer file.Close()
 
-	bd, err := c.UploadFile(ctx, file, mime.TypeByExtension(filepath.Ext(filePath)))
+	bd, err := c.UploadBlob(ctx, file, mime.TypeByExtension(filepath.Ext(filePath)))
 	if err != nil {
 		return nil, fmt.Errorf("%w -- at path %s", err, filePath)
 	}
@@ -30,7 +30,7 @@ func (c *Client) UploadFilePath(ctx context.Context, filePath string) (*BlobDesc
 }
 
 // Upload uploads a file to the media server
-func (c *Client) UploadFile(ctx context.Context, file *os.File, contentType string) (*BlobDescriptor, error) {
+func (c *Client) UploadBlob(ctx context.Context, file io.ReadSeeker, contentType string) (*BlobDescriptor, error) {
 	sha := sha256.New()
 	size, err := io.Copy(sha, file)
 	if err != nil {
