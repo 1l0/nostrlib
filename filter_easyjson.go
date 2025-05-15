@@ -7,7 +7,7 @@ import (
 	jwriter "github.com/mailru/easyjson/jwriter"
 )
 
-func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter) {
+func easyjsonDecodeFilter(in *jlexer.Lexer, out *Filter) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -121,21 +121,20 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 	}
 }
 
-func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter) {
+func easyjsonEncodeFilter(out *jwriter.Writer, in Filter) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	if len(in.IDs) != 0 {
-		const prefix string = ",\"ids\":"
 		first = false
-		out.RawString(prefix[1:])
+		out.RawString("\"ids\":")
 		{
 			out.RawByte('[')
-			for v4, v5 := range in.IDs {
-				if v4 > 0 {
+			for i, id := range in.IDs {
+				if i > 0 {
 					out.RawByte(',')
 				}
-				out.String(hex.EncodeToString(v5[:]))
+				out.RawString("\"" + hex.EncodeToString(id[:]) + "\"")
 			}
 			out.RawByte(']')
 		}
@@ -150,11 +149,11 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 		}
 		{
 			out.RawByte('[')
-			for v6, v7 := range in.Kinds {
-				if v6 > 0 {
+			for i, kind := range in.Kinds {
+				if i > 0 {
 					out.RawByte(',')
 				}
-				out.Int(int(v7))
+				out.Int(int(kind))
 			}
 			out.RawByte(']')
 		}
@@ -169,11 +168,11 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 		}
 		{
 			out.RawByte('[')
-			for v8, v9 := range in.Authors {
-				if v8 > 0 {
+			for i, pk := range in.Authors {
+				if i > 0 {
 					out.RawByte(',')
 				}
-				out.String(hex.EncodeToString(v9[:]))
+				out.RawString("\"" + hex.EncodeToString(pk[:]) + "\"")
 			}
 			out.RawByte(']')
 		}
@@ -243,24 +242,24 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 // MarshalJSON supports json.Marshaler interface
 func (v Filter) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
-	easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(&w, v)
+	easyjsonEncodeFilter(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v Filter) MarshalEasyJSON(w *jwriter.Writer) {
 	w.NoEscapeHTML = true
-	easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(w, v)
+	easyjsonEncodeFilter(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *Filter) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(&r, v)
+	easyjsonDecodeFilter(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *Filter) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(l, v)
+	easyjsonDecodeFilter(l, v)
 }
