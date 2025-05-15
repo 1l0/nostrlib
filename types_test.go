@@ -7,12 +7,12 @@ import (
 )
 
 func TestIDJSONEncoding(t *testing.T) {
-	id := MustIDFromHex("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	id := MustIDFromHex("6348118f31cc19fe6b699fa2db5edff315429f7ebb6cc16d3627fdbc4dcae904")
 
 	// test marshaling
 	b, err := json.Marshal(id)
 	require.NoError(t, err)
-	require.Equal(t, `"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"`, string(b))
+	require.Equal(t, `"6348118f31cc19fe6b699fa2db5edff315429f7ebb6cc16d3627fdbc4dcae904"`, string(b))
 
 	// test unmarshaling
 	var id2 ID
@@ -30,12 +30,12 @@ func TestIDJSONEncoding(t *testing.T) {
 }
 
 func TestPubKeyJSONEncoding(t *testing.T) {
-	pk := MustPubKeyFromHex("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	pk := MustPubKeyFromHex("6348118f31cc19fe6b699fa2db5edff315429f7ebb6cc16d3627fdbc4dcae904")
 
 	// test marshaling
 	b, err := json.Marshal(pk)
 	require.NoError(t, err)
-	require.Equal(t, `"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"`, string(b))
+	require.Equal(t, `"6348118f31cc19fe6b699fa2db5edff315429f7ebb6cc16d3627fdbc4dcae904"`, string(b))
 
 	// test unmarshaling
 	var pk2 PubKey
@@ -60,7 +60,7 @@ type TestStruct struct {
 
 func TestStructWithIDAndPubKey(t *testing.T) {
 	ts := TestStruct{
-		ID:     MustIDFromHex("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"),
+		ID:     MustIDFromHex("6348118f31cc19fe6b699fa2db5edff315429f7ebb6cc16d3627fdbc4dcae904"),
 		PubKey: MustPubKeyFromHex("123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"),
 		Name:   "test",
 	}
@@ -68,7 +68,7 @@ func TestStructWithIDAndPubKey(t *testing.T) {
 	// test marshaling
 	b, err := json.Marshal(ts)
 	require.NoError(t, err)
-	require.Equal(t, `{"id":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789","pubkey":"123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0","name":"test"}`, string(b))
+	require.Equal(t, `{"id":"6348118f31cc19fe6b699fa2db5edff315429f7ebb6cc16d3627fdbc4dcae904","pubkey":"123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0","name":"test"}`, string(b))
 
 	// test unmarshaling
 	var ts2 TestStruct
@@ -89,6 +89,6 @@ func TestStructWithIDAndPubKey(t *testing.T) {
 	require.Error(t, err)
 
 	// test unmarshaling with invalid PubKey
-	err = json.Unmarshal([]byte(`{"id":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789","pubkey":"invalid","name":"test"}`), &ts2)
+	err = json.Unmarshal([]byte(`{"id":"6348118f31cc19fe6b699fa2db5edff315429f7ebb6cc16d3627fdbc4dcae904","pubkey":"invalid","name":"test"}`), &ts2)
 	require.Error(t, err)
 }

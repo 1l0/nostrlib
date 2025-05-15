@@ -28,86 +28,61 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 		}
 		switch key {
 		case "ids":
-			if in.IsNull() {
-				in.Skip()
-				out.IDs = nil
-			} else {
-				in.Delim('[')
-				if out.IDs == nil {
-					if !in.IsDelim(']') {
-						out.IDs = make([]ID, 0, 20)
-					} else {
-						out.IDs = []ID{}
-					}
+			in.Delim('[')
+			if out.IDs == nil {
+				if !in.IsDelim(']') {
+					out.IDs = make([]ID, 0, 20)
 				} else {
-					out.IDs = (out.IDs)[:0]
+					out.IDs = []ID{}
 				}
-				for !in.IsDelim(']') {
-					id := [32]byte{}
-					hex.Decode(id[:], in.UnsafeBytes())
-					out.IDs = append(out.IDs, id)
-					in.WantComma()
-				}
-				in.Delim(']')
+			} else {
+				out.IDs = (out.IDs)[:0]
 			}
+			for !in.IsDelim(']') {
+				id := [32]byte{}
+				hex.Decode(id[:], in.UnsafeBytes())
+				out.IDs = append(out.IDs, id)
+				in.WantComma()
+			}
+			in.Delim(']')
 		case "kinds":
-			if in.IsNull() {
-				in.Skip()
-				out.Kinds = nil
-			} else {
-				in.Delim('[')
-				if out.Kinds == nil {
-					if !in.IsDelim(']') {
-						out.Kinds = make([]Kind, 0, 8)
-					} else {
-						out.Kinds = []Kind{}
-					}
+			in.Delim('[')
+			if out.Kinds == nil {
+				if !in.IsDelim(']') {
+					out.Kinds = make([]Kind, 0, 8)
 				} else {
-					out.Kinds = (out.Kinds)[:0]
+					out.Kinds = []Kind{}
 				}
-				for !in.IsDelim(']') {
-					out.Kinds = append(out.Kinds, Kind(in.Int()))
-					in.WantComma()
-				}
-				in.Delim(']')
+			} else {
+				out.Kinds = (out.Kinds)[:0]
 			}
+			for !in.IsDelim(']') {
+				out.Kinds = append(out.Kinds, Kind(in.Int()))
+				in.WantComma()
+			}
+			in.Delim(']')
 		case "authors":
-			if in.IsNull() {
-				in.Skip()
-				out.Authors = nil
-			} else {
-				in.Delim('[')
-				if out.Authors == nil {
-					if !in.IsDelim(']') {
-						out.Authors = make([]PubKey, 0, 40)
-					} else {
-						out.Authors = []PubKey{}
-					}
+			in.Delim('[')
+			if out.Authors == nil {
+				if !in.IsDelim(']') {
+					out.Authors = make([]PubKey, 0, 40)
 				} else {
-					out.Authors = (out.Authors)[:0]
+					out.Authors = []PubKey{}
 				}
-				for !in.IsDelim(']') {
-					pk := [32]byte{}
-					hex.Decode(pk[:], in.UnsafeBytes())
-					out.Authors = append(out.Authors, pk)
-					in.WantComma()
-				}
-				in.Delim(']')
+			} else {
+				out.Authors = (out.Authors)[:0]
 			}
+			for !in.IsDelim(']') {
+				pk := [32]byte{}
+				hex.Decode(pk[:], in.UnsafeBytes())
+				out.Authors = append(out.Authors, pk)
+				in.WantComma()
+			}
+			in.Delim(']')
 		case "since":
-			if in.IsNull() {
-				in.Skip()
-				out.Since = 0
-			} else {
-				out.Since = Timestamp(in.Int64())
-			}
+			out.Since = Timestamp(in.Int64())
 		case "until":
-			if in.IsNull() {
-				in.Skip()
-				out.Until = 0
-			} else {
-				out.Until = Timestamp(in.Int64())
-			}
+			out.Until = Timestamp(in.Int64())
 		case "limit":
 			out.Limit = int(in.Int())
 			if out.Limit == 0 {
@@ -118,23 +93,21 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 		default:
 			if len(key) > 1 && key[0] == '#' {
 				tagValues := make([]string, 0, 40)
-				if !in.IsNull() {
-					in.Delim('[')
-					if out.Authors == nil {
-						if !in.IsDelim(']') {
-							tagValues = make([]string, 0, 4)
-						} else {
-							tagValues = []string{}
-						}
+				in.Delim('[')
+				if out.Authors == nil {
+					if !in.IsDelim(']') {
+						tagValues = make([]string, 0, 4)
 					} else {
-						tagValues = (tagValues)[:0]
+						tagValues = []string{}
 					}
-					for !in.IsDelim(']') {
-						tagValues = append(tagValues, in.String())
-						in.WantComma()
-					}
-					in.Delim(']')
+				} else {
+					tagValues = (tagValues)[:0]
 				}
+				for !in.IsDelim(']') {
+					tagValues = append(tagValues, in.String())
+					in.WantComma()
+				}
+				in.Delim(']')
 				out.Tags[key[1:]] = tagValues
 			} else {
 				in.SkipRecursive()

@@ -35,43 +35,33 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		case "kind":
 			out.Kind = Kind(in.Int())
 		case "tags":
-			if in.IsNull() {
-				in.Skip()
-				out.Tags = nil
-			} else {
-				in.Delim('[')
-				if out.Tags == nil {
-					if !in.IsDelim(']') {
-						out.Tags = make(Tags, 0, 7)
-					} else {
-						out.Tags = Tags{}
-					}
+			in.Delim('[')
+			if out.Tags == nil {
+				if !in.IsDelim(']') {
+					out.Tags = make(Tags, 0, 7)
 				} else {
-					out.Tags = (out.Tags)[:0]
+					out.Tags = Tags{}
+				}
+			} else {
+				out.Tags = (out.Tags)[:0]
+			}
+			for !in.IsDelim(']') {
+				var v Tag
+				in.Delim('[')
+				if !in.IsDelim(']') {
+					v = make(Tag, 0, 5)
+				} else {
+					v = Tag{}
 				}
 				for !in.IsDelim(']') {
-					var v Tag
-					if in.IsNull() {
-						in.Skip()
-						v = nil
-					} else {
-						in.Delim('[')
-						if !in.IsDelim(']') {
-							v = make(Tag, 0, 5)
-						} else {
-							v = Tag{}
-						}
-						for !in.IsDelim(']') {
-							v = append(v, in.String())
-							in.WantComma()
-						}
-						in.Delim(']')
-					}
-					out.Tags = append(out.Tags, v)
+					v = append(v, in.String())
 					in.WantComma()
 				}
 				in.Delim(']')
+				out.Tags = append(out.Tags, v)
+				in.WantComma()
 			}
+			in.Delim(']')
 		case "content":
 			out.Content = in.String()
 		case "sig":
