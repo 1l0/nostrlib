@@ -21,7 +21,14 @@ func TestGroupEventBackAndForth(t *testing.T) {
 
 	require.Equal(t, "xyz", meta1.Tags.GetD(), "translation of group1 to metadata event failed: %s", meta1)
 	require.NotNil(t, meta1.Tags.FindWithValue("name", "banana"), "translation of group1 to metadata event failed: %s", meta1)
-	require.NotNil(t, meta1.Tags.Find("private"), "translation of group1 to metadata event failed: %s", meta1)
+
+	hasPrivate := false
+	for _, tag := range meta1.Tags {
+		if len(tag) == 1 && tag[0] == "private" {
+			hasPrivate = true
+		}
+	}
+	require.True(t, hasPrivate, "translation of group1 to metadata event failed: %s", meta1)
 
 	group2, _ := NewGroup("groups.com'abc")
 	group2.Members[ALICE] = []*Role{{Name: "nada"}}

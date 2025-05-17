@@ -158,7 +158,7 @@ func GenerateConversationKey(pub nostr.PubKey, sk nostr.SecretKey) ([32]byte, er
 	var ck [32]byte
 
 	if bytes.Compare(sk[:], maxThreshold) != -1 || sk == [32]byte{} {
-		return ck, fmt.Errorf("invalid private key: x coordinate %x is not on the secp256k1 curve", sk)
+		return ck, fmt.Errorf("invalid private key: x coordinate %x is not on the secp256k1 curve", sk[:])
 	}
 
 	shared, err := computeSharedSecret(pub, sk)

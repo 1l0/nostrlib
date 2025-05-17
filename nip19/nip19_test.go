@@ -27,7 +27,7 @@ func TestDecodeNpub(t *testing.T) {
 	prefix, pubkey, err := Decode("npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6")
 	assert.NoError(t, err)
 	assert.Equal(t, "npub", prefix, "returned invalid prefix")
-	assert.Equal(t, "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d", pubkey.(string), "returned wrong pubkey")
+	assert.Equal(t, nostr.MustPubKeyFromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"), pubkey.(nostr.PubKey), "returned wrong pubkey")
 }
 
 func TestFailDecodeBadChecksumNpub(t *testing.T) {
@@ -43,7 +43,7 @@ func TestDecodeNprofile(t *testing.T) {
 
 		pp, ok := data.(nostr.ProfilePointer)
 		assert.True(t, ok, "value returned of wrong type")
-		assert.Equal(t, "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d", pp.PublicKey)
+		assert.Equal(t, nostr.MustPubKeyFromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"), pp.PublicKey)
 		assert.Equal(t, 2, len(pp.Relays), "decoded wrong number of relays")
 
 		assert.Equal(t, "wss://r.x.com", pp.Relays[0], "decoded relay URLs wrongly")
@@ -57,7 +57,7 @@ func TestDecodeNprofile(t *testing.T) {
 
 		pp, ok := data.(nostr.ProfilePointer)
 		assert.True(t, ok, "value returned of wrong type")
-		assert.Equal(t, "e8b487c079b0f67c695ae6c4c2552a47f38adfa2533cc5926bd2c102942fdcb7", pp.PublicKey)
+		assert.Equal(t, nostr.MustPubKeyFromHex("e8b487c079b0f67c695ae6c4c2552a47f38adfa2533cc5926bd2c102942fdcb7"), pp.PublicKey)
 		assert.Equal(t, 3, len(pp.Relays), "decoded wrong number of relays")
 
 		assert.Equal(t, "wss://nostr-pub.wellorder.net", pp.Relays[0], "decoded relay URLs wrongly")
@@ -98,7 +98,7 @@ func TestEncodeDecodeNaddr(t *testing.T) {
 	assert.Equal(t, "naddr", prefix)
 
 	ep := data.(nostr.EntityPointer)
-	assert.Equal(t, "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d", ep.PublicKey)
+	assert.Equal(t, nostr.MustPubKeyFromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"), ep.PublicKey)
 	assert.Equal(t, ep.Kind, nostr.KindArticle)
 	assert.Equal(t, "banana", ep.Identifier)
 
@@ -113,7 +113,7 @@ func TestDecodeNaddrWithoutRelays(t *testing.T) {
 
 	ep, ok := data.(nostr.EntityPointer)
 	assert.True(t, ok)
-	assert.Equal(t, "7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194", ep.PublicKey)
+	assert.Equal(t, nostr.MustPubKeyFromHex("7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194"), ep.PublicKey)
 	assert.Equal(t, nostr.KindArticle, ep.Kind)
 	assert.Equal(t, "references", ep.Identifier)
 	assert.Empty(t, ep.Relays)
@@ -137,8 +137,8 @@ func TestEncodeDecodeNEvent(t *testing.T) {
 	ep, ok := res.(nostr.EventPointer)
 	assert.True(t, ok)
 
-	assert.Equal(t, "7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751abb88", ep.Author)
-	assert.Equal(t, "45326f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194", ep.ID)
+	assert.Equal(t, nostr.MustPubKeyFromHex("7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751abb88"), ep.Author)
+	assert.Equal(t, nostr.MustIDFromHex("45326f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194"), ep.ID)
 	assert.Equal(t, 1, len(ep.Relays), "wrong number of relays")
 	assert.Equal(t, "wss://banana.com", ep.Relays[0])
 }

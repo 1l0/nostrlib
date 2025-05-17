@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,7 +51,7 @@ func TestQuery(t *testing.T) {
 			assert.Error(t, err, "expected error for input: %s", test.input)
 		} else {
 			assert.NoError(t, err, "did not expect error for input: %s", test.input)
-			assert.Equal(t, test.expectedKey, pp.PublicKey, "for input: %s", test.input)
+			assert.Equal(t, nostr.MustPubKeyFromHex(test.expectedKey), pp.PublicKey, "for input: %s", test.input)
 		}
 	}
 }
