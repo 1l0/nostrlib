@@ -58,7 +58,7 @@ func (ef Filter) MatchesIgnoringTimestampConstraints(event Event) bool {
 	}
 
 	for f, v := range ef.Tags {
-		if v != nil && !event.Tags.ContainsAny(f, v) {
+		if !event.Tags.ContainsAny(f, v) {
 			return false
 		}
 	}
