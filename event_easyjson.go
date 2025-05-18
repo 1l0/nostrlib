@@ -83,15 +83,15 @@ func easyjsonEncodeEvent(out *jwriter.Writer, in Event) {
 
 	if in.ID != ZeroID {
 		out.RawString(",\"id\":\"")
-		out.RawString(hex.EncodeToString(in.ID[:]))
+		out.RawString(hex.EncodeToString(in.ID[:]) + "\"")
 	}
 
 	if in.PubKey != ZeroPK {
-		out.RawString("\",\"pubkey\":\"")
-		out.RawString(hex.EncodeToString(in.PubKey[:]))
+		out.RawString(",\"pubkey\":\"")
+		out.RawString(hex.EncodeToString(in.PubKey[:]) + "\"")
 	}
 
-	out.RawString("\",\"created_at\":")
+	out.RawString(",\"created_at\":")
 	out.Int64(int64(in.CreatedAt))
 
 	out.RawString(",\"tags\":")
