@@ -139,13 +139,10 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 	return prefix, data, fmt.Errorf("unknown tag %s", prefix)
 }
 
-func EncodeNsec(sk [32]byte) (string, error) {
-	bits5, err := bech32.ConvertBits(sk[:], 8, 5, true)
-	if err != nil {
-		return "", err
-	}
-
-	return bech32.Encode("nsec", bits5)
+func EncodeNsec(sk [32]byte) string {
+	bits5, _ := bech32.ConvertBits(sk[:], 8, 5, true)
+	nsec, _ := bech32.Encode("nsec", bits5)
+	return nsec
 }
 
 func EncodeNpub(pk nostr.PubKey) string {
