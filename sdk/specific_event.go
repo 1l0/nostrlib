@@ -41,7 +41,7 @@ func (sys *System) FetchSpecificEventFromInput(
 		case "naddr":
 			pointer = data.(nostr.EntityPointer)
 		case "note":
-			pointer = nostr.EventPointer{ID: data.([32]byte)}
+			pointer = nostr.EventPointer{ID: data.(nostr.ID)}
 		default:
 			return nil, nil, fmt.Errorf("invalid code '%s'", input)
 		}

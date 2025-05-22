@@ -40,13 +40,13 @@ func ToPointer(code string) (nostr.Pointer, error) {
 
 	switch prefix {
 	case "npub":
-		return nostr.ProfilePointer{PublicKey: data.([32]byte)}, nil
+		return nostr.ProfilePointer{PublicKey: data.(nostr.PubKey)}, nil
 	case "nprofile":
 		return data.(nostr.ProfilePointer), nil
 	case "nevent":
 		return data.(nostr.EventPointer), nil
 	case "note":
-		return nostr.EventPointer{ID: data.([32]byte)}, nil
+		return nostr.EventPointer{ID: data.(nostr.ID)}, nil
 	case "naddr":
 		return data.(nostr.EntityPointer), nil
 	default:

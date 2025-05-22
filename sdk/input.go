@@ -45,7 +45,7 @@ func InputToEventPointer(input string) *nostr.EventPointer {
 	prefix, data, _ := nip19.Decode(input)
 	switch prefix {
 	case "note":
-		return &nostr.EventPointer{ID: data.([32]byte)}
+		return &nostr.EventPointer{ID: data.(nostr.ID)}
 	case "nevent":
 		if ep, ok := data.(nostr.EventPointer); ok {
 			return &ep
