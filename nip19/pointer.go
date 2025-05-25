@@ -14,19 +14,9 @@ func EncodePointer(pointer nostr.Pointer) string {
 		} else {
 			return EncodeNprofile(v.PublicKey, v.Relays)
 		}
-	case *nostr.ProfilePointer:
-		if v.Relays == nil {
-			return EncodeNpub(v.PublicKey)
-		} else {
-			return EncodeNprofile(v.PublicKey, v.Relays)
-		}
 	case nostr.EventPointer:
 		return EncodeNevent(v.ID, v.Relays, v.Author)
-	case *nostr.EventPointer:
-		return EncodeNevent(v.ID, v.Relays, v.Author)
 	case nostr.EntityPointer:
-		return EncodeNaddr(v.PublicKey, v.Kind, v.Identifier, v.Relays)
-	case *nostr.EntityPointer:
 		return EncodeNaddr(v.PublicKey, v.Kind, v.Identifier, v.Relays)
 	}
 	return ""
