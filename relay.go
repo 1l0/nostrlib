@@ -62,7 +62,7 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 		okCallbacks:                   xsync.NewMapOf[ID, func(bool, string)](),
 		writeQueue:                    make(chan writeRequest),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
-		requestHeader:                 nil,
+		requestHeader:                 opts.RequestHeader,
 	}
 
 	return r
