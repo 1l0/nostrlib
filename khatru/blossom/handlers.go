@@ -91,6 +91,11 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 		ext = getExtension(mimetype)
 	}
 
+	// special case of android apk -- if we see a .zip but they say it's .apk we trust them
+	if ext == ".zip" && getExtension(r.Header.Get("Content-Type")) == ".apk" {
+		ext = ".apk"
+	}
+
 	// run the reject hooks
 	if nil != bs.RejectUpload {
 		reject, reason, code := bs.RejectUpload(r.Context(), auth, size, ext)
