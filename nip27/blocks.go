@@ -85,7 +85,7 @@ func Parse(content string) iter.Seq[Block] {
 					end = u + 4 + m[0]
 				}
 				prefixLen := 4
-				if content[u-1] == 's' {
+				if content[u-1] == 's' { // // "http(s?):"-1 will be either "s" or "p"
 					prefixLen = 5
 				}
 				parsed, err := url.Parse(content[u-prefixLen : end])
@@ -115,7 +115,7 @@ func Parse(content string) iter.Seq[Block] {
 					end = u + 4 + m[0]
 				}
 				prefixLen := 2
-				if content[u-1] == 's' {
+				if content[u-2] == 's' { // "ws(s?):"-1 == "s" always, but "ws(s?):" - 2 may be either "w" or "s"
 					prefixLen = 3
 				}
 				parsed, err := url.Parse(content[u-prefixLen : end])
