@@ -59,3 +59,7 @@ func GetIP(ctx context.Context) string {
 func GetSubscriptionID(ctx context.Context) string {
 	return ctx.Value(subscriptionIdKey).(string)
 }
+
+func SendNotice(ctx context.Context, msg string) {
+	GetConnection(ctx).WriteJSON(nostr.NoticeEnvelope(msg))
+}
