@@ -96,8 +96,7 @@ func (il *IndexingLayer) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq
 		il.lmdbEnv.View(func(txn *lmdb.Txn) error {
 			txn.RawRead = true
 
-			results, err := il.query(txn, filter, filter.Limit)
-
+			results, err := il.query(txn, filter, maxLimit)
 			for _, ie := range results {
 				if !yield(ie.Event) {
 					break
