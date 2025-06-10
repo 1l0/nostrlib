@@ -11,30 +11,35 @@ import (
 	"fiatjaf.com/nostr"
 )
 
-func getTagIndexPrefix(tagValue string) ([]byte, int) {
+func getTagIndexPrefix(tagName string, tagValue string) ([]byte, int) {
 	var k []byte   // the key with full length for created_at and idx at the end, but not filled with these
 	var offset int // the offset -- i.e. where the prefix ends and the created_at and idx would start
 
+	letterPrefix := byte(int(tagName[0]) % 256)
+
 	if kind, pkb, d := getAddrTagElements(tagValue); len(pkb) == 32 {
-		// store value in the new special "a" tag index
-		k = make([]byte, 1+2+8+len(d)+4+4)
+		// store value in the new special "a"-style tag index
+		k = make([]byte, 1+1+2+8+len(d)+4+4)
 		k[0] = indexTagAddrPrefix
-		binary.BigEndian.PutUint16(k[1:], uint16(kind))
-		copy(k[1+2:], pkb[0:8])
-		copy(k[1+2+8:], d)
-		offset = 1 + 2 + 8 + len(d)
+		k[1] = letterPrefix
+		binary.BigEndian.PutUint16(k[1+1:], uint16(kind))
+		copy(k[1+1+2:], pkb[0:8])
+		copy(k[1+1+2+8:], d)
+		offset = 1 + 1 + 2 + 8 + len(d)
 	} else if vb, _ := hex.DecodeString(tagValue); len(vb) == 32 {
-		// store value as bytes
-		k = make([]byte, 1+8+4+4)
+		// store value as bytes with tag name prefix
+		k = make([]byte, 1+1+8+4+4)
 		k[0] = indexTag32Prefix
-		copy(k[1:], vb[0:8])
-		offset = 1 + 8
+		k[1] = letterPrefix
+		copy(k[2:], vb[0:8])
+		offset = 1 + 1 + 8
 	} else {
-		// store whatever as utf-8
-		k = make([]byte, 1+len(tagValue)+4+4)
+		// store whatever as utf-8 with tag name prefix
+		k = make([]byte, 1+1+len(tagValue)+4+4)
 		k[0] = indexTagPrefix
-		copy(k[1:], tagValue)
-		offset = 1 + len(tagValue)
+		k[1] = letterPrefix
+		copy(k[2:], tagValue)
+		offset = 1 + 1 + len(tagValue)
 	}
 
 	return k, offset
@@ -102,7 +107,9 @@ func (b *BadgerBackend) getIndexKeysForEvent(evt nostr.Event, idx []byte) iter.S
 				}
 			}
 
-			firstIndex := slices.IndexFunc(evt.Tags, func(t nostr.Tag) bool { return len(t) >= 2 && t[1] == tag[1] })
+			firstIndex := slices.IndexFunc(evt.Tags, func(t nostr.Tag) bool {
+				return len(t) >= 2 && t[0] == tag[0] && t[1] == tag[1]
+			})
 			if firstIndex != i {
 				// duplicate
 				continue
@@ -114,7 +121,7 @@ func (b *BadgerBackend) getIndexKeysForEvent(evt nostr.Event, idx []byte) iter.S
 			}
 
 			// get key prefix (with full length) and offset where to write the last parts
-			k, offset := getTagIndexPrefix(tag[1])
+			k, offset := getTagIndexPrefix(tag[0], tag[1])
 
 			// write the last parts (created_at and idx)
 			binary.BigEndian.PutUint32(k[offset:], uint32(evt.CreatedAt))
