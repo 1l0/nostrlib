@@ -24,6 +24,7 @@ var tests = []struct {
 	name string
 	run  func(*testing.T, eventstore.Store)
 }{
+	{"basic", basicTest},
 	{"first", runFirstTestOn},
 	{"second", runSecondTestOn},
 	{"manyauthors", manyAuthorsTest},
