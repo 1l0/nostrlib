@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -199,8 +200,21 @@ func (bs BlossomServer) handleGetBlob(w http.ResponseWriter, r *http.Request) {
 		ext = "." + spl[1]
 	}
 
-	if nil != bs.LoadBlob {
-		reader, _ := bs.LoadBlob(r.Context(), hhash)
+	if bs.LoadBlob != nil {
+		reader, redirectURL, err := bs.LoadBlob(r.Context(), hhash)
+		if err == nil && redirectURL != nil {
+			// check that the redirectURL contains the hash of the file
+			if ok, _ := regexp.MatchString(`\b`+hhash+`\b`, redirectURL.String()); !ok {
+				blossomError(w, "redirect url doesn't contain the file hash", 500)
+				return
+			}
+
+			w.Header().Set("ETag", hhash)
+			w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+			http.Redirect(w, r, redirectURL.String(), http.StatusTemporaryRedirect)
+			return
+		}
+
 		if reader != nil {
 			// use unix epoch as the time if we can't find the descriptor
 			// as described in the http.ServeContent documentation
@@ -211,7 +225,11 @@ func (bs BlossomServer) handleGetBlob(w http.ResponseWriter, r *http.Request) {
 			}
 			w.Header().Set("ETag", hhash)
 			w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
-			http.ServeContent(w, r, hhash+ext, t, reader)
+			name := hhash
+			if ext != "" {
+				name += ext
+			}
+			http.ServeContent(w, r, name, t, reader)
 			return
 		}
 	}

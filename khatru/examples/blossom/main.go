@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"fiatjaf.com/nostr/eventstore/badger"
@@ -32,10 +33,10 @@ func main() {
 		fmt.Println("storing", sha256, len(body))
 		return nil
 	}
-	bl.LoadBlob = func(ctx context.Context, sha256 string) (io.ReadSeeker, error) {
+	bl.LoadBlob = func(ctx context.Context, sha256 string) (io.ReadSeeker, *url.URL, error) {
 		fmt.Println("loading", sha256)
 		blob := strings.NewReader("aaaaa")
-		return blob, nil
+		return blob, nil, nil
 	}
 
 	fmt.Println("running on :3334")

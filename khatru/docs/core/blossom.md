@@ -26,9 +26,9 @@ func main() {
         // store the blob data somewhere
         return nil
     }
-    bl.LoadBlob = func(ctx context.Context, sha256 string) (io.ReadSeeker, error) {
-        // load and return the blob data
-        return nil, nil
+    bl.LoadBlob = func(ctx context.Context, sha256 string) (io.ReadSeeker, *url.URL, error) {
+        // load and return the blob data, or a redirect URL
+        return nil, nil, nil
     }
     bl.DeleteBlob = func(ctx context.Context, sha256 string) error {
         // delete the blob data
@@ -43,9 +43,33 @@ func main() {
 
 You can integrate any storage backend by implementing the three core functions:
 
-- `StoreBlob`: Save the blob data
-- `LoadBlob`: Retrieve the blob data
+- `StoreBlob`: Persist the blob data
+- `LoadBlob`: Retrieve the blob data -- or a redirect URL
 - `DeleteBlob`: Remove the blob data
+
+## URL Redirection
+
+Blossom supports redirection to external storage locations when retrieving blobs. This is useful when you want to serve files from a CDN or cloud storage service while keeping Blossom compatibility.
+
+To implement this, your `LoadBlob` function should return a `*url.URL` as its second argument. If this URL is not `nil`, `khatru` will redirect the client to it.
+
+Here's an example that redirects to a templated URL:
+```go
+import (
+    "net/url"
+    "net/http"
+)
+
+// ...
+
+bl.LoadBlob = func(ctx context.Context, sha256 string) (io.ReadSeeker, *url.URL, error) {
+    // generate a custom redirect URL
+    redirectURL, _ := url.Parse(fmt.Sprintf("https://my-cdn.com/%s", sha256))
+    return nil, redirectURL, nil
+}
+```
+
+This URL must include the sha256 hash somewhere.
 
 ## Upload Restrictions
 
@@ -91,3 +115,32 @@ bl.Store = blossom.EventStoreBlobIndexWrapper{
 ```
 
 This will store blob metadata as special `kind:24242` events, but you shouldn't have to worry about it as the wrapper handles all the complexity of tracking ownership and managing blob lifecycle. Jut avoid reusing the same datastore that is used for the actual relay events unless you know what you're doing.
+
+## Upload Restrictions
+
+You can implement upload restrictions using the `RejectUpload` hook. Here's an example that limits file size and restricts uploads to whitelisted users:
+
+```go
+const maxFileSize = 10 * 1024 * 1024 // 10MB
+
+var allowedUsers = map[string]bool{
+    "pubkey1": true,
+    "pubkey2": true,
+}
+
+bl.RejectUpload = func(ctx context.Context, auth *nostr.Event, size int, ext string) (bool, string, int) {
+    // check file size
+    if size > maxFileSize {
+        return true, "file too large", 413
+    }
+
+    // check if user is allowed
+    if auth == nil || !allowedUsers[auth.PubKey] {
+        return true, "unauthorized", 403
+    }
+
+    return false, "", 0
+}
+```
+
+There are other `Reject*` hooks you can also implement, but this is the most important one.

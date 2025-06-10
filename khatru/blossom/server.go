@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"fiatjaf.com/nostr"
@@ -15,7 +16,7 @@ type BlossomServer struct {
 	Store      BlobIndex
 
 	StoreBlob     func(ctx context.Context, sha256 string, body []byte) error
-	LoadBlob      func(ctx context.Context, sha256 string) (io.ReadSeeker, error)
+	LoadBlob      func(ctx context.Context, sha256 string) (io.ReadSeeker, *url.URL, error)
 	DeleteBlob    func(ctx context.Context, sha256 string) error
 	ReceiveReport func(ctx context.Context, reportEvt nostr.Event) error
 
