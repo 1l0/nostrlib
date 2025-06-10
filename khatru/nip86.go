@@ -124,13 +124,18 @@ func (rl *Relay) HandleNIP86(w http.ResponseWriter, r *http.Request) {
 		methods := make([]string, 0, mat.NumField())
 		for i := 0; i < mat.NumField(); i++ {
 			field := mat.Field(i)
+			value := mav.Field(i).Interface()
 
 			// danger: this assumes the struct fields are appropriately named
 			methodName := strings.ToLower(field.Name)
 
+			if methodName == "rejectapicall" {
+				continue
+			}
+
 			// assign this only if the function was defined
-			if mav.Field(i).Interface() != nil {
-				methods[i] = methodName
+			if !reflect.ValueOf(value).IsNil() {
+				methods = append(methods, methodName)
 			}
 		}
 		resp.Result = methods
