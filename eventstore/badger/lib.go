@@ -51,7 +51,7 @@ func (b *BadgerBackend) Init() error {
 	}
 	b.DB = db
 
-	if err := b.runMigrations(); err != nil {
+	if err := b.migrate(); err != nil {
 		return fmt.Errorf("error running migrations: %w", err)
 	}
 

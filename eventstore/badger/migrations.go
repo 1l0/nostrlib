@@ -10,14 +10,14 @@ import (
 	"github.com/dgraph-io/badger/v4"
 )
 
-func (b *BadgerBackend) runMigrations() error {
+func (b *BadgerBackend) migrate() error {
 	return b.Update(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte("version"))
 		if err != nil && err != badger.ErrKeyNotFound {
 			return fmt.Errorf("failed to get db version: %w", err)
 		}
 
-		var version uint16 = 0
+		var version uint16 = 1
 		if err == nil {
 			err = item.Value(func(val []byte) error {
 				version = binary.BigEndian.Uint16(val)
@@ -28,12 +28,11 @@ func (b *BadgerBackend) runMigrations() error {
 			}
 		}
 
-		// do the migrations in increasing steps (there is no rollback)
-		//
+		const target = 2
 
-		// the 5 first migrations go to trash because on version 5 we need to export and import all the data anyway
-		if version < 5 {
-			log.Println("[badger] migration 5: delete all indexes and recreate them")
+		// do the migrations in increasing steps (there is no rollback)
+		if version < target {
+			log.Printf("[badger] migration %d: delete all indexes and recreate them\n", target)
 
 			// delete all index entries
 			prefixes := []byte{
@@ -83,12 +82,12 @@ func (b *BadgerBackend) runMigrations() error {
 				err := item.Value(func(val []byte) error {
 					evt := nostr.Event{}
 					if err := betterbinary.Unmarshal(val, &evt); err != nil {
-						return fmt.Errorf("error decoding event %x on migration 5: %w", idx, err)
+						return fmt.Errorf("error decoding event %x on migration %d: %w", idx, target, err)
 					}
 
 					for key := range b.getIndexKeysForEvent(evt, idx[1:]) {
 						if err := txn.Set(key, nil); err != nil {
-							return fmt.Errorf("failed to save index for event %s on migration 5: %w", evt.ID, err)
+							return fmt.Errorf("failed to save index for event %s on migration %d: %w", evt.ID, target, err)
 						}
 					}
 
@@ -100,7 +99,7 @@ func (b *BadgerBackend) runMigrations() error {
 			}
 
 			// bump version
-			if err := b.bumpVersion(txn, 5); err != nil {
+			if err := b.bumpVersion(txn, target); err != nil {
 				return err
 			}
 		}

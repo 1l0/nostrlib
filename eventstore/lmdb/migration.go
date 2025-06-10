@@ -14,24 +14,23 @@ const (
 	DB_VERSION byte = 'v'
 )
 
-func (b *LMDBBackend) runMigrations() error {
+func (b *LMDBBackend) migrate() error {
 	return b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
 		val, err := txn.Get(b.settingsStore, []byte("version"))
 		if err != nil && !lmdb.IsNotFound(err) {
 			return fmt.Errorf("failed to get db version: %w", err)
 		}
 
-		var version uint16 = 0
+		var version uint16 = 1
 		if err == nil {
 			version = binary.BigEndian.Uint16(val)
 		}
 
-		// do the migrations in increasing steps (there is no rollback)
-		//
+		const target = 2
 
-		// this is when we reindex everything
-		if version < 9 {
-			log.Println("[lmdb] migration 9: reindex everything")
+		// do the migrations in increasing steps (there is no rollback)
+		if version < target {
+			log.Printf("[lmdb] migration %d: reindex everything\n", target)
 
 			if err := txn.Drop(b.indexId, false); err != nil {
 				return err
@@ -60,7 +59,7 @@ func (b *LMDBBackend) runMigrations() error {
 
 			cursor, err := txn.OpenCursor(b.rawEventStore)
 			if err != nil {
-				return fmt.Errorf("failed to open cursor in migration 9: %w", err)
+				return fmt.Errorf("failed to open cursor in migration %d: %w", target, err)
 			}
 			defer cursor.Close()
 
@@ -73,7 +72,7 @@ func (b *LMDBBackend) runMigrations() error {
 					break
 				}
 				if err != nil {
-					return fmt.Errorf("failed to get next in migration 9: %w", err)
+					return fmt.Errorf("failed to get next in migration %d: %w", target, err)
 				}
 
 				if err := betterbinary.Unmarshal(val, &evt); err != nil {
@@ -83,14 +82,14 @@ func (b *LMDBBackend) runMigrations() error {
 
 				for key := range b.getIndexKeysForEvent(evt) {
 					if err := txn.Put(key.dbi, key.key, idx, 0); err != nil {
-						return fmt.Errorf("failed to save index %s for event %s (%v) on migration 9: %w",
-							b.keyName(key), evt.ID, idx, err)
+						return fmt.Errorf("failed to save index %s for event %s (%v) on migration %d: %w",
+							b.keyName(key), evt.ID, idx, target, err)
 					}
 				}
 			}
 
 			// bump version
-			if err := b.setVersion(txn, 9); err != nil {
+			if err := b.setVersion(txn, target); err != nil {
 				return err
 			}
 		}

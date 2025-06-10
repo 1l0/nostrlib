@@ -21,6 +21,7 @@ type IndexingLayer struct {
 
 	lmdbEnv *lmdb.Env
 
+	settings        lmdb.DBI
 	indexCreatedAt  lmdb.DBI
 	indexKind       lmdb.DBI
 	indexPubkey     lmdb.DBI
@@ -75,6 +76,11 @@ func (il *IndexingLayer) Init() error {
 
 	// open each db
 	if err := il.lmdbEnv.Update(func(txn *lmdb.Txn) error {
+		if dbi, err := txn.OpenDBI("settings", lmdb.Create); err != nil {
+			return err
+		} else {
+			il.settings = dbi
+		}
 		if dbi, err := txn.OpenDBI("created_at", multiIndexCreationFlags); err != nil {
 			return err
 		} else {
@@ -117,6 +123,10 @@ func (il *IndexingLayer) Init() error {
 		}
 		return nil
 	}); err != nil {
+		return err
+	}
+
+	if err := il.migrate(); err != nil {
 		return err
 	}
 

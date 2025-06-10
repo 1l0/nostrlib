@@ -37,7 +37,7 @@ func FuzzQuery(f *testing.F) {
 		db := &BadgerBackend{}
 		db.DB = bdb
 
-		if err := db.runMigrations(); err != nil {
+		if err := db.migrate(); err != nil {
 			t.Fatalf("error: %s", err)
 			return
 		}

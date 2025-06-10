@@ -194,5 +194,5 @@ func (b *LMDBBackend) initialize() error {
 		return err
 	}
 
-	return b.runMigrations()
+	return b.migrate()
 }
