@@ -40,7 +40,10 @@ func easyjsonDecodeFilter(in *jlexer.Lexer, out *Filter) {
 			}
 			for !in.IsDelim(']') {
 				id := [32]byte{}
-				hex.Decode(id[:], in.UnsafeBytes())
+				b := in.UnsafeBytes()
+				if len(b) == 32 {
+					hex.Decode(id[:], b)
+				}
 				out.IDs = append(out.IDs, id)
 				in.WantComma()
 			}
@@ -74,7 +77,10 @@ func easyjsonDecodeFilter(in *jlexer.Lexer, out *Filter) {
 			}
 			for !in.IsDelim(']') {
 				pk := [32]byte{}
-				hex.Decode(pk[:], in.UnsafeBytes())
+				b := in.UnsafeBytes()
+				if len(b) == 32 {
+					hex.Decode(pk[:], b)
+				}
 				out.Authors = append(out.Authors, pk)
 				in.WantComma()
 			}

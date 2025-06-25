@@ -27,9 +27,15 @@ func easyjsonDecodeEvent(in *jlexer.Lexer, out *Event) {
 		}
 		switch key {
 		case "id":
-			hex.Decode(out.ID[:], in.UnsafeBytes())
+			b := in.UnsafeBytes()
+			if len(b) == 32 {
+				hex.Decode(out.ID[:], b)
+			}
 		case "pubkey":
-			hex.Decode(out.PubKey[:], in.UnsafeBytes())
+			b := in.UnsafeBytes()
+			if len(b) == 32 {
+				hex.Decode(out.PubKey[:], b)
+			}
 		case "created_at":
 			out.CreatedAt = Timestamp(in.Int64())
 		case "kind":
@@ -65,7 +71,10 @@ func easyjsonDecodeEvent(in *jlexer.Lexer, out *Event) {
 		case "content":
 			out.Content = in.String()
 		case "sig":
-			hex.Decode(out.Sig[:], in.UnsafeBytes())
+			b := in.UnsafeBytes()
+			if len(b) == 64 {
+				hex.Decode(out.Sig[:], b)
+			}
 		}
 		in.WantComma()
 	}
