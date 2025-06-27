@@ -265,24 +265,35 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 		bunker.listeners.Delete(id)
 		close(respWaiter)
 	}()
-	hasWorked := make(chan struct{})
+	relayConnectionWorked := make(chan struct{})
+	bunkerConnectionWorked := make(chan struct{})
 
 	for _, url := range bunker.relays {
 		go func(url string) {
 			relay, err := bunker.pool.EnsureRelay(url)
 			if err == nil {
 				select {
-				case hasWorked <- struct{}{}:
+				case relayConnectionWorked <- struct{}{}:
 				default:
 				}
-				relay.Publish(ctx, evt)
+				if err := relay.Publish(ctx, evt); err == nil {
+					select {
+					case bunkerConnectionWorked <- struct{}{}:
+					default:
+					}
+				}
 			}
 		}(url)
 	}
 
 	select {
-	case <-hasWorked:
-		// continue
+	case <-relayConnectionWorked:
+		select {
+		case <-bunkerConnectionWorked:
+			// continue
+		case <-ctx.Done():
+			return "", fmt.Errorf("couldn't reach the bunker, it is probably offline")
+		}
 	case <-ctx.Done():
 		return "", fmt.Errorf("couldn't connect to any relay")
 	}
