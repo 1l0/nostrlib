@@ -41,7 +41,7 @@ func easyjsonDecodeFilter(in *jlexer.Lexer, out *Filter) {
 			for !in.IsDelim(']') {
 				id := [32]byte{}
 				b := in.UnsafeBytes()
-				if len(b) == 32 {
+				if len(b) == 64 {
 					hex.Decode(id[:], b)
 				}
 				out.IDs = append(out.IDs, id)
@@ -78,7 +78,7 @@ func easyjsonDecodeFilter(in *jlexer.Lexer, out *Filter) {
 			for !in.IsDelim(']') {
 				pk := [32]byte{}
 				b := in.UnsafeBytes()
-				if len(b) == 32 {
+				if len(b) == 64 {
 					hex.Decode(pk[:], b)
 				}
 				out.Authors = append(out.Authors, pk)
