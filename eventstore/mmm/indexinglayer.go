@@ -59,7 +59,7 @@ func (il *IndexingLayer) Init() error {
 		return err
 	}
 
-	env.SetMaxDBs(8)
+	env.SetMaxDBs(9)
 	env.SetMaxReaders(1000)
 	env.SetMapSize(1 << 38) // ~273GB
 
