@@ -13,7 +13,7 @@ import (
 
 func VerifyNutzap(
 	keyset map[uint64]*btcec.PublicKey,
-	evt *nostr.Event,
+	evt nostr.Event,
 ) (sats uint64, ok bool) {
 	for _, tag := range evt.Tags {
 		if len(tag) < 2 {
