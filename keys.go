@@ -29,19 +29,23 @@ func (sk SecretKey) Hex() string    { return hex.EncodeToString(sk[:]) }
 func (sk SecretKey) Public() PubKey { return GetPublicKey(sk) }
 
 func SecretKeyFromHex(skh string) (SecretKey, error) {
-	id := SecretKey{}
+	sk := SecretKey{}
 
 	if len(skh) < 64 {
 		skh = strings.Repeat("0", 64-len(skh)) + skh
 	} else if len(skh) > 64 {
-		return id, fmt.Errorf("secret key should be at most 64-char hex, got '%s'", skh)
+		return sk, fmt.Errorf("secret key should be at most 64-char hex, got '%s'", skh)
 	}
 
-	if _, err := hex.Decode(id[:], unsafe.Slice(unsafe.StringData(skh), 64)); err != nil {
-		return id, fmt.Errorf("'%s' is not valid hex: %w", skh, err)
+	if _, err := hex.Decode(sk[:], unsafe.Slice(unsafe.StringData(skh), 64)); err != nil {
+		return sk, fmt.Errorf("'%s' is not valid hex: %w", skh, err)
 	}
 
-	return id, nil
+	if sk.Public() != ZeroPK {
+		return sk, nil
+	}
+
+	return sk, fmt.Errorf("invalid secret key")
 }
 
 func MustSecretKeyFromHex(idh string) SecretKey {
