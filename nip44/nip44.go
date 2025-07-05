@@ -197,7 +197,6 @@ func messageKeys(conversationKey [32]byte, nonce [32]byte) ([]byte, []byte, []by
 	if _, err := io.ReadFull(r, cc20key); err != nil {
 		return nil, nil, nil, err
 	}
-
 	cc20nonce := make([]byte, 12)
 	if _, err := io.ReadFull(r, cc20nonce); err != nil {
 		return nil, nil, nil, err

@@ -10,17 +10,13 @@ import (
 )
 
 func assertCryptPriv(t *testing.T, skh1 string, skh2 string, conversationKey string, salt string, plaintext string, expected string) {
-	sk1 := [32]byte{}
-	hex.Decode(sk1[:], []byte(skh1))
-
-	sk2 := [32]byte{}
-	hex.Decode(sk2[:], []byte(skh2))
+	sk2, _ := nostr.SecretKeyFromHex(skh2)
+	pub2 := nostr.GetPublicKey(sk2)
 
 	k1, err := hexDecode32Array(conversationKey)
 	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
 
-	pub2 := nostr.GetPublicKey(sk2)
-	assertConversationKeyGenerationPub(t, skh1, hex.EncodeToString(pub2[:]), conversationKey)
+	assertConversationKeyGenerationPub(t, skh1, pub2.Hex(), conversationKey)
 
 	customNonce, err := hex.DecodeString(salt)
 	require.NoErrorf(t, err, "hex decode failed for salt: %v", err)
@@ -44,13 +40,10 @@ func assertDecryptFail(t *testing.T, conversationKey string, _ string, ciphertex
 }
 
 func assertConversationKeyFail(t *testing.T, priv string, pub string, msg string) {
-	var pub32 [32]byte
-	hex.Decode(pub32[:], []byte(pub))
+	sk, _ := nostr.SecretKeyFromHex(priv)
+	pk, _ := nostr.PubKeyFromHex(pub)
 
-	var priv32 [32]byte
-	hex.Decode(priv32[:], []byte(priv))
-
-	_, err := GenerateConversationKey(pub32, priv32)
+	_, err := GenerateConversationKey(pk, sk)
 	require.ErrorContains(t, err, msg)
 }
 
@@ -58,13 +51,12 @@ func assertConversationKeyGenerationPub(t *testing.T, priv string, pub string, c
 	expectedConversationKey, err := hexDecode32Array(conversationKey)
 	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
 
-	var pub32 [32]byte
-	hex.Decode(pub32[:], []byte(pub))
+	pk, err := nostr.PubKeyFromHex(pub)
+	require.NoErrorf(t, err, "pubkey bad")
+	sk, err := nostr.SecretKeyFromHex(priv)
+	require.NoErrorf(t, err, "privkey bad")
 
-	var priv32 [32]byte
-	hex.Decode(priv32[:], []byte(priv))
-
-	actualConversationKey, err := GenerateConversationKey(pub32, priv32)
+	actualConversationKey, err := GenerateConversationKey(pk, sk)
 	require.NoErrorf(t, err, "conversation key generation failed: %v", err)
 
 	require.Equalf(t, expectedConversationKey, actualConversationKey, "wrong conversation key")
