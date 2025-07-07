@@ -31,7 +31,7 @@ func assertCryptPriv(t *testing.T, skh1 string, skh2 string, conversationKey str
 	require.Equal(t, decrypted, plaintext, "wrong decryption")
 }
 
-func assertDecryptFail(t *testing.T, conversationKey string, _ string, ciphertext string, msg string) {
+func assertDecryptFail(t *testing.T, conversationKey string, ciphertext string, msg string) {
 	k1, err := hexDecode32Array(conversationKey)
 	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
 
@@ -342,7 +342,6 @@ func TestDecryptFail001(t *testing.T) {
 	assertDecryptFail(t,
 		"ca2527a037347b91bea0c8a30fc8d9600ffd81ec00038671e3a0f0cb0fc9f642",
 		// "daaea5ca345b268e5b62060ca72c870c48f713bc1e00ff3fc0ddb78e826f10db",
-		"n o b l e",
 		"#Atqupco0WyaOW2IGDKcshwxI9xO8HgD/P8Ddt46CbxDbrhdG8VmJdU0MIDf06CUvEvdnr1cp1fiMtlM/GrE92xAc1K5odTpCzUB+mjXgbaqtntBUbTToSUoT0ovrlPwzGjyp",
 		"unknown version",
 	)
@@ -352,7 +351,6 @@ func TestDecryptFail002(t *testing.T) {
 	assertDecryptFail(t,
 		"36f04e558af246352dcf73b692fbd3646a2207bd8abd4b1cd26b234db84d9481",
 		// "ad408d4be8616dc84bb0bf046454a2a102edac937c35209c43cd7964c5feb781",
-		"⚠️",
 		"AK1AjUvoYW3IS7C/BGRUoqEC7ayTfDUgnEPNeWTF/reBZFaha6EAIRueE9D1B1RuoiuFScC0Q94yjIuxZD3JStQtE8JMNacWFs9rlYP+ZydtHhRucp+lxfdvFlaGV/sQlqZz",
 		"unknown version 0",
 	)
@@ -362,7 +360,6 @@ func TestDecryptFail003(t *testing.T) {
 	assertDecryptFail(t,
 		"ca2527a037347b91bea0c8a30fc8d9600ffd81ec00038671e3a0f0cb0fc9f642",
 		// "daaea5ca345b268e5b62060ca72c870c48f713bc1e00ff3fc0ddb78e826f10db",
-		"n o s t r",
 		"Atфupco0WyaOW2IGDKcshwxI9xO8HgD/P8Ddt46CbxDbrhdG8VmJZE0UICD06CUvEvdnr1cp1fiMtlM/GrE92xAc1EwsVCQEgWEu2gsHUVf4JAa3TpgkmFc3TWsax0v6n/Wq",
 		"invalid base64",
 	)
@@ -372,7 +369,6 @@ func TestDecryptFail004(t *testing.T) {
 	assertDecryptFail(t,
 		"cff7bd6a3e29a450fd27f6c125d5edeb0987c475fd1e8d97591e0d4d8a89763c",
 		// "09ff97750b084012e15ecb84614ce88180d7b8ec0d468508a86b6d70c0361a25",
-		"¯\\_(ツ)_/¯",
 		"Agn/l3ULCEAS4V7LhGFM6IGA17jsDUaFCKhrbXDANholyySBfeh+EN8wNB9gaLlg4j6wdBYh+3oK+mnxWu3NKRbSvQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 		"invalid hmac",
 	)
@@ -382,7 +378,6 @@ func TestDecryptFail005(t *testing.T) {
 	assertDecryptFail(t,
 		"cfcc9cf682dfb00b11357f65bdc45e29156b69db424d20b3596919074f5bf957",
 		// "65b14b0b949aaa7d52c417eb753b390e8ad6d84b23af4bec6d9bfa3e03a08af4",
-		"🥎",
 		"AmWxSwuUmqp9UsQX63U7OQ6K1thLI69L7G2b+j4DoIr0oRWQ8avl4OLqWZiTJ10vIgKrNqjoaX+fNhE9RqmR5g0f6BtUg1ijFMz71MO1D4lQLQfW7+UHva8PGYgQ1QpHlKgR",
 		"invalid hmac",
 	)
@@ -392,7 +387,6 @@ func TestDecryptFail006(t *testing.T) {
 	assertDecryptFail(t,
 		"5254827d29177622d40a7b67cad014fe7137700c3c523903ebbe3e1b74d40214",
 		// "7ab65dbb8bbc2b8e35cafb5745314e1f050325a864d11d0475ef75b3660d91c1",
-		"elliptic-curve cryptography",
 		"Anq2XbuLvCuONcr7V0UxTh8FAyWoZNEdBHXvdbNmDZHB573MI7R7rrTYftpqmvUpahmBC2sngmI14/L0HjOZ7lWGJlzdh6luiOnGPc46cGxf08MRC4CIuxx3i2Lm0KqgJ7vA",
 		"invalid padding",
 	)
@@ -402,7 +396,6 @@ func TestDecryptFail007(t *testing.T) {
 	assertDecryptFail(t,
 		"fea39aca9aa8340c3a78ae1f0902aa7e726946e4efcd7783379df8096029c496",
 		// "7d4283e3b54c885d6afee881f48e62f0a3f5d7a9e1cb71ccab594a7882c39330",
-		"noble",
 		"An1Cg+O1TIhdav7ogfSOYvCj9dep4ctxzKtZSniCw5MwRrrPJFyAQYZh5VpjC2QYzny5LIQ9v9lhqmZR4WBYRNJ0ognHVNMwiFV1SHpvUFT8HHZN/m/QarflbvDHAtO6pY16",
 		"invalid padding",
 	)
@@ -412,7 +405,6 @@ func TestDecryptFail008(t *testing.T) {
 	assertDecryptFail(t,
 		"0c4cffb7a6f7e706ec94b2e879f1fc54ff8de38d8db87e11787694d5392d5b3f",
 		// "6f9fd72667c273acd23ca6653711a708434474dd9eb15c3edb01ce9a95743e9b",
-		"censorship-resistant and global social network",
 		"Am+f1yZnwnOs0jymZTcRpwhDRHTdnrFcPtsBzpqVdD6b2NZDaNm/TPkZGr75kbB6tCSoq7YRcbPiNfJXNch3Tf+o9+zZTMxwjgX/nm3yDKR2kHQMBhVleCB9uPuljl40AJ8kXRD0gjw+aYRJFUMK9gCETZAjjmrsCM+nGRZ1FfNsHr6Z",
 		"invalid padding",
 	)
@@ -422,7 +414,6 @@ func TestDecryptFail009(t *testing.T) {
 	assertDecryptFail(t,
 		"5cd2d13b9e355aeb2452afbd3786870dbeecb9d355b12cb0a3b6e9da5744cd35",
 		// "b60036976a1ada277b948fd4caa065304b96964742b89d26f26a25263a5060bd",
-		"0",
 		"",
 		"invalid payload length: 0",
 	)
@@ -432,7 +423,6 @@ func TestDecryptFail010(t *testing.T) {
 	assertDecryptFail(t,
 		"d61d3f09c7dfe1c0be91af7109b60a7d9d498920c90cbba1e137320fdd938853",
 		// "1a29d02c8b4527745a2ccb38bfa45655deb37bc338ab9289d756354cea1fd07c",
-		"1",
 		"Ag==",
 		"invalid payload length: 4",
 	)
@@ -442,7 +432,6 @@ func TestDecryptFail011(t *testing.T) {
 	assertDecryptFail(t,
 		"873bb0fc665eb950a8e7d5971965539f6ebd645c83c08cd6a85aafbad0f0bc47",
 		// "c826d3c38e765ab8cc42060116cd1464b2a6ce01d33deba5dedfb48615306d4a",
-		"2",
 		"AqxgToSh3H7iLYRJjoWAM+vSv/Y1mgNlm6OWWjOYUClrFF8=",
 		"invalid payload length: 48",
 	)
@@ -452,7 +441,6 @@ func TestDecryptFail012(t *testing.T) {
 	assertDecryptFail(t,
 		"9f2fef8f5401ac33f74641b568a7a30bb19409c76ffdc5eae2db6b39d2617fbe",
 		// "9ff6484642545221624eaac7b9ea27133a4cc2356682a6033aceeef043549861",
-		"3",
 		"Ap/2SEZCVFIhYk6qx7nqJxM6TMI1ZoKmAzrO7vBDVJhhuZXWiM20i/tIsbjT0KxkJs2MZjh1oXNYMO9ggfk7i47WQA==",
 		"invalid payload length: 92",
 	)

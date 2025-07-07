@@ -1,13 +1,15 @@
 package nip86
 
+import "fiatjaf.com/nostr"
+
 type IDReason struct {
 	ID     string `json:"id"`
 	Reason string `json:"reason"`
 }
 
 type PubKeyReason struct {
-	PubKey string `json:"pubkey"`
-	Reason string `json:"reason"`
+	PubKey nostr.PubKey `json:"pubkey"`
+	Reason string       `json:"reason"`
 }
 
 type IPReason struct {
