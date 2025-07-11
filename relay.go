@@ -117,11 +117,6 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 		return fmt.Errorf("invalid relay URL '%s'", r.URL)
 	}
 
-	if _, ok := ctx.Deadline(); !ok {
-		// if no timeout is set, force it to 7 seconds
-		ctx, _ = context.WithTimeoutCause(ctx, 7*time.Second, errors.New("connection took too long"))
-	}
-
 	conn, err := NewConnection(ctx, r.URL, r.handleMessage, r.requestHeader, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
@@ -230,10 +225,10 @@ func (r *Relay) WriteWithError(msg []byte) error {
 	ch := make(chan error)
 	select {
 	case r.Connection.writeQueue <- writeRequest{msg: msg, answer: ch}:
-	case <-r.Connection.closedNotify:
-		return fmt.Errorf("failed to write to %s: <closed>", r.URL)
 	case <-r.connectionContext.Done():
 		return fmt.Errorf("failed to write to %s: %w", r.URL, context.Cause(r.connectionContext))
+	case <-r.Connection.closedNotify:
+		return fmt.Errorf("failed to write to %s: <closed>", r.URL)
 	}
 	return <-ch
 }

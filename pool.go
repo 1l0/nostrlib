@@ -145,17 +145,10 @@ func (pool *Pool) EnsureRelay(url string) (*Relay, error) {
 		return relay, nil
 	}
 
+	relay = NewRelay(pool.Context, url, pool.relayOptions)
 	// try to connect
 	// we use this ctx here so when the pool dies everything dies
-	ctx, cancel := context.WithTimeoutCause(
-		pool.Context,
-		time.Second*7,
-		errors.New("connecting to the relay took too long"),
-	)
-	defer cancel()
-
-	relay = NewRelay(pool.Context, url, pool.relayOptions)
-	if err := relay.Connect(ctx); err != nil {
+	if err := relay.Connect(pool.Context); err != nil {
 		if pool.penaltyBox != nil {
 			// putting relay in penalty box
 			pool.penaltyBoxMu.Lock()
@@ -469,7 +462,7 @@ func (pool *Pool) subMany(
 			subscribe:
 				sub, err = relay.Subscribe(ctx, filter, opts)
 				if err != nil {
-					debugLogf("%s reconnecting because subscription died\n", nm)
+					debugLogf("%s reconnecting because subscription died: %s\n", nm, err)
 					goto reconnect
 				}
 

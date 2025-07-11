@@ -34,7 +34,13 @@ func NewConnection(
 	requestHeader http.Header,
 	tlsConfig *tls.Config,
 ) (*Connection, error) {
-	c, _, err := ws.Dial(ctx, url, getConnectionOptions(requestHeader, tlsConfig))
+	dialCtx := ctx
+	if _, ok := dialCtx.Deadline(); !ok {
+		// if no timeout is set, force it to 7 seconds
+		dialCtx, _ = context.WithTimeoutCause(ctx, 7*time.Second, errors.New("connection took too long"))
+	}
+
+	c, _, err := ws.Dial(dialCtx, url, getConnectionOptions(requestHeader, tlsConfig))
 	if err != nil {
 		return nil, err
 	}
