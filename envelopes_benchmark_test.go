@@ -1,5 +1,3 @@
-//go:build sonic
-
 package nostr
 
 import (
@@ -28,16 +26,7 @@ func BenchmarkParseMessage(b *testing.B) {
 			b.Run("easyjson", func(b *testing.B) {
 				for b.Loop() {
 					for _, msg := range messages {
-						_ = ParseMessage(msg)
-					}
-				}
-			})
-
-			b.Run("sonic", func(b *testing.B) {
-				smp := NewSonicMessageParser()
-				for b.Loop() {
-					for _, msg := range messages {
-						_, _ = smp.ParseMessage(msg)
+						_, _ = ParseMessage(msg)
 					}
 				}
 			})
@@ -103,14 +92,13 @@ func generateRandomEvent() Event {
 	}
 
 	event := Event{
-		ID:        generateRandomHex(64),
-		PubKey:    generateRandomHex(64),
 		CreatedAt: Timestamp(time.Now().Unix() - int64(rand.IntN(10000000))),
-		Kind:      rand.IntN(10000),
+		Kind:      Kind(rand.IntN(10000)),
 		Tags:      tags,
 		Content:   string(content),
-		Sig:       generateRandomHex(128),
 	}
+	event.ID, _ = IDFromHex(generateRandomHex(64))
+	event.PubKey, _ = PubKeyFromHexCheap(generateRandomHex(64))
 
 	return event
 }
@@ -198,25 +186,25 @@ func generateRandomFilter() Filter {
 
 	if rand.IntN(2) == 0 {
 		count := rand.IntN(5) + 1
-		filter.IDs = make([]string, count)
+		filter.IDs = make([]ID, count)
 		for i := range filter.IDs {
-			filter.IDs[i] = generateRandomHex(64)
+			filter.IDs[i], _ = IDFromHex(generateRandomHex(64))
 		}
 	}
 
 	if rand.IntN(2) == 0 {
 		count := rand.IntN(5) + 1
-		filter.Kinds = make([]int, count)
+		filter.Kinds = make([]Kind, count)
 		for i := range filter.Kinds {
-			filter.Kinds[i] = rand.IntN(10000)
+			filter.Kinds[i] = Kind(rand.IntN(10000))
 		}
 	}
 
 	if rand.IntN(2) == 0 {
 		count := rand.IntN(5) + 1
-		filter.Authors = make([]string, count)
+		filter.Authors = make([]PubKey, count)
 		for i := range filter.Authors {
-			filter.Authors[i] = generateRandomHex(64)
+			filter.Authors[i], _ = PubKeyFromHexCheap(generateRandomHex(64))
 		}
 	}
 
@@ -238,13 +226,11 @@ func generateRandomFilter() Filter {
 	}
 
 	if rand.IntN(2) == 0 {
-		ts := Timestamp(time.Now().Unix() - int64(rand.IntN(10000000)))
-		filter.Since = &ts
+		filter.Since = Timestamp(time.Now().Unix() - int64(rand.IntN(10000000)))
 	}
 
 	if rand.IntN(2) == 0 {
-		ts := Timestamp(time.Now().Unix() - int64(rand.IntN(1000000)))
-		filter.Until = &ts
+		filter.Until = Timestamp(time.Now().Unix() - int64(rand.IntN(1000000)))
 	}
 
 	if rand.IntN(2) == 0 {

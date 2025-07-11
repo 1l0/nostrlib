@@ -150,7 +150,7 @@ func (sub *Subscription) Close() {
 	if sub.Relay.IsConnected() {
 		closeMsg := CloseEnvelope(sub.id)
 		closeb, _ := (&closeMsg).MarshalJSON()
-		<-sub.Relay.Write(closeb)
+		sub.Relay.Write(closeb)
 	}
 }
 
@@ -165,13 +165,13 @@ func (sub *Subscription) Sub(_ context.Context, filter Filter) {
 func (sub *Subscription) Fire() error {
 	var reqb []byte
 	if sub.countResult == nil {
-		reqb, _ = ReqEnvelope{sub.id, sub.Filter}.MarshalJSON()
+		reqb, _ = ReqEnvelope{sub.id, []Filter{sub.Filter}}.MarshalJSON()
 	} else {
 		reqb, _ = CountEnvelope{sub.id, sub.Filter, nil, nil}.MarshalJSON()
 	}
 
 	sub.live.Store(true)
-	if err := <-sub.Relay.Write(reqb); err != nil {
+	if err := sub.Relay.WriteWithError(reqb); err != nil {
 		err := fmt.Errorf("failed to write: %w", err)
 		sub.cancel(err)
 		return err

@@ -8,7 +8,7 @@ import (
 )
 
 func TestCount(t *testing.T) {
-	const RELAY = "wss://chorus.mikedilger.com:444"
+	const RELAY = "wss://chorus.pjv.me"
 
 	rl := mustRelayConnect(t, RELAY)
 	defer rl.Close()

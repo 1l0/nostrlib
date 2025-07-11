@@ -13,22 +13,19 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-var UnknownLabel = errors.New("unknown envelope label")
+var (
+	UnknownLabel        = errors.New("unknown envelope label")
+	InvalidJsonEnvelope = errors.New("invalid json envelope")
+)
 
-type MessageParser interface {
-	// ParseMessage parses a message into an Envelope.
-	ParseMessage(string) (Envelope, error)
-}
-
-// Deprecated: use NewMessageParser instead
-func ParseMessage(message string) Envelope {
+func ParseMessage(message string) (Envelope, error) {
 	firstQuote := strings.IndexByte(message, '"')
 	if firstQuote == -1 {
-		return nil
+		return nil, InvalidJsonEnvelope
 	}
 	secondQuote := strings.IndexByte(message[firstQuote+1:], '"')
 	if secondQuote == -1 {
-		return nil
+		return nil, InvalidJsonEnvelope
 	}
 	label := message[firstQuote+1 : firstQuote+1+secondQuote]
 
@@ -56,14 +53,14 @@ func ParseMessage(message string) Envelope {
 		x := CloseEnvelope("")
 		v = &x
 	default:
-		return nil
+		return nil, UnknownLabel
 	}
 
 	if err := v.FromJSON(message); err != nil {
-		return nil
+		return nil, err
 	}
 
-	return v
+	return v, nil
 }
 
 // Envelope is the interface for all nostr message envelopes.
@@ -124,10 +121,14 @@ func (v EventEnvelope) MarshalJSON() ([]byte, error) {
 // ReqEnvelope represents a REQ message.
 type ReqEnvelope struct {
 	SubscriptionID string
-	Filter
+	Filters        []Filter
 }
 
 func (_ ReqEnvelope) Label() string { return "REQ" }
+func (c ReqEnvelope) String() string {
+	v, _ := json.Marshal(c)
+	return string(v)
+}
 
 func (v *ReqEnvelope) FromJSON(data string) error {
 	r := gjson.Parse(data)
@@ -136,8 +137,12 @@ func (v *ReqEnvelope) FromJSON(data string) error {
 		return fmt.Errorf("failed to decode REQ envelope: missing filters")
 	}
 	v.SubscriptionID = string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str)))
-	if err := easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw)), &v.Filter); err != nil {
-		return fmt.Errorf("on filter: %w", err)
+
+	v.Filters = make([]Filter, len(arr)-2)
+	for i, filterj := range arr[2:] {
+		if err := easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(filterj.Raw), len(filterj.Raw)), &v.Filters[i]); err != nil {
+			return fmt.Errorf("on filter: %w", err)
+		}
 	}
 
 	return nil
@@ -148,7 +153,7 @@ func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
 	w.RawString(`["REQ","`)
 	w.RawString(v.SubscriptionID)
 	w.RawString(`",`)
-	v.Filter.MarshalEasyJSON(&w)
+	v.Filters[0].MarshalEasyJSON(&w)
 	w.RawString(`]`)
 	return w.BuildBytes()
 }

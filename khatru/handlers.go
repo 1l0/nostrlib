@@ -118,8 +118,6 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 			rl.OnConnect(ctx)
 		}
 
-		smp := nostr.NewMessageParser()
-
 		for {
 			typ, msgb, err := ws.conn.ReadMessage()
 			if err != nil {
@@ -145,11 +143,8 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 			// this is safe because ReadMessage() will always create a new slice
 			message := unsafe.String(unsafe.SliceData(msgb), len(msgb))
 
-			// parse messages sequentially otherwise sonic breaks
-			envelope, err := smp.ParseMessage(message)
-
-			// then delegate to the goroutine
 			go func(message string) {
+				envelope, err := nostr.ParseMessage(message)
 				if err != nil {
 					if err == nostr.UnknownLabel && rl.Negentropy {
 						envelope = nip77.ParseNegMessage(message)
@@ -287,22 +282,24 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					reqCtx = context.WithValue(reqCtx, subscriptionIdKey, env.SubscriptionID)
 
 					// handle each filter separately -- dispatching events as they're loaded from databases
-					srl := rl
-					if rl.getSubRelayFromFilter != nil {
-						srl = rl.getSubRelayFromFilter(env.Filter)
-					}
-					err := srl.handleRequest(reqCtx, env.SubscriptionID, &eose, ws, env.Filter)
-					if err != nil {
-						// fail everything if any filter is rejected
-						reason := err.Error()
-						if strings.HasPrefix(reason, "auth-required:") {
-							RequestAuth(ctx)
+					for _, filter := range env.Filters {
+						srl := rl
+						if rl.getSubRelayFromFilter != nil {
+							srl = rl.getSubRelayFromFilter(filter)
 						}
-						ws.WriteJSON(nostr.ClosedEnvelope{SubscriptionID: env.SubscriptionID, Reason: reason})
-						cancelReqCtx(errors.New("filter rejected"))
-						return
-					} else {
-						rl.addListener(ws, env.SubscriptionID, srl, env.Filter, cancelReqCtx)
+						err := srl.handleRequest(reqCtx, env.SubscriptionID, &eose, ws, filter)
+						if err != nil {
+							// fail everything if any filter is rejected
+							reason := err.Error()
+							if strings.HasPrefix(reason, "auth-required:") {
+								RequestAuth(ctx)
+							}
+							ws.WriteJSON(nostr.ClosedEnvelope{SubscriptionID: env.SubscriptionID, Reason: reason})
+							cancelReqCtx(errors.New("filter rejected"))
+							return
+						} else {
+							rl.addListener(ws, env.SubscriptionID, srl, filter, cancelReqCtx)
+						}
 					}
 
 					go func() {

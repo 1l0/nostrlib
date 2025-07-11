@@ -28,7 +28,7 @@ var queryOrSave = &cli.Command{
 			return doSave(ctx, line, *e)
 		}
 		if json.Unmarshal([]byte(line), re) == nil {
-			return doQuery(ctx, &re.Filter)
+			return doQuery(ctx, &re.Filters[0])
 		}
 		if json.Unmarshal([]byte(line), f) == nil && len(f.String()) > 2 {
 			return doQuery(ctx, f)

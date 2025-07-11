@@ -51,7 +51,7 @@ func FetchIDsOnly(
 
 	msg := neg.Start()
 	open, _ := OpenEnvelope{id, filter, msg}.MarshalJSON()
-	err = <-r.Write(open)
+	err = r.WriteWithError(open)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write to relay: %w", err)
 	}
