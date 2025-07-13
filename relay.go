@@ -25,7 +25,7 @@ type Relay struct {
 	URL           string
 	requestHeader http.Header // e.g. for origin header
 
-	Connection    *Connection
+	connection    *connection
 	Subscriptions *xsync.MapOf[int64, *Subscription]
 
 	ConnectionError         error
@@ -94,7 +94,7 @@ func (r *Relay) String() string {
 func (r *Relay) Context() context.Context { return r.connectionContext }
 
 // IsConnected returns true if the connection to this relay seems to be active.
-func (r *Relay) IsConnected() bool { return !r.Connection.closed.Load() }
+func (r *Relay) IsConnected() bool { return !r.connection.closed.Load() }
 
 // Connect tries to establish a websocket connection to r.URL.
 // If the context expires before the connection is complete, an error is returned.
@@ -117,11 +117,11 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 		return fmt.Errorf("invalid relay URL '%s'", r.URL)
 	}
 
-	conn, err := NewConnection(ctx, r.URL, r.handleMessage, r.requestHeader, tlsConfig)
+	conn, err := newConnection(ctx, r.URL, r.handleMessage, r.requestHeader, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}
-	r.Connection = conn
+	r.connection = conn
 
 	return nil
 }
@@ -214,8 +214,8 @@ func (r *Relay) handleMessage(message string) {
 // Write queues an arbitrary message to be sent to the relay.
 func (r *Relay) Write(msg []byte) {
 	select {
-	case r.Connection.writeQueue <- writeRequest{msg: msg, answer: nil}:
-	case <-r.Connection.closedNotify:
+	case r.connection.writeQueue <- writeRequest{msg: msg, answer: nil}:
+	case <-r.connection.closedNotify:
 	case <-r.connectionContext.Done():
 	}
 }
@@ -224,10 +224,10 @@ func (r *Relay) Write(msg []byte) {
 func (r *Relay) WriteWithError(msg []byte) error {
 	ch := make(chan error)
 	select {
-	case r.Connection.writeQueue <- writeRequest{msg: msg, answer: ch}:
+	case r.connection.writeQueue <- writeRequest{msg: msg, answer: ch}:
 	case <-r.connectionContext.Done():
 		return fmt.Errorf("failed to write to %s: %w", r.URL, context.Cause(r.connectionContext))
-	case <-r.Connection.closedNotify:
+	case <-r.connection.closedNotify:
 		return fmt.Errorf("failed to write to %s: <closed>", r.URL)
 	}
 	return <-ch
@@ -315,13 +315,18 @@ func (r *Relay) publish(ctx context.Context, id ID, env Envelope) error {
 func (r *Relay) Subscribe(ctx context.Context, filter Filter, opts SubscriptionOptions) (*Subscription, error) {
 	sub := r.PrepareSubscription(ctx, filter, opts)
 
-	if r.Connection == nil {
+	if r.connection == nil {
 		return nil, fmt.Errorf("not connected to %s", r.URL)
 	}
 
 	if err := sub.Fire(); err != nil {
 		return nil, fmt.Errorf("couldn't subscribe to %v at %s: %w", filter, r.URL, err)
 	}
+
+	go func() {
+		<-r.connection.closedNotify
+		sub.unsub(ErrDisconnected)
+	}()
 
 	return sub, nil
 }
@@ -449,7 +454,7 @@ func (r *Relay) close(reason error) error {
 	r.connectionContextCancel(reason)
 	r.connectionContextCancel = nil
 
-	if r.Connection == nil {
+	if r.connection == nil {
 		return fmt.Errorf("relay not connected")
 	}
 

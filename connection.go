@@ -13,8 +13,10 @@ import (
 	ws "github.com/coder/websocket"
 )
 
+var ErrDisconnected = errors.New("<disconnected>")
+
 // Connection represents a websocket connection to a Nostr relay.
-type Connection struct {
+type connection struct {
 	conn         *ws.Conn
 	writeQueue   chan writeRequest
 	closed       *atomic.Bool
@@ -26,14 +28,15 @@ type writeRequest struct {
 	answer chan error
 }
 
-// NewConnection creates a new websocket connection to a Nostr relay.
-func NewConnection(
+func newConnection(
 	ctx context.Context,
 	url string,
 	handleMessage func(string),
 	requestHeader http.Header,
 	tlsConfig *tls.Config,
-) (*Connection, error) {
+) (*connection, error) {
+	debugLogf("{%s} connecting!\n", url)
+
 	dialCtx := ctx
 	if _, ok := dialCtx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
@@ -55,7 +58,7 @@ func NewConnection(
 	writeQueue := make(chan writeRequest)
 	readQueue := make(chan string)
 
-	conn := &Connection{
+	conn := &connection{
 		conn:         c,
 		writeQueue:   writeQueue,
 		closed:       &atomic.Bool{},
@@ -67,6 +70,9 @@ func NewConnection(
 			select {
 			case <-ctx.Done():
 				conn.doClose(ws.StatusNormalClosure, "")
+				debugLogf("{%s} closing!, context done: '%s'\n", url, context.Cause(ctx))
+				return
+			case <-conn.closedNotify:
 				return
 			case <-ticker.C:
 				ctx, cancel := context.WithTimeoutCause(ctx, time.Millisecond*800, errors.New("ping took too long"))
@@ -74,18 +80,20 @@ func NewConnection(
 				cancel()
 				if err != nil {
 					conn.doClose(ws.StatusAbnormalClosure, "ping took too long")
+					debugLogf("{%s} closing!, ping failed: '%s'\n", url, err)
 					return
 				}
 			case wr := <-writeQueue:
-				debugLogf("{%s} sending %v\n", url, string(wr.msg))
+				debugLogf("{%s} sending '%v'\n", url, string(wr.msg))
 				ctx, cancel := context.WithTimeoutCause(ctx, time.Second*10, errors.New("write took too long"))
 				err := c.Write(ctx, ws.MessageText, wr.msg)
 				cancel()
 				if err != nil {
-					conn.doClose(ws.StatusAbnormalClosure, "write took too long")
+					conn.doClose(ws.StatusAbnormalClosure, "write failed")
 					if wr.answer != nil {
 						wr.answer <- err
 					}
+					debugLogf("{%s} closing!, write failed: '%s'\n", url, err)
 					return
 				}
 				if wr.answer != nil {
@@ -107,10 +115,12 @@ func NewConnection(
 
 			_, reader, err := c.Reader(ctx)
 			if err != nil {
+				debugLogf("{%s} closing!, reader failure: '%s'\n", url, err)
 				conn.doClose(ws.StatusAbnormalClosure, "failed to get reader")
 				return
 			}
 			if _, err := io.Copy(buf, reader); err != nil {
+				debugLogf("{%s} closing!, read failure: '%s'\n", url, err)
 				conn.doClose(ws.StatusAbnormalClosure, "failed to read")
 				return
 			}
@@ -122,7 +132,7 @@ func NewConnection(
 	return conn, nil
 }
 
-func (c *Connection) doClose(code ws.StatusCode, reason string) {
+func (c *connection) doClose(code ws.StatusCode, reason string) {
 	wasClosed := c.closed.Swap(true)
 	if !wasClosed {
 		c.conn.Close(code, reason)

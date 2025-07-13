@@ -313,7 +313,7 @@ func (pool *Pool) FetchManyReplaceable(
 
 			relay, err := pool.EnsureRelay(nm)
 			if err != nil {
-				debugLogf("error connecting to %s with %v: %s", nm, filter, err)
+				debugLogf("[pool] error connecting to %s with %v: %s", nm, filter, err)
 				return
 			}
 
@@ -322,7 +322,7 @@ func (pool *Pool) FetchManyReplaceable(
 		subscribe:
 			sub, err := relay.Subscribe(ctx, filter, opts)
 			if err != nil {
-				debugLogf("error subscribing to %s with %v: %s", relay, filter, err)
+				debugLogf("[pool] error subscribing to %s with %v: %s", relay, filter, err)
 				return
 			}
 
@@ -341,7 +341,7 @@ func (pool *Pool) FetchManyReplaceable(
 							goto subscribe
 						}
 					}
-					debugLogf("CLOSED from %s: '%s'\n", nm, reason)
+					debugLogf("[pool] CLOSED from %s: '%s'\n", nm, reason)
 					return
 				case evt, more := <-sub.Events:
 					if !more {
@@ -449,11 +449,12 @@ func (pool *Pool) subMany(
 				if err != nil {
 					// if we never connected to this just fail
 					if firstConnection {
+						debugLogf("[pool] connection to %s failed, won't retry as it was the first attempt\n", nm)
 						return
 					}
 
 					// otherwise (if we were connected and got disconnected) keep trying to reconnect
-					debugLogf("%s reconnecting because connection failed\n", nm)
+					debugLogf("[pool] connection to %s failed, will retry\n", nm)
 					goto reconnect
 				}
 				firstConnection = false
@@ -462,7 +463,7 @@ func (pool *Pool) subMany(
 			subscribe:
 				sub, err = relay.Subscribe(ctx, filter, opts)
 				if err != nil {
-					debugLogf("%s reconnecting because subscription died: %s\n", nm, err)
+					debugLogf("[pool] subscription to %s died: %s -- will retry\n", nm, err)
 					goto reconnect
 				}
 
@@ -486,7 +487,7 @@ func (pool *Pool) subMany(
 							// so we will update the filters here to include only events seem from now on
 							// and try to reconnect until we succeed
 							filter.Since = Now()
-							debugLogf("%s reconnecting because sub.Events is broken\n", nm)
+							debugLogf("[pool] retrying %s because sub.Events is broken\n", nm)
 							goto reconnect
 						}
 
@@ -530,6 +531,7 @@ func (pool *Pool) subMany(
 			reconnect:
 				// we will go back to the beginning of the loop and try to connect again and again
 				// until the context is canceled
+				debugLogf("[pool] retrying %s in %s\n", nm, interval)
 				time.Sleep(interval)
 				interval = interval * 17 / 10 // the next time we try we will wait longer
 			}
@@ -574,7 +576,7 @@ func (pool *Pool) subManyEose(
 
 			relay, err := pool.EnsureRelay(nm)
 			if err != nil {
-				debugLogf("error connecting to %s with %v: %s", nm, filter, err)
+				debugLogf("[pool] error connecting to %s with %v: %s", nm, filter, err)
 				return
 			}
 
@@ -583,7 +585,7 @@ func (pool *Pool) subManyEose(
 		subscribe:
 			sub, err := relay.Subscribe(ctx, filter, opts)
 			if err != nil {
-				debugLogf("error subscribing to %s with %v: %s", relay, filter, err)
+				debugLogf("[pool] error subscribing to %s with %v: %s", relay, filter, err)
 				return
 			}
 
@@ -602,7 +604,7 @@ func (pool *Pool) subManyEose(
 							goto subscribe
 						}
 					}
-					debugLogf("CLOSED from %s: '%s'\n", nm, reason)
+					debugLogf("[pool] CLOSED from %s: '%s'\n", nm, reason)
 					return
 				case evt, more := <-sub.Events:
 					if !more {
