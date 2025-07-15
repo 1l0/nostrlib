@@ -273,7 +273,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				case *nostr.ReqEnvelope:
 					eose := sync.WaitGroup{}
-					eose.Add(1)
+					eose.Add(len(env.Filters))
 
 					// a context just for the "stored events" request handler
 					reqCtx, cancelReqCtx := context.WithCancelCause(ctx)
