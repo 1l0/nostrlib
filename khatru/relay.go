@@ -75,6 +75,9 @@ type Relay struct {
 	OverwriteRelayInformation func(ctx context.Context, r *http.Request, info nip11.RelayInformationDocument) nip11.RelayInformationDocument
 	PreventBroadcast          func(ws *WebSocket, event nostr.Event) bool
 
+	// this can be ignored unless you know what you're doing
+	ChallengePrefix string
+
 	// these are used when this relays acts as a router
 	routes                []Route
 	getSubRelayFromEvent  func(*nostr.Event) *Relay // used for handling EVENTs
