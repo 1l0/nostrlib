@@ -30,14 +30,6 @@ func NewStaticKeySigner(secretKey [32]byte) StaticKeySigner {
 	}
 }
 
-func (p *StaticKeySigner) GetSession(clientPubkey nostr.PubKey) (Session, bool) {
-	p.Lock()
-	defer p.Unlock()
-
-	session, ok := p.sessions[clientPubkey]
-	return session, ok
-}
-
 func (p *StaticKeySigner) getOrCreateSession(clientPubkey nostr.PubKey) (Session, error) {
 	p.Lock()
 	defer p.Unlock()

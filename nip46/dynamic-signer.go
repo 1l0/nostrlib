@@ -14,52 +14,38 @@ import (
 var _ Signer = (*DynamicSigner)(nil)
 
 type DynamicSigner struct {
-	sessions map[nostr.PubKey]Session
+	// { [handlePubkey]: {[clientKey]: Session} }
+	sessions map[nostr.PubKey]map[nostr.PubKey]Session
 
 	sync.Mutex
 
 	// the handler is the keypair we use to communicate with the NIP-46 client, decrypt requests, encrypt responses etc
-	GetHandlerSecretKey func(handlerPubkey nostr.PubKey) (nostr.SecretKey, error)
+	// the context can be returned as is, but it can also be returned with some values in it so they can be passed
+	//   to other functions later in the chain.
+	GetHandlerSecretKey func(
+		ctx context.Context,
+		handlerPubkey nostr.PubKey,
+	) (context.Context, nostr.SecretKey, error)
+
+	// called when a client calls "connect", use it to associate the client pubkey with a secret or something like that
+	OnConnect func(ctx context.Context, from nostr.PubKey, secret string) error
 
 	// this should correspond to the actual user on behalf of which we will respond to requests
-	GetUserKeyer func(handlerPubkey nostr.PubKey) (nostr.Keyer, error)
+	// the context works the same as for GetHandlerSecretKey
+	GetUserKeyer func(ctx context.Context, handlerPubkey nostr.PubKey) (context.Context, nostr.Keyer, error)
 
 	// this is called on every sign_event call, if it is nil it will be assumed that everything is authorized
-	AuthorizeSigning func(event nostr.Event, from nostr.PubKey, secret string) bool
+	AuthorizeSigning func(ctx context.Context, event nostr.Event, from nostr.PubKey) bool
 
 	// this is called on every encrypt or decrypt calls, if it is nil it will be assumed that everything is authorized
-	AuthorizeEncryption func(from nostr.PubKey, secret string) bool
+	AuthorizeEncryption func(ctx context.Context, from nostr.PubKey) bool
 
 	// unless it is nil, this is called after every event is signed
 	OnEventSigned func(event nostr.Event)
 }
 
 func (p *DynamicSigner) Init() {
-	p.sessions = make(map[nostr.PubKey]Session)
-}
-
-func (p *DynamicSigner) GetSession(clientPubkey nostr.PubKey) (Session, bool) {
-	p.Lock()
-	defer p.Unlock()
-
-	session, exists := p.sessions[clientPubkey]
-	if exists {
-		return session, true
-	}
-	return Session{}, false
-}
-
-func (p *DynamicSigner) setSession(clientPubkey nostr.PubKey, session Session) {
-	p.Lock()
-	defer p.Unlock()
-
-	_, exists := p.sessions[clientPubkey]
-	if exists {
-		return
-	}
-
-	// add to pool
-	p.sessions[clientPubkey] = session
+	p.sessions = make(map[nostr.PubKey]map[nostr.PubKey]Session)
 }
 
 func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
@@ -82,17 +68,28 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 	if err != nil {
 		return req, resp, eventResponse, fmt.Errorf("%x is invalid pubkey: %w", handler[1], err)
 	}
-	handlerSecret, err := p.GetHandlerSecretKey(handlerPubkey)
+
+	p.Lock()
+	defer p.Unlock()
+
+	ctx, handlerSecret, err := p.GetHandlerSecretKey(ctx, handlerPubkey)
 	if err != nil {
 		return req, resp, eventResponse, fmt.Errorf("no private key for %s: %w", handlerPubkey, err)
 	}
-	userKeyer, err := p.GetUserKeyer(handlerPubkey)
+	ctx, userKeyer, err := p.GetUserKeyer(ctx, handlerPubkey)
 	if err != nil {
 		return req, resp, eventResponse, fmt.Errorf("failed to get user keyer for %s: %w", handlerPubkey, err)
 	}
 
-	session, exists := p.sessions[event.PubKey]
+	handlerSessions, exists := p.sessions[handlerPubkey]
 	if !exists {
+		handlerSessions = make(map[nostr.PubKey]Session)
+		p.sessions[handlerPubkey] = handlerSessions
+	}
+
+	session, exists := handlerSessions[event.PubKey]
+	if !exists {
+		// create session if it doesn't exist
 		session = Session{}
 
 		session.ConversationKey, err = nip44.GenerateConversationKey(event.PubKey, handlerSecret)
@@ -104,10 +101,12 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 		if err != nil {
 			return req, resp, eventResponse, fmt.Errorf("failed to get public key: %w", err)
 		}
-
-		p.setSession(event.PubKey, session)
 	}
 
+	// save session
+	handlerSessions[event.PubKey] = session
+
+	// use this session to handle the request
 	req, err = session.ParseRequest(event)
 	if err != nil {
 		return req, resp, eventResponse, fmt.Errorf("error parsing request: %w", err)
@@ -146,6 +145,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			resultErr = fmt.Errorf("failed to sign event: %w", err)
 			break
 		}
+
 		jrevt, _ := easyjson.Marshal(evt)
 		result = string(jrevt)
 	case "nip44_encrypt":
