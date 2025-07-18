@@ -112,15 +112,23 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 		return req, resp, eventResponse, fmt.Errorf("error parsing request: %w", err)
 	}
 
-	var secret string
 	var result string
 	var resultErr error
 
 	switch req.Method {
 	case "connect":
+		var secret string
 		if len(req.Params) >= 2 {
 			secret = req.Params[1]
 		}
+
+		if p.OnConnect != nil {
+			if err := p.OnConnect(ctx, event.PubKey, secret); err != nil {
+				resultErr = err
+				break
+			}
+		}
+
 		result = "ack"
 	case "get_public_key":
 		result = hex.EncodeToString(session.PublicKey[:])
@@ -135,7 +143,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			resultErr = fmt.Errorf("failed to decode event/2: %w", err)
 			break
 		}
-		if p.AuthorizeSigning != nil && !p.AuthorizeSigning(evt, event.PubKey, secret) {
+		if p.AuthorizeSigning != nil && !p.AuthorizeSigning(ctx, evt, event.PubKey) {
 			resultErr = fmt.Errorf("refusing to sign this event")
 			break
 		}
@@ -158,7 +166,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip44_encrypt' is not a valid pubkey string")
 			break
 		}
-		if p.AuthorizeEncryption != nil && !p.AuthorizeEncryption(event.PubKey, secret) {
+		if p.AuthorizeEncryption != nil && !p.AuthorizeEncryption(ctx, event.PubKey) {
 			resultErr = fmt.Errorf("refusing to encrypt")
 			break
 		}
@@ -180,7 +188,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey string")
 			break
 		}
-		if p.AuthorizeEncryption != nil && !p.AuthorizeEncryption(event.PubKey, secret) {
+		if p.AuthorizeEncryption != nil && !p.AuthorizeEncryption(ctx, event.PubKey) {
 			resultErr = fmt.Errorf("refusing to decrypt")
 			break
 		}
