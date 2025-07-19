@@ -229,7 +229,11 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 									ok = false
 									reason = "mute: no one was listening for this"
 								} else {
-									reason = "broadcasted to " + strconv.Itoa(n) + " listeners"
+									if nil == rl.OnEphemeralEvent {
+										reason = "broadcasted to " + strconv.Itoa(n)
+									} else {
+										reason += "handled internally"
+									}
 								}
 							}
 						}
