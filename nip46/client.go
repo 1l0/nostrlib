@@ -44,41 +44,64 @@ func ConnectBunker(
 	pool *nostr.Pool,
 	onAuth func(string),
 ) (*BunkerClient, error) {
-	parsed, err := url.Parse(bunkerURLOrNIP05)
+	parsed, err := ParseBunkerInput(ctx, bunkerURLOrNIP05)
 	if err != nil {
-		return nil, fmt.Errorf("invalid url: %w", err)
-	}
-
-	// assume it's a bunker url (will fail later if not)
-	secret := parsed.Query().Get("secret")
-	relays := parsed.Query()["relay"]
-	targetPublicKey, _ := nostr.PubKeyFromHex(parsed.Host)
-
-	if parsed.Scheme == "" {
-		// could be a NIP-05
-		pubkey, relays_, err := queryWellKnownNostrJson(ctx, bunkerURLOrNIP05)
-		if err != nil {
-			return nil, fmt.Errorf("failed to query nip05: %w", err)
-		}
-		targetPublicKey = pubkey
-		relays = relays_
-	} else if parsed.Scheme == "bunker" {
-		// this is what we were expecting, so just move on
-	} else {
-		// otherwise fail here
-		return nil, fmt.Errorf("wrong scheme '%s', must be bunker://", parsed.Scheme)
+		return nil, fmt.Errorf("invalid bunker: %w", err)
 	}
 
 	bunker := NewBunker(
 		ctx,
 		clientSecretKey,
-		targetPublicKey,
-		relays,
+		parsed.HostPubKey,
+		parsed.Relays,
 		pool,
 		onAuth,
 	)
-	_, err = bunker.RPC(ctx, "connect", []string{hex.EncodeToString(targetPublicKey[:]), secret})
+	_, err = bunker.RPC(ctx, "connect", []string{hex.EncodeToString(parsed.HostPubKey[:]), parsed.Secret})
 	return bunker, err
+}
+
+type ParsedBunker struct {
+	HostPubKey nostr.PubKey
+	Relays     []string
+	Secret     string
+}
+
+func ParseBunkerInput(ctx context.Context, bunkerURLOrNIP05 string) (ParsedBunker, error) {
+	parsed, err := url.Parse(bunkerURLOrNIP05)
+	if err != nil {
+		return ParsedBunker{}, fmt.Errorf("invalid url: %w", err)
+	}
+
+	var host nostr.PubKey
+	var secret string
+	var relays []string
+
+	if parsed.Scheme == "" {
+		// could be a NIP-05
+		pubkey, relays_, err := queryWellKnownNostrJson(ctx, bunkerURLOrNIP05)
+		if err != nil {
+			return ParsedBunker{}, fmt.Errorf("failed to query nip05: %w", err)
+		}
+		host = pubkey
+		relays = relays_
+	} else if parsed.Scheme == "bunker" {
+		secret = parsed.Query().Get("secret")
+		relays = parsed.Query()["relay"]
+		host, err = nostr.PubKeyFromHex(parsed.Host)
+		if err != nil {
+			return ParsedBunker{}, fmt.Errorf("invalid host pubkey: %w", err)
+		}
+	} else {
+		// otherwise fail here
+		return ParsedBunker{}, fmt.Errorf("wrong scheme '%s', must be bunker://", parsed.Scheme)
+	}
+
+	return ParsedBunker{
+		HostPubKey: host,
+		Relays:     relays,
+		Secret:     secret,
+	}, nil
 }
 
 func NewBunker(
