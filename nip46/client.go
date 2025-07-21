@@ -24,7 +24,6 @@ type BunkerClient struct {
 	relays          []string
 	conversationKey [32]byte // nip44
 	listeners       *xsync.MapOf[string, chan Response]
-	expectingAuth   *xsync.MapOf[string, struct{}]
 	idPrefix        string
 	onAuth          func(string)
 
@@ -126,9 +125,8 @@ func NewBunker(
 		relays:          relays,
 		conversationKey: conversationKey,
 		listeners:       xsync.NewMapOf[string, chan Response](),
-		expectingAuth:   xsync.NewMapOf[string, struct{}](),
 		onAuth:          onAuth,
-		idPrefix:        "gn-" + strconv.Itoa(rand.Intn(65536)),
+		idPrefix:        "nl-" + strconv.Itoa(rand.Intn(65536)),
 	}
 
 	go func() {
@@ -159,13 +157,11 @@ func NewBunker(
 			if resp.Result == "auth_url" {
 				// special case
 				authURL := resp.Error
-				if _, ok := bunker.expectingAuth.Load(resp.ID); ok {
-					bunker.onAuth(authURL)
-				}
+				bunker.onAuth(authURL)
 				continue
 			}
 
-			if dispatcher, ok := bunker.listeners.Load(resp.ID); ok {
+			if dispatcher, ok := bunker.listeners.LoadAndDelete(resp.ID); ok {
 				dispatcher <- resp
 				continue
 			}
@@ -282,12 +278,9 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 		return "", fmt.Errorf("failed to sign request event: %w", err)
 	}
 
-	respWaiter := make(chan Response)
-	bunker.listeners.Store(id, respWaiter)
-	defer func() {
-		bunker.listeners.Delete(id)
-		close(respWaiter)
-	}()
+	dispatcher := make(chan Response)
+	bunker.listeners.Store(id, dispatcher)
+	defer bunker.listeners.Delete(id)
 	relayConnectionWorked := make(chan struct{})
 	bunkerConnectionWorked := make(chan struct{})
 
@@ -324,7 +317,7 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 	select {
 	case <-ctx.Done():
 		return "", fmt.Errorf("context canceled")
-	case resp := <-respWaiter:
+	case resp := <-dispatcher:
 		if resp.Error != "" {
 			return "", fmt.Errorf("response error: %s", resp.Error)
 		}
