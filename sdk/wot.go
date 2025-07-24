@@ -150,7 +150,15 @@ func makeWoTFilter(m chan nostr.PubKey) WotXorFilter {
 		}
 	}
 
-	xf, _ := xorfilter.Populate(shids)
+	if len(shids) == 0 {
+		return WotXorFilter{}
+	}
+
+	xf, err := xorfilter.Populate(shids)
+	if err != nil {
+		nostr.InfoLogger.Println("failed to populate filter", len(shids), err)
+		return WotXorFilter{}
+	}
 	return WotXorFilter{len(shids), *xf}
 }
 
