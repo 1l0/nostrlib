@@ -87,7 +87,7 @@ func (rl *Relay) HandleNIP86(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if uTag := evt.Tags.Find("u"); uTag == nil || rl.getBaseURL(r) != uTag[1] {
-			resp.Error = "invalid 'u' tag"
+			resp.Error = fmt.Sprintf("invalid 'u' tag, expected '%s', got '%s'", rl.getBaseURL(r), uTag[1])
 			goto respond
 		} else if pht := evt.Tags.FindWithValue("payload", hex.EncodeToString(payloadHash[:])); pht == nil {
 			resp.Error = "invalid auth event payload hash"
