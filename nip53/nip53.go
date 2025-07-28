@@ -24,7 +24,7 @@ type LiveEvent struct {
 }
 
 type Participant struct {
-	PubKey string
+	PubKey nostr.PubKey
 	Relay  string
 	Role   string
 }
@@ -64,9 +64,9 @@ func ParseLiveEvent(event nostr.Event) LiveEvent {
 		case "recording":
 			liev.Recording = append(liev.Recording, tag[1])
 		case "p":
-			if nostr.IsValid32ByteHex(tag[1]) {
+			if pk, err := nostr.PubKeyFromHex(tag[1]); err == nil {
 				part := Participant{
-					PubKey: tag[1],
+					PubKey: pk,
 				}
 				if len(tag) > 2 {
 					part.Relay = tag[2]
@@ -118,7 +118,7 @@ func (liev LiveEvent) ToHashtags() nostr.Tags {
 		tags = append(tags, nostr.Tag{"recording", url})
 	}
 	for _, part := range liev.Participants {
-		tags = append(tags, nostr.Tag{"p", part.PubKey, part.Relay, part.Role})
+		tags = append(tags, nostr.Tag{"p", part.PubKey.Hex(), part.Relay, part.Role})
 	}
 	for _, hashtag := range liev.Hashtags {
 		tags = append(tags, nostr.Tag{"t", hashtag})
