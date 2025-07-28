@@ -35,7 +35,7 @@ type DynamicSigner struct {
 	GetUserKeyer func(ctx context.Context, handlerPubkey nostr.PubKey) (context.Context, nostr.Keyer, error)
 
 	// this is called on every sign_event call, if it is nil it will be assumed that everything is authorized
-	AuthorizeSigning func(ctx context.Context, event nostr.Event, from nostr.PubKey) bool
+	AuthorizeSigning func(ctx context.Context, event nostr.Event, from nostr.PubKey) error
 
 	// this is called on every encrypt or decrypt calls, if it is nil it will be assumed that everything is authorized
 	AuthorizeEncryption func(ctx context.Context, from nostr.PubKey) bool
@@ -143,9 +143,11 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			resultErr = fmt.Errorf("failed to decode event/2: %w", err)
 			break
 		}
-		if p.AuthorizeSigning != nil && !p.AuthorizeSigning(ctx, evt, event.PubKey) {
-			resultErr = fmt.Errorf("refusing to sign this event")
-			break
+		if p.AuthorizeSigning != nil {
+			if err := p.AuthorizeSigning(ctx, evt, event.PubKey); err != nil {
+				resultErr = fmt.Errorf("refusing to sign: %s", err)
+				break
+			}
 		}
 
 		err = userKeyer.SignEvent(ctx, &evt)
