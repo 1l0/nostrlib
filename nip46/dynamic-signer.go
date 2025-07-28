@@ -163,7 +163,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 		}
 		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
 		if err != nil {
-			resultErr = fmt.Errorf("first argument to 'nip44_encrypt' is not a valid pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip44_encrypt' is not a valid pubkey hex")
 			break
 		}
 		if p.AuthorizeEncryption != nil && !p.AuthorizeEncryption(ctx, event.PubKey) {
@@ -185,7 +185,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 		}
 		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
 		if err != nil {
-			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey hex")
 			break
 		}
 		if p.AuthorizeEncryption != nil && !p.AuthorizeEncryption(ctx, event.PubKey) {

@@ -117,7 +117,7 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event nostr.Event) (
 		}
 		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
 		if err != nil {
-			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a valid pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a valid pubkey hex")
 			break
 		}
 		plaintext := req.Params[1]
@@ -140,7 +140,7 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event nostr.Event) (
 		}
 		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
 		if err != nil {
-			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey hex")
 			break
 		}
 		ciphertext := req.Params[1]
@@ -163,7 +163,7 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event nostr.Event) (
 		}
 		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
 		if err != nil {
-			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a valid pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a valid pubkey hex")
 			break
 		}
 		plaintext := req.Params[1]
@@ -186,7 +186,7 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event nostr.Event) (
 		}
 		thirdPartyPubkey, err := nostr.PubKeyFromHex(req.Params[0])
 		if err != nil {
-			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a valid pubkey hex")
 			break
 		}
 		ciphertext := req.Params[1]
