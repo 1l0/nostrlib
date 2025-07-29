@@ -39,6 +39,8 @@ type expirationManager struct {
 	relay           *Relay
 	interval        time.Duration
 	initialScanDone bool
+	kill            chan struct{} // used for manually killing this
+	killonce        *sync.Once
 }
 
 func newExpirationManager(relay *Relay) *expirationManager {
@@ -46,7 +48,15 @@ func newExpirationManager(relay *Relay) *expirationManager {
 		events:   make(expiringEventHeap, 0),
 		relay:    relay,
 		interval: time.Hour,
+		kill:     make(chan struct{}),
+		killonce: &sync.Once{},
 	}
+}
+
+func (em *expirationManager) stop() {
+	em.killonce.Do(func() {
+		close(em.kill)
+	})
 }
 
 func (em *expirationManager) start(ctx context.Context) {
@@ -56,6 +66,8 @@ func (em *expirationManager) start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-em.kill:
 			return
 		case <-ticker.C:
 			if !em.initialScanDone {
