@@ -390,7 +390,7 @@ func (pool *Pool) subMany(
 
 	if opts.CheckDuplicate == nil {
 		opts.CheckDuplicate = func(id ID, relay string) bool {
-			_, exists := seenAlready.Load(id)
+			_, exists := seenAlready.LoadOrStore(id, Now())
 			if exists && pool.duplicateMiddleware != nil {
 				pool.duplicateMiddleware(relay, id)
 			}
