@@ -276,13 +276,28 @@ func (r *Relay) publish(ctx context.Context, id ID, env Envelope) error {
 
 	// listen for an OK callback
 	gotOk := false
-	r.okCallbacks.Store(id, func(ok bool, reason string) {
+	handleOk := func(ok bool, reason string) {
 		gotOk = true
 		if !ok {
 			err = fmt.Errorf("msg: %s", reason)
 		}
 		cancel()
+	}
+
+	r.okCallbacks.Compute(id, func(oldValue func(bool, string), loaded bool) (newValue func(bool, string), delete bool) {
+		if !loaded {
+			// normal path: there is nothing listening for this id, so we register this function
+			return handleOk, false
+		}
+
+		// if the same event is published twice there will be something here already
+		// so we make a new handleOk() function that concatenates both
+		return func(ok bool, reason string) {
+			oldValue(ok, reason)
+			handleOk(ok, fmt.Sprintf("published twice: %s", reason)) // and we inform the developer
+		}, false
 	})
+
 	defer r.okCallbacks.Delete(id)
 
 	// publish event
