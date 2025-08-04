@@ -42,7 +42,7 @@ func (b *LMDBBackend) CountEvents(filter nostr.Filter) (uint32, error) {
 				}
 
 				// "id" indexes don't contain a timestamp
-				if q.timestampSize == 4 {
+				if q.dbi != b.indexId {
 					createdAt := binary.BigEndian.Uint32(it.key[len(it.key)-4:])
 					if createdAt < since {
 						break
@@ -131,7 +131,7 @@ func (b *LMDBBackend) CountEventsHLL(filter nostr.Filter, offset int) (uint32, *
 				}
 
 				// "id" indexes don't contain a timestamp
-				if q.timestampSize == 4 {
+				if q.dbi != b.indexId {
 					createdAt := binary.BigEndian.Uint32(it.key[len(it.key)-4:])
 					if createdAt < since {
 						break

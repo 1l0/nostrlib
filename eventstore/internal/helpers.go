@@ -2,7 +2,6 @@ package internal
 
 import (
 	"bytes"
-	"cmp"
 	"math"
 	"slices"
 
@@ -79,14 +78,9 @@ func CopyMapWithoutKey[K comparable, V any](originalMap map[K]V, key K) map[K]V 
 	return newMap
 }
 
-type IterEvent struct {
-	nostr.Event
-	Q int
-}
-
 // MergeSortMultipleBatches takes the results of multiple iterators, which are already sorted,
 // and merges them into a single big sorted slice
-func MergeSortMultiple(batches [][]IterEvent, limit int, dst []IterEvent) []IterEvent {
+func MergeSortMultiple(batches [][]nostr.Event, limit int, dst []nostr.Event) []nostr.Event {
 	// clear up empty lists here while simultaneously computing the total count.
 	// this helps because if there are a bunch of empty lists then this pre-clean
 	//   step will get us in the faster 'merge' branch otherwise we would go to the other.
@@ -112,15 +106,15 @@ func MergeSortMultiple(batches [][]IterEvent, limit int, dst []IterEvent) []Iter
 	//   or not (batches=25, limit=60)
 	if math.Log(float64(len(batches)*2))+math.Log(float64(limit)) < 8 {
 		if dst == nil {
-			dst = make([]IterEvent, limit)
+			dst = make([]nostr.Event, limit)
 		} else if cap(dst) < limit {
 			dst = slices.Grow(dst, limit-len(dst))
 		}
 		dst = dst[0:limit]
-		return mergesortedslices.MergeFuncNoEmptyListsIntoSlice(dst, batches, compareIterEvent)
+		return mergesortedslices.MergeFuncNoEmptyListsIntoSlice(dst, batches, nostr.CompareEvent)
 	} else {
 		if dst == nil {
-			dst = make([]IterEvent, total)
+			dst = make([]nostr.Event, total)
 		} else if cap(dst) < total {
 			dst = slices.Grow(dst, total-len(dst))
 		}
@@ -133,7 +127,7 @@ func MergeSortMultiple(batches [][]IterEvent, limit int, dst []IterEvent) []Iter
 			lastIndex += len(batch)
 		}
 
-		slices.SortFunc(dst, compareIterEvent)
+		slices.SortFunc(dst, nostr.CompareEvent)
 
 		for i, j := 0, total-1; i < j; i, j = i+1, j-1 {
 			dst[i], dst[j] = dst[j], dst[i]
@@ -163,21 +157,4 @@ func BatchSizePerNumberOfQueries(totalFilterLimit int, numberOfQueries int) int 
 func SwapDelete[A any](arr []A, i int) []A {
 	arr[i] = arr[len(arr)-1]
 	return arr[:len(arr)-1]
-}
-
-func compareIterEvent(a, b IterEvent) int {
-	if a.Event.ID == nostr.ZeroID {
-		if b.Event.ID == nostr.ZeroID {
-			return 0
-		} else {
-			return -1
-		}
-	} else if b.Event.ID == nostr.ZeroID {
-		return 1
-	}
-
-	if a.CreatedAt == b.CreatedAt {
-		return slices.Compare(a.ID[:], b.ID[:])
-	}
-	return cmp.Compare(a.CreatedAt, b.CreatedAt)
 }

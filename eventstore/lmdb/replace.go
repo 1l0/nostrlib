@@ -2,6 +2,7 @@ package lmdb
 
 import (
 	"fmt"
+	"iter"
 	"math"
 
 	"fiatjaf.com/nostr"
@@ -23,16 +24,20 @@ func (b *LMDBBackend) ReplaceEvent(evt nostr.Event) error {
 		}
 
 		// now we fetch the past events, whatever they are, delete them and then save the new
-		results, err := b.query(txn, filter, 10) // in theory limit could be just 1 and this should work
+		var yield_ func(nostr.Event) bool
+		var results iter.Seq[nostr.Event] = func(yield func(nostr.Event) bool) {
+			yield_ = yield
+		}
+		err := b.query(txn, filter, 10 /* in theory limit could be just 1 and this should work */, yield_)
 		if err != nil {
 			return fmt.Errorf("failed to query past events with %s: %w", filter, err)
 		}
 
 		shouldStore := true
-		for _, previous := range results {
-			if internal.IsOlder(previous.Event, evt) {
-				if err := b.delete(txn, previous.Event.ID); err != nil {
-					return fmt.Errorf("failed to delete event %s for replacing: %w", previous.Event.ID, err)
+		for previous := range results {
+			if internal.IsOlder(previous, evt) {
+				if err := b.delete(txn, previous.ID); err != nil {
+					return fmt.Errorf("failed to delete event %s for replacing: %w", previous.ID, err)
 				}
 			} else {
 				// there is a newer event already stored, so we won't store this

@@ -1,6 +1,7 @@
 package lmdb
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/binary"
 	"encoding/hex"
@@ -14,14 +15,59 @@ import (
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-// this iterator always goes backwards
 type iterator struct {
+	query query
+
+	// iteration stuff
 	cursor *lmdb.Cursor
 	key    []byte
 	valIdx []byte
 	err    error
+
+	// this keeps track of last timestamp value pulled from this
+	last uint32
+
+	// if we shouldn't fetch more from this
+	exhausted bool
+
+	// results not yet emitted
+	idxs       [][]byte
+	timestamps []uint32
 }
 
+func (it *iterator) pull(n int, since uint32) {
+	query := it.query
+
+	for range n {
+		// in the beginning we already have a k and a v and an err from the cursor setup, so check and use these
+		if it.err != nil ||
+			len(it.key) != query.keySize ||
+			!bytes.HasPrefix(it.key, query.prefix) {
+			// either iteration has errored or we reached the end of this prefix
+			// fmt.Println("      reached end", hex.EncodeToString(it.key), query.keySize, hex.EncodeToString(query.prefix), it.err)
+			it.exhausted = true
+			return
+		}
+
+		createdAt := binary.BigEndian.Uint32(it.key[len(it.key)-4:])
+		if createdAt < since {
+			// fmt.Println("        reached since", createdAt, "<", since)
+			it.exhausted = true
+			return
+		}
+
+		// got a key
+		it.idxs = append(it.idxs, it.key)
+		it.last = createdAt
+
+		// advance the cursor for the next call
+		it.next()
+	}
+
+	return
+}
+
+// goes backwards
 func (it *iterator) seek(key []byte) {
 	if _, _, errsr := it.cursor.Get(key, nil, lmdb.SetRange); errsr != nil {
 		if operr, ok := errsr.(*lmdb.OpError); !ok || operr.Errno != lmdb.NotFound {
@@ -38,9 +84,49 @@ func (it *iterator) seek(key []byte) {
 	}
 }
 
+// goes backwards
 func (it *iterator) next() {
 	// move one back (we'll look into k and v and err in the next iteration)
 	it.key, it.valIdx, it.err = it.cursor.Get(nil, nil, lmdb.Prev)
+}
+
+type iterators []iterator
+
+// quickselect reorders the slice just enough to make the top k elements be arranged at the end
+// i.e. [1, 700, 25, 312, 44, 28] with k=3 becomes something like [28, 25, 1, 44, 312, 700]
+// in this case it's hardcoded to use the 'last' field of the iterator
+func (its iterators) quickselect(left int, right int, k int) {
+	if right == left {
+		return
+	}
+
+	// partition
+	pivot := its[(right+left)/2].last
+	l := left
+	r := right
+
+	for l <= r {
+		for its[l].last < pivot {
+			l++
+		}
+		for its[r].last > pivot {
+			r--
+		}
+		if l >= r {
+			break
+		}
+		its[l].last, its[r].last = its[r].last, its[l].last
+		r--
+		l++
+	}
+	mid := r
+	// ~
+
+	if k > mid {
+		its.quickselect(mid+1, right, k)
+	} else {
+		its.quickselect(left, mid, k)
+	}
 }
 
 type key struct {
