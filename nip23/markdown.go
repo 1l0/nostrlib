@@ -15,23 +15,23 @@ import (
 
 var nostrEveryMatcher = regexp.MustCompile(`nostr:((npub|note|nevent|nprofile|naddr)1[a-z0-9]+)\b`)
 
-var renderer = html.NewRenderer(html.RendererOptions{
-	Flags: html.HrefTargetBlank | html.SkipHTML,
-	RenderNodeHook: func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
-		switch v := node.(type) {
-		case *ast.HTMLSpan:
-			w.Write([]byte(stdhtml.EscapeString(string(v.Literal))))
-			return ast.GoToNext, true
-		case *ast.HTMLBlock:
-			w.Write([]byte(stdhtml.EscapeString(string(v.Literal))))
-			return ast.GoToNext, true
-		}
-
-		return ast.GoToNext, false
-	},
-})
-
 func MarkdownToHTML(md string) string {
+	renderer := html.NewRenderer(html.RendererOptions{
+		Flags: html.HrefTargetBlank | html.SkipHTML,
+		RenderNodeHook: func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+			switch v := node.(type) {
+			case *ast.HTMLSpan:
+				w.Write([]byte(stdhtml.EscapeString(string(v.Literal))))
+				return ast.GoToNext, true
+			case *ast.HTMLBlock:
+				w.Write([]byte(stdhtml.EscapeString(string(v.Literal))))
+				return ast.GoToNext, true
+			}
+
+			return ast.GoToNext, false
+		},
+	})
+
 	md = strings.ReplaceAll(md, "\u00A0", " ")
 
 	// create markdown parser with extensions
