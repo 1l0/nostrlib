@@ -11,7 +11,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
-	"fiatjaf.com/nostr/eventstore/badger"
 	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/eventstore/slicestore"
 	"github.com/urfave/cli/v3"
@@ -33,7 +32,7 @@ var app = &cli.Command{
 		&cli.StringFlag{
 			Name:    "type",
 			Aliases: []string{"t"},
-			Usage:   "store type ('lmdb', 'badger', 'mmm')",
+			Usage:   "store type ('lmdb', 'mmm')",
 		},
 	},
 	Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
@@ -71,8 +70,6 @@ var app = &cli.Command{
 		switch typ {
 		case "lmdb":
 			db = &lmdb.LMDBBackend{Path: path}
-		case "badger":
-			db = &badger.BadgerBackend{Path: path}
 		case "mmm":
 			var err error
 			if db, err = doMmmInit(path); err != nil {

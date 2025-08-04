@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/eventstore/badger"
+	"fiatjaf.com/nostr/eventstore/lmdb"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBlugeFlow(t *testing.T) {
-	os.RemoveAll("/tmp/blugetest-badger")
+	os.RemoveAll("/tmp/blugetest-lmdb")
 	os.RemoveAll("/tmp/blugetest-bluge")
 
-	bb := &badger.BadgerBackend{Path: "/tmp/blugetest-badger"}
+	bb := &lmdb.LMDBBackend{Path: "/tmp/blugetest-lmdb"}
 	bb.Init()
 	defer bb.Close()
 

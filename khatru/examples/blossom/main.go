@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"fiatjaf.com/nostr/eventstore/badger"
+	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr/khatru/blossom"
 )
@@ -16,14 +16,14 @@ import (
 func main() {
 	relay := khatru.NewRelay()
 
-	db := &badger.BadgerBackend{Path: "/tmp/khatru-badger-tmp"}
+	db := &lmdb.LMDBBackend{Path: "/tmp/khatru-lmdb-tmp"}
 	if err := db.Init(); err != nil {
 		panic(err)
 	}
 
 	relay.UseEventstore(db, 400)
 
-	bdb := &badger.BadgerBackend{Path: "/tmp/khatru-badger-blossom-tmp"}
+	bdb := &lmdb.LMDBBackend{Path: "/tmp/khatru-lmdb-blossom-tmp"}
 	if err := bdb.Init(); err != nil {
 		panic(err)
 	}

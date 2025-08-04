@@ -9,7 +9,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
-	"fiatjaf.com/nostr/eventstore/badger"
 	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/eventstore/slicestore"
 )
@@ -26,12 +25,6 @@ func BenchmarkLMDB(b *testing.B) {
 	l.Init()
 
 	runBenchmarkOn(b, l)
-}
-
-func BenchmarkBadger(b *testing.B) {
-	d := &badger.BadgerBackend{Path: dbpath + "badger"}
-	d.Init()
-	runBenchmarkOn(b, d)
 }
 
 func runBenchmarkOn(b *testing.B, db eventstore.Store) {

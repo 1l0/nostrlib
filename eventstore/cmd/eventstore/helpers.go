@@ -49,14 +49,14 @@ func detect(dir string) (string, error) {
 			}
 		}
 	}
-	for _, entry := range entries {
-		if strings.HasSuffix(entry.Name(), ".mdb") {
-			return "lmdb", nil
-		}
-		if strings.HasSuffix(entry.Name(), ".vlog") {
-			return "badger", nil
-		}
-	}
+	// for _, entry := range entries {
+	// 	if strings.HasSuffix(entry.Name(), ".mdb") {
+	// 		return "lmdb", nil
+	// 	}
+	// 	if strings.HasSuffix(entry.Name(), ".vlog") {
+	// 		return "badger", nil
+	// 	}
+	// }
 
 	return "", fmt.Errorf("undetected")
 }

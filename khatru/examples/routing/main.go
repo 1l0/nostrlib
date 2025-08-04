@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/eventstore/badger"
+	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/eventstore/slicestore"
 	"fiatjaf.com/nostr/khatru"
 )
@@ -17,7 +17,7 @@ func main() {
 	r1 := khatru.NewRelay()
 	r1.UseEventstore(db1, 400)
 
-	db2 := &badger.BadgerBackend{Path: "/tmp/t"}
+	db2 := &lmdb.LMDBBackend{Path: "/tmp/t"}
 	db2.Init()
 	r2 := khatru.NewRelay()
 	r2.UseEventstore(db2, 400)

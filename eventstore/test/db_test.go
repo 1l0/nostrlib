@@ -7,7 +7,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
-	"fiatjaf.com/nostr/eventstore/badger"
 	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/eventstore/slicestore"
 )
@@ -41,12 +40,5 @@ func TestLMDB(t *testing.T) {
 	for _, test := range tests {
 		os.RemoveAll(dbpath + "lmdb")
 		t.Run(test.name, func(t *testing.T) { test.run(t, &lmdb.LMDBBackend{Path: dbpath + "lmdb"}) })
-	}
-}
-
-func TestBadger(t *testing.T) {
-	for _, test := range tests {
-		os.RemoveAll(dbpath + "badger")
-		t.Run(test.name, func(t *testing.T) { test.run(t, &badger.BadgerBackend{Path: dbpath + "badger"}) })
 	}
 }
