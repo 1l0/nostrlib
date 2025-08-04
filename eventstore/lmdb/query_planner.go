@@ -47,17 +47,6 @@ func (b *LMDBBackend) prepareQueries(filter nostr.Filter) (
 		}
 	}()
 
-	// if filter.IDs != nil {
-	// 	// when there are ids we ignore everything else
-	// 	queries = make([]query, len(filter.IDs))
-	// 	for i, id := range filter.IDs {
-	// 		prefix := make([]byte, 8)
-	// 		copy(prefix[0:8], id[0:8])
-	// 		queries[i] = query{i: i, dbi: b.indexId, prefix: prefix[0:8], keySize: 8}
-	// 	}
-	// 	return queries, nil, nil, "", nil, 0, nil
-	// }
-
 	// this is where we'll end the iteration
 	if filter.Since != 0 {
 		if fs := uint32(filter.Since); fs > since {

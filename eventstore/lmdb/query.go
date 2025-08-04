@@ -14,13 +14,19 @@ import (
 
 func (b *LMDBBackend) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event] {
 	return func(yield func(nostr.Event) bool) {
-		if filter.Search != "" {
-			return
+		if filter.IDs != nil {
+			// when there are ids we ignore everything else and just fetch the ids
+			if err := b.lmdbEnv.View(func(txn *lmdb.Txn) error {
+				txn.RawRead = true
+				return b.queryByIds(txn, filter.IDs, yield)
+			}); err != nil {
+				log.Printf("lmdb: unexpected id query error: %s\n", err)
+			}
 		}
 
-		if filter.IDs != nil {
-			// do a special id query
-			// TODO
+		// ignore search queries
+		if filter.Search != "" {
+			return
 		}
 
 		// max number of events we'll return
@@ -33,11 +39,40 @@ func (b *LMDBBackend) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[no
 			maxLimit = filter.Limit
 		}
 
-		b.lmdbEnv.View(func(txn *lmdb.Txn) error {
+		// do a normal query based on various filters
+		if err := b.lmdbEnv.View(func(txn *lmdb.Txn) error {
 			txn.RawRead = true
 			return b.query(txn, filter, maxLimit, yield)
-		})
+		}); err != nil {
+			log.Printf("lmdb: unexpected query error: %s\n", err)
+		}
 	}
+}
+
+func (b *LMDBBackend) queryByIds(txn *lmdb.Txn, ids []nostr.ID, yield func(nostr.Event) bool) error {
+	for _, id := range ids {
+		idx, err := txn.Get(b.indexId, id[0:8])
+		if err != nil {
+			continue
+		}
+
+		txn.Get(b.rawEventStore, idx)
+		bin, err := txn.Get(b.rawEventStore, idx)
+		if err != nil {
+			continue
+		}
+
+		event := nostr.Event{}
+		if err := betterbinary.Unmarshal(bin, &event); err != nil {
+			continue
+		}
+
+		if !yield(event) {
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield func(nostr.Event) bool) error {
