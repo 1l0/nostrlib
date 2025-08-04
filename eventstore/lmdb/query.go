@@ -78,11 +78,9 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield
 
 		// after pulling from all iterators once we now find out what iterators are
 		// the ones we should keep pulling from next (i.e. which one's last emitted timestamp is the highest)
-		iterators.quickselect(min(numberOfIteratorsToPullOnEachRound, len(iterators)), 0, len(iterators))
+		threshold := iterators.quickselect(min(numberOfIteratorsToPullOnEachRound, len(iterators)))
 
-		// we now know what is our threshold
-		threshold := iterators[len(iterators)-1].last
-		// so we can emit all the events higher than it
+		// so we can emit all the events higher than the threshold
 		for _, it := range iterators {
 			for t, ts := range it.timestamps {
 				if ts >= threshold {

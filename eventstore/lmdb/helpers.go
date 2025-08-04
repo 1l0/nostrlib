@@ -93,39 +93,76 @@ func (it *iterator) next() {
 type iterators []iterator
 
 // quickselect reorders the slice just enough to make the top k elements be arranged at the end
-// i.e. [1, 700, 25, 312, 44, 28] with k=3 becomes something like [28, 25, 1, 44, 312, 700]
+// i.e. [1, 700, 25, 312, 44, 28] with k=3 becomes something like [700, 312, 44, 1, 25, 28]
 // in this case it's hardcoded to use the 'last' field of the iterator
-func (its iterators) quickselect(left int, right int, k int) {
-	if right == left {
-		return
+// copied from https://github.com/chrislee87/go-quickselect
+// this is modified to also return the highest 'last' (because it's not guaranteed it will be the first item)
+func (its iterators) quickselect(k int) uint32 {
+	if len(its) == 0 || k >= len(its) {
+		return 0
 	}
 
-	// partition
-	pivot := its[(right+left)/2].last
-	l := left
-	r := right
+	left, right := 0, len(its)-1
 
-	for l <= r {
-		for its[l].last < pivot {
-			l++
+	for {
+		// insertion sort for small ranges
+		if right-left <= 20 {
+			for i := left + 1; i <= right; i++ {
+				for j := i; j > 0 && its[j].last > its[j-1].last; j-- {
+					its[j], its[j-1] = its[j-1], its[j]
+				}
+			}
+			return its[0].last
 		}
-		for its[r].last > pivot {
-			r--
-		}
-		if l >= r {
-			break
-		}
-		its[l].last, its[r].last = its[r].last, its[l].last
-		r--
-		l++
-	}
-	mid := r
-	// ~
 
-	if k > mid {
-		its.quickselect(mid+1, right, k)
-	} else {
-		its.quickselect(left, mid, k)
+		// median-of-three to choose pivot
+		pivotIndex := left + (right-left)/2
+		if its[right].last > its[left].last {
+			its[right], its[left] = its[left], its[right]
+		}
+		if its[pivotIndex].last > its[left].last {
+			its[pivotIndex], its[left] = its[left], its[pivotIndex]
+		}
+		if its[right].last > its[pivotIndex].last {
+			its[right], its[pivotIndex] = its[pivotIndex], its[right]
+		}
+
+		// partition
+		its[left], its[pivotIndex] = its[pivotIndex], its[left]
+		ll := left + 1
+		rr := right
+		for ll <= rr {
+			for ll <= right && its[ll].last > its[left].last {
+				ll++
+			}
+			for rr >= left && its[left].last > its[rr].last {
+				rr--
+			}
+			if ll <= rr {
+				its[ll], its[rr] = its[rr], its[ll]
+				ll++
+				rr--
+			}
+		}
+		its[left], its[rr] = its[rr], its[left] // swap into right place
+		pivotIndex = rr
+
+		if k == pivotIndex {
+			// now that stuff is selected we get the highest "last"
+			highest := its[0].last
+			for i := 1; i < k; i++ {
+				if its[i].last > highest {
+					highest = its[i].last
+				}
+			}
+			return highest
+		}
+
+		if k < pivotIndex {
+			right = pivotIndex - 1
+		} else {
+			left = pivotIndex + 1
+		}
 	}
 }
 
