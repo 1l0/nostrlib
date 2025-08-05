@@ -14,6 +14,8 @@ const (
 	DB_VERSION byte = 'v'
 )
 
+const target = 2
+
 func (b *LMDBBackend) migrate() error {
 	return b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
 		val, err := txn.Get(b.settingsStore, []byte("version"))
@@ -21,12 +23,10 @@ func (b *LMDBBackend) migrate() error {
 			return fmt.Errorf("failed to get db version: %w", err)
 		}
 
-		var version uint16 = 1
+		var version uint16 = target
 		if err == nil {
 			version = binary.BigEndian.Uint16(val)
 		}
-
-		const target = 2
 
 		// do the migrations in increasing steps (there is no rollback)
 		if version < target {

@@ -20,7 +20,7 @@ func (b *BoltBackend) migrate() error {
 		val := bucket.Get([]byte("version"))
 
 		var version uint16 = target
-		if val == nil {
+		if val != nil {
 			version = binary.BigEndian.Uint16(val)
 		}
 
