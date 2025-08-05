@@ -22,6 +22,7 @@ func (b *LMDBBackend) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[no
 			}); err != nil {
 				log.Printf("lmdb: unexpected id query error: %s\n", err)
 			}
+			return
 		}
 
 		// ignore search queries
@@ -89,7 +90,7 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield
 		if err != nil {
 			return err
 		}
-		iterators[q] = iterator{
+		iterators[q] = &iterator{
 			query:  query,
 			cursor: cursor,
 		}
@@ -99,11 +100,11 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield
 	}
 
 	// initial pull from all queries
-	for _, it := range iterators {
-		it.pull(batchSizePerQuery, since)
+	for i := range iterators {
+		iterators[i].pull(batchSizePerQuery, since)
 	}
 
-	numberOfIteratorsToPullOnEachRound := max(1, int(math.Ceil(float64(len(iterators))/float64(14))))
+	numberOfIteratorsToPullOnEachRound := max(1, int(math.Ceil(float64(len(iterators))/float64(12))))
 	totalEventsEmitted := 0
 	tempResults := make([]nostr.Event, 0, batchSizePerQuery*2)
 
@@ -116,21 +117,21 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield
 		threshold := iterators.quickselect(min(numberOfIteratorsToPullOnEachRound, len(iterators)))
 
 		// so we can emit all the events higher than the threshold
-		for _, it := range iterators {
-			for t, ts := range it.timestamps {
-				if ts >= threshold {
-					idx := it.idxs[t]
+		for i := range iterators {
+			for t := 0; t < len(iterators[i].timestamps); t++ {
+				if iterators[i].timestamps[t] >= threshold {
+					idx := iterators[i].idxs[t]
 
 					// discard this regardless of what happens
-					internal.SwapDelete(it.timestamps, t)
-					internal.SwapDelete(it.idxs, t)
+					iterators[i].timestamps = internal.SwapDelete(iterators[i].timestamps, t)
+					iterators[i].idxs = internal.SwapDelete(iterators[i].idxs, t)
 					t--
 
 					// fetch actual event
 					bin, err := txn.Get(b.rawEventStore, idx)
 					if err != nil {
 						log.Printf("lmdb: failed to get %x from raw event store: %s (query prefix=%x, index=%s)\n",
-							idx, err, it.query.prefix, b.dbiName(it.query.dbi))
+							idx, err, iterators[i].query.prefix, b.dbiName(iterators[i].query.dbi))
 						continue
 					}
 
@@ -148,11 +149,9 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield
 					event := nostr.Event{}
 					if err := betterbinary.Unmarshal(bin, &event); err != nil {
 						log.Printf("lmdb: value read error (id %x) on query prefix %x sp %x dbi %s: %s\n",
-							betterbinary.GetID(bin), it.query.prefix, it.query.startingPoint, b.dbiName(it.query.dbi), err)
+							betterbinary.GetID(bin), iterators[i].query.prefix, iterators[i].query.startingPoint, b.dbiName(iterators[i].query.dbi), err)
 						continue
 					}
-
-					// fmt.Println("      event", betterbinary.GetID(bin), "kind", betterbinary.GetKind(bin).Num(), "author", betterbinary.GetPubKey(bin), "ts", betterbinary.GetCreatedAt(bin), hex.EncodeToString(it.key), it.valIdx)
 
 					// if there is still a tag to be checked, do it now
 					if extraTagValues != nil && !event.Tags.ContainsAny(extraTagKey, extraTagValues) {
@@ -165,7 +164,7 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield
 		}
 
 		// emit this stuff in order
-		slices.SortFunc(tempResults, nostr.CompareEvent)
+		slices.SortFunc(tempResults, nostr.CompareEventReverse)
 		for _, evt := range tempResults {
 			if !yield(evt) {
 				return nil
@@ -179,17 +178,16 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield
 
 		// now pull more events
 		for i := 0; i < min(len(iterators), numberOfIteratorsToPullOnEachRound); i++ {
-			it := iterators[i]
-			if it.exhausted {
-				if len(it.idxs) == 0 {
+			if iterators[i].exhausted {
+				if len(iterators[i].idxs) == 0 {
 					// eliminating this from the list of iterators
-					internal.SwapDelete(iterators, i)
+					iterators = internal.SwapDelete(iterators, i)
 					i--
 				}
 				continue
 			}
 
-			it.pull(batchSizePerQuery, since)
+			iterators[i].pull(batchSizePerQuery, since)
 		}
 	}
 

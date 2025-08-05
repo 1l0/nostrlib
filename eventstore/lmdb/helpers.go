@@ -40,24 +40,26 @@ func (it *iterator) pull(n int, since uint32) {
 
 	for range n {
 		// in the beginning we already have a k and a v and an err from the cursor setup, so check and use these
-		if it.err != nil ||
-			len(it.key) != query.keySize ||
-			!bytes.HasPrefix(it.key, query.prefix) {
-			// either iteration has errored or we reached the end of this prefix
-			// fmt.Println("      reached end", hex.EncodeToString(it.key), query.keySize, hex.EncodeToString(query.prefix), it.err)
+		if it.err != nil {
+			it.exhausted = true
+			return
+		}
+
+		if len(it.key) != query.keySize || !bytes.HasPrefix(it.key, query.prefix) {
+			// we reached the end of this prefix
 			it.exhausted = true
 			return
 		}
 
 		createdAt := binary.BigEndian.Uint32(it.key[len(it.key)-4:])
 		if createdAt < since {
-			// fmt.Println("        reached since", createdAt, "<", since)
 			it.exhausted = true
 			return
 		}
 
 		// got a key
-		it.idxs = append(it.idxs, it.key)
+		it.idxs = append(it.idxs, it.valIdx)
+		it.timestamps = append(it.timestamps, createdAt)
 		it.last = createdAt
 
 		// advance the cursor for the next call
@@ -90,7 +92,7 @@ func (it *iterator) next() {
 	it.key, it.valIdx, it.err = it.cursor.Get(nil, nil, lmdb.Prev)
 }
 
-type iterators []iterator
+type iterators []*iterator
 
 // quickselect reorders the slice just enough to make the top k elements be arranged at the end
 // i.e. [1, 700, 25, 312, 44, 28] with k=3 becomes something like [700, 312, 44, 1, 25, 28]
