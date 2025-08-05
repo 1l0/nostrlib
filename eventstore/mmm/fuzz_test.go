@@ -29,18 +29,18 @@ func FuzzTest(f *testing.F) {
 		rnd := rand.New(rand.NewPCG(uint64(seed), 0))
 
 		// initialize MMM
-		mmm := &MultiMmapManager{
+		mmmm := &MultiMmapManager{
 			Dir:    tmpDir,
 			Logger: &logger,
 		}
 
-		err = mmm.Init()
+		err = mmmm.Init()
 		require.NoError(t, err)
-		defer mmm.Close()
+		defer mmmm.Close()
 
 		for i := range nlayers {
 			name := string([]byte{97 + byte(i)})
-			err = mmm.EnsureLayer(name, &IndexingLayer{})
+			err = mmmm.EnsureLayer(name, &IndexingLayer{})
 			require.NoError(t, err, "layer %s/%d", name, i)
 		}
 
@@ -73,7 +73,7 @@ func FuzzTest(f *testing.F) {
 			}
 			evt.Sign(sk)
 
-			for _, layer := range mmm.layers {
+			for _, layer := range mmmm.layers {
 				if evt.Tags.FindWithValue("t", layer.name) != nil {
 					err := layer.SaveEvent(evt)
 					require.NoError(t, err)
@@ -86,7 +86,7 @@ func FuzzTest(f *testing.F) {
 		}
 
 		// verify each layer has the correct events
-		for _, layer := range mmm.layers {
+		for _, layer := range mmmm.layers {
 			count := 0
 			for evt := range layer.QueryEvents(nostr.Filter{}, 500) {
 				require.True(t, evt.Tags.ContainsAny("t", []string{layer.name}))
@@ -100,9 +100,9 @@ func FuzzTest(f *testing.F) {
 
 		for range ndeletes {
 			id := storedIds[rnd.Int()%len(storedIds)]
-			layer := mmm.layers[rnd.Int()%len(mmm.layers)]
+			layer := mmmm.layers[rnd.Int()%len(mmmm.layers)]
 
-			evt, layers := mmm.GetByID(id)
+			evt, layers := mmmm.GetByID(id)
 			if slices.Contains(deleted[id], layer) {
 				// already deleted from this layer
 				require.NotContains(t, layers, layer)
@@ -119,7 +119,7 @@ func FuzzTest(f *testing.F) {
 		}
 
 		for id, deletedlayers := range deleted {
-			evt, foundlayers := mmm.GetByID(id)
+			evt, foundlayers := mmmm.GetByID(id)
 
 			for _, layer := range deletedlayers {
 				require.NotContains(t, foundlayers, layer)
@@ -142,7 +142,7 @@ func FuzzTest(f *testing.F) {
 			}
 
 			if evt != nil {
-				for _, layer := range mmm.layers {
+				for _, layer := range mmmm.layers {
 					// verify event still accessible from other layers
 					if slices.Contains(foundlayers, layer) {
 						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}}, 500)) // hack
@@ -161,7 +161,7 @@ func FuzzTest(f *testing.F) {
 		}
 
 		// now delete a layer and events that only exist in that layer should vanish
-		layer := mmm.layers[rnd.Int()%len(mmm.layers)]
+		layer := mmmm.layers[rnd.Int()%len(mmmm.layers)]
 		eventsThatShouldVanish := make([]nostr.ID, 0, nevents/2)
 		for evt := range layer.QueryEvents(nostr.Filter{}, 500) {
 			if len(evt.Tags) == 1+len(deleted[evt.ID]) {
@@ -169,11 +169,11 @@ func FuzzTest(f *testing.F) {
 			}
 		}
 
-		err = mmm.DropLayer(layer.name)
+		err = mmmm.DropLayer(layer.name)
 		require.NoError(t, err)
 
 		for _, id := range eventsThatShouldVanish {
-			v, ils := mmm.GetByID(id)
+			v, ils := mmmm.GetByID(id)
 			require.Nil(t, v)
 			require.Empty(t, ils)
 		}

@@ -34,7 +34,11 @@ func (b *MultiMmapManager) GetByID(id nostr.ID) (*nostr.Event, IndexingLayers) {
 }
 
 // queryByIDs emits the events of the given id to the given channel if they exist anywhere in this mmm.
-func (b *MultiMmapManager) queryByIDs(ids []nostr.ID, yield func(nostr.Event) bool, withLayers bool) (layers []uint16) {
+func (b *MultiMmapManager) queryByIDs(
+	ids []nostr.ID,
+	yield func(nostr.Event) bool,
+	withLayers bool,
+) (layers []uint16) {
 	b.lmdbEnv.View(func(txn *lmdb.Txn) error {
 		txn.RawRead = true
 
@@ -47,7 +51,7 @@ func (b *MultiMmapManager) queryByIDs(ids []nostr.ID, yield func(nostr.Event) bo
 					panic(fmt.Errorf("failed to decode event from %v: %w", pos, err))
 				}
 
-				stop := yield(evt)
+				keepGoing := yield(evt)
 
 				if withLayers {
 					layers = make([]uint16, 0, (len(val)-12)/2)
@@ -56,7 +60,7 @@ func (b *MultiMmapManager) queryByIDs(ids []nostr.ID, yield func(nostr.Event) bo
 					}
 				}
 
-				if stop {
+				if !keepGoing {
 					return nil
 				}
 			}
@@ -70,7 +74,7 @@ func (b *MultiMmapManager) queryByIDs(ids []nostr.ID, yield func(nostr.Event) bo
 
 func (il *IndexingLayer) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event] {
 	return func(yield func(nostr.Event) bool) {
-		if len(filter.IDs) > 0 {
+		if filter.IDs != nil {
 			il.mmmm.queryByIDs(filter.IDs, yield, false)
 			return
 		}
