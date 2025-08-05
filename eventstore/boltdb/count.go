@@ -1,4 +1,4 @@
-package bolt
+package boltdb
 
 import (
 	"bytes"
@@ -28,13 +28,12 @@ func (b *BoltBackend) CountEvents(filter nostr.Filter) (uint32, error) {
 		for _, q := range queries {
 			cursor := txn.Bucket(q.bucket).Cursor()
 
-			it := &iterator{cursor: cursor}
+			it := newIterator(q, cursor)
 			it.seek(q.startingPoint)
 
 			for {
 				// we already have a k and a v and an err from the cursor setup, so check and use these
-				if it.err != nil ||
-					!bytes.HasPrefix(it.key, q.prefix) {
+				if !bytes.HasPrefix(it.key, q.prefix) {
 					// either iteration has errored or we reached the end of this prefix
 					break // stop this cursor and move to the next one
 				}
@@ -113,13 +112,12 @@ func (b *BoltBackend) CountEventsHLL(filter nostr.Filter, offset int) (uint32, *
 		for _, q := range queries {
 			cursor := txn.Bucket(q.bucket).Cursor()
 
-			it := &iterator{cursor: cursor}
+			it := newIterator(q, cursor)
 			it.seek(q.startingPoint)
 
 			for {
 				// we already have a k and a v and an err from the cursor setup, so check and use these
-				if it.err != nil ||
-					!bytes.HasPrefix(it.key, q.prefix) {
+				if !bytes.HasPrefix(it.key, q.prefix) {
 					// either iteration has errored or we reached the end of this prefix
 					break // stop this cursor and move to the next one
 				}

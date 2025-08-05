@@ -1,4 +1,4 @@
-package bolt
+package boltdb
 
 import (
 	"iter"
@@ -76,19 +76,22 @@ func (b *BoltBackend) query(txn *bbolt.Tx, filter nostr.Filter, limit int, yield
 		return err
 	}
 
-	iterators := make(iterators, len(queries))
-	batchSizePerQuery := internal.BatchSizePerNumberOfQueries(limit, len(queries))
+	iterators := make(iterators, 0, len(queries))
+	for _, query := range queries {
+		bucket := txn.Bucket(query.bucket)
 
-	for q, query := range queries {
-		bucket := txn.Bucket(queries[q].bucket)
+		it := newIterator(query, bucket.Cursor())
 
-		iterators[q] = &iterator{
-			query:  query,
-			cursor: bucket.Cursor(),
+		it.seek(query.startingPoint)
+		if it.exhausted {
+			// this may happen rarely
+			continue
 		}
 
-		iterators[q].seek(queries[q].startingPoint)
+		iterators = append(iterators, it)
 	}
+
+	batchSizePerQuery := internal.BatchSizePerNumberOfQueries(limit, len(queries))
 
 	// initial pull from all queries
 	for i := range iterators {

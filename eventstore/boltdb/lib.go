@@ -1,7 +1,7 @@
-package bolt
+package boltdb
 
 import (
-	"os"
+	"time"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
@@ -32,23 +32,19 @@ type BoltBackend struct {
 }
 
 func (b *BoltBackend) Init() error {
-	// create directory if it doesn't exist and open it
-	if err := os.MkdirAll(b.Path, 0755); err != nil {
-		return err
-	}
-
-	return b.initialize()
-}
-
-func (b *BoltBackend) Close() {
-	b.DB.Close()
-}
-
-func (b *BoltBackend) initialize() error {
-	db, err := bbolt.Open(b.Path, 0600, nil)
+	db, err := bbolt.Open(b.Path, 0600, &bbolt.Options{
+		Timeout:         2 * time.Second,
+		PreLoadFreelist: true,
+		FreelistType:    bbolt.FreelistMapType,
+	})
 	if err != nil {
 		return err
 	}
+
+	db.AllocSize = 64 * 1024 * 1024
+	db.MaxBatchDelay = time.Millisecond * 40
+
+	b.DB = db
 
 	db.Update(func(txn *bbolt.Tx) error {
 		if _, err := txn.CreateBucketIfNotExists(settingsStore); err != nil {
@@ -85,4 +81,8 @@ func (b *BoltBackend) initialize() error {
 	})
 
 	return b.migrate()
+}
+
+func (b *BoltBackend) Close() {
+	b.DB.Close()
 }

@@ -1,4 +1,4 @@
-package bolt
+package boltdb
 
 import (
 	"bytes"
@@ -22,7 +22,6 @@ type iterator struct {
 	cursor    *bbolt.Cursor
 	key       []byte
 	currIdPtr []byte
-	err       error
 
 	// this keeps track of last timestamp value pulled from this
 	last uint32
@@ -35,16 +34,21 @@ type iterator struct {
 	timestamps []uint32
 }
 
+func newIterator(query query, cursor *bbolt.Cursor) *iterator {
+	return &iterator{
+		query:  query,
+		cursor: cursor,
+
+		key:       make([]byte, 0, 31),
+		currIdPtr: make([]byte, 8),
+	}
+}
+
 func (it *iterator) pull(n int, since uint32) {
 	query := it.query
 
 	for range n {
-		// in the beginning we already have a k and a v and an err from the cursor setup, so check and use these
-		if it.err != nil {
-			it.exhausted = true
-			return
-		}
-
+		// in the beginning we already have a k and a v from the cursor setup, so check and use these
 		if !bytes.HasPrefix(it.key, query.prefix) {
 			// we reached the end of this prefix
 			it.exhausted = true
@@ -58,29 +62,49 @@ func (it *iterator) pull(n int, since uint32) {
 		}
 
 		// got a key
-		it.idPtrs = append(it.idPtrs, it.currIdPtr)
+		it.idPtrs = append(it.idPtrs, append([]byte{}, it.currIdPtr...))
 		it.timestamps = append(it.timestamps, createdAt)
 		it.last = createdAt
 
 		// advance the cursor for the next call
 		it.next()
+		if it.exhausted {
+			return
+		}
 	}
 
 	return
 }
 
-func (it *iterator) seek(keyPrefix []byte) {
-	fullkey, _ := it.cursor.Seek(keyPrefix)
-	copy(it.key, fullkey[len(fullkey)-8-4:])
-	copy(it.currIdPtr, fullkey[len(fullkey)-8:])
+func (it *iterator) seek(key []byte) {
+	fullkey, _ := it.cursor.Seek(key)
+	if fullkey == nil || bytes.Compare(fullkey, key) == 1 {
+		fullkey, _ = it.cursor.Prev()
+		if fullkey == nil {
+			it.exhausted = true
+			return
+		}
+	}
+
+	s := len(fullkey)
+	it.key = it.key[0 : s-8]
+	copy(it.key, fullkey[0:s-8])
+	copy(it.currIdPtr, fullkey[s-8:])
 }
 
 // goes backwards
 func (it *iterator) next() {
-	// move one back (we'll look into k and v and err in the next iteration)
+	// move one back (we'll look into key in the next iteration)
 	fullkey, _ := it.cursor.Prev()
-	copy(it.key, fullkey[len(fullkey)-8-4:])
-	copy(it.currIdPtr, fullkey[len(fullkey)-8:])
+	if fullkey == nil {
+		it.exhausted = true
+		return
+	}
+
+	s := len(fullkey)
+	it.key = it.key[0 : s-8]
+	copy(it.key, fullkey[0:s-8])
+	copy(it.currIdPtr, fullkey[s-8:])
 }
 
 type iterators []*iterator
@@ -160,12 +184,14 @@ func (its iterators) quickselect(k int) uint32 {
 }
 
 type key struct {
-	bucket []byte
-	key    []byte
+	bucket  []byte
+	fullkey []byte
 }
 
 func (b *BoltBackend) keyName(key key) string {
-	return fmt.Sprintf("<dbi=%s key=%x>", string(key.bucket), key.key)
+	s := len(key.fullkey)
+	return fmt.Sprintf("<dbi=%s prefix=%x ts=%x idptr=%x>",
+		string(key.bucket), key.fullkey[0:s-8-4], key.fullkey[s-8-4:s-8], key.fullkey[s-8:])
 }
 
 func (b *BoltBackend) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
@@ -176,7 +202,7 @@ func (b *BoltBackend) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 			copy(k[0:8], evt.PubKey[0:8])
 			binary.BigEndian.PutUint32(k[8:8+4], uint32(evt.CreatedAt))
 			copy(k[8+4:8+4+8], evt.ID[16:24])
-			if !yield(key{bucket: indexPubkey, key: k[0 : 8+4]}) {
+			if !yield(key{bucket: indexPubkey, fullkey: k}) {
 				return
 			}
 		}
@@ -187,7 +213,7 @@ func (b *BoltBackend) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 			binary.BigEndian.PutUint16(k[0:2], uint16(evt.Kind))
 			binary.BigEndian.PutUint32(k[2:2+4], uint32(evt.CreatedAt))
 			copy(k[2+4:2+4+8], evt.ID[16:24])
-			if !yield(key{bucket: indexKind, key: k[0 : 2+4]}) {
+			if !yield(key{bucket: indexKind, fullkey: k}) {
 				return
 			}
 		}
@@ -198,8 +224,8 @@ func (b *BoltBackend) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 			copy(k[0:8], evt.PubKey[0:8])
 			binary.BigEndian.PutUint16(k[8:8+2], uint16(evt.Kind))
 			binary.BigEndian.PutUint32(k[8+2:8+2+4], uint32(evt.CreatedAt))
-			copy(k[8+2:8+2+8], evt.ID[16:24])
-			if !yield(key{bucket: indexPubkeyKind, key: k[0 : 8+2+4]}) {
+			copy(k[8+2+4:8+2+4+8], evt.ID[16:24])
+			if !yield(key{bucket: indexPubkeyKind, fullkey: k}) {
 				return
 			}
 		}
@@ -222,9 +248,10 @@ func (b *BoltBackend) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 			// get key prefix (with full length) and offset where to write the created_at
 			bucket, k := b.getTagIndexPrefix(tag[0], tag[1])
 			// keys always end with 4 bytes of created_at + 8 bytes of the id ptr
+
 			binary.BigEndian.PutUint32(k[len(k)-8-4:], uint32(evt.CreatedAt))
 			copy(k[len(k)-8:], evt.ID[16:24])
-			if !yield(key{bucket: bucket, key: k}) {
+			if !yield(key{bucket: bucket, fullkey: k}) {
 				return
 			}
 		}
@@ -234,7 +261,7 @@ func (b *BoltBackend) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 			k := make([]byte, 4+8)
 			binary.BigEndian.PutUint32(k[0:4], uint32(evt.CreatedAt))
 			copy(k[4:4+8], evt.ID[16:24])
-			if !yield(key{bucket: indexCreatedAt, key: k[0:4]}) {
+			if !yield(key{bucket: indexCreatedAt, fullkey: k}) {
 				return
 			}
 		}

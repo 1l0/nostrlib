@@ -1,4 +1,4 @@
-package bolt
+package boltdb
 
 import (
 	"fmt"
@@ -31,7 +31,7 @@ func (b *BoltBackend) delete(txn *bbolt.Tx, id nostr.ID) error {
 
 	// calculate all index keys we have for this event and delete them
 	for k := range b.getIndexKeysForEvent(evt) {
-		err := txn.Bucket(k.bucket).Delete(k.key)
+		err := txn.Bucket(k.bucket).Delete(k.fullkey)
 		if err != nil {
 			return fmt.Errorf("failed to delete index entry %s for %x: %w", b.keyName(k), evt.ID[0:8], err)
 		}

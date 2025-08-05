@@ -1,4 +1,4 @@
-package bolt
+package boltdb
 
 import (
 	"fmt"
@@ -55,7 +55,7 @@ func (b *BoltBackend) save(txn *bbolt.Tx, evt nostr.Event) error {
 
 	// put indexes
 	for k := range b.getIndexKeysForEvent(evt) {
-		err := txn.Bucket(k.bucket).Put(k.key, nil)
+		err := txn.Bucket(k.bucket).Put(k.fullkey, nil)
 		if err != nil {
 			return err
 		}
