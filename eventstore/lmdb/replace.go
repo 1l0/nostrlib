@@ -3,7 +3,6 @@ package lmdb
 import (
 	"fmt"
 	"iter"
-	"math"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore/internal"
@@ -11,11 +10,6 @@ import (
 )
 
 func (b *LMDBBackend) ReplaceEvent(evt nostr.Event) error {
-	// sanity checking
-	if evt.CreatedAt > math.MaxUint32 || evt.Kind > math.MaxUint16 {
-		return fmt.Errorf("event with values out of expected boundaries %d/%d", evt.CreatedAt, evt.Kind)
-	}
-
 	return b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
 		filter := nostr.Filter{Limit: 1, Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
 		if evt.Kind.IsAddressable() {

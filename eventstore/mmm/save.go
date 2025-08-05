@@ -53,11 +53,6 @@ func (b *MultiMmapManager) storeOn(
 	iltxns []*lmdb.Txn,
 	evt nostr.Event,
 ) (stored bool, err error) {
-	// sanity checking
-	if evt.CreatedAt > maxuint32 || evt.Kind > maxuint16 {
-		return false, fmt.Errorf("event with values out of expected boundaries")
-	}
-
 	// check if we already have this id
 	val, err := mmmtxn.Get(b.indexId, evt.ID[0:8])
 	if err == nil {

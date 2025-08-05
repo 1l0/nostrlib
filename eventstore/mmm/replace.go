@@ -3,7 +3,6 @@ package mmm
 import (
 	"fmt"
 	"iter"
-	"math"
 	"runtime"
 
 	"fiatjaf.com/nostr"
@@ -12,11 +11,6 @@ import (
 )
 
 func (il *IndexingLayer) ReplaceEvent(evt nostr.Event) error {
-	// sanity checking
-	if evt.CreatedAt > math.MaxUint32 || evt.Kind > math.MaxUint16 {
-		return fmt.Errorf("event with values out of expected boundaries")
-	}
-
 	il.mmmm.writeMutex.Lock()
 	defer il.mmmm.writeMutex.Unlock()
 

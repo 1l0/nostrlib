@@ -2,7 +2,6 @@ package lmdb
 
 import (
 	"fmt"
-	"math"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
@@ -11,11 +10,6 @@ import (
 )
 
 func (b *LMDBBackend) SaveEvent(evt nostr.Event) error {
-	// sanity checking
-	if evt.CreatedAt > math.MaxUint32 || evt.Kind > math.MaxUint16 {
-		return fmt.Errorf("event with values out of expected boundaries %d/%d", evt.CreatedAt, evt.Kind)
-	}
-
 	return b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
 		if b.EnableHLLCacheFor != nil {
 			// modify hyperloglog caches relative to this
