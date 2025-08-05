@@ -86,8 +86,9 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	go.etcd.io/bbolt v1.4.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
 	google.golang.org/protobuf v1.36.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
