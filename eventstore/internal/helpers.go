@@ -3,9 +3,7 @@ package internal
 import (
 	"bytes"
 	"math"
-	"slices"
 
-	mergesortedslices "fiatjaf.com/lib/merge-sorted-slices"
 	"fiatjaf.com/nostr"
 )
 
@@ -76,68 +74,6 @@ func CopyMapWithoutKey[K comparable, V any](originalMap map[K]V, key K) map[K]V 
 		}
 	}
 	return newMap
-}
-
-// MergeSortMultipleBatches takes the results of multiple iterators, which are already sorted,
-// and merges them into a single big sorted slice
-func MergeSortMultiple(batches [][]nostr.Event, limit int, dst []nostr.Event) []nostr.Event {
-	// clear up empty lists here while simultaneously computing the total count.
-	// this helps because if there are a bunch of empty lists then this pre-clean
-	//   step will get us in the faster 'merge' branch otherwise we would go to the other.
-	// we would have to do the cleaning anyway inside it.
-	// and even if we still go on the other we save one iteration by already computing the
-	//   total count.
-	total := 0
-	for i := len(batches) - 1; i >= 0; i-- {
-		if len(batches[i]) == 0 {
-			batches = SwapDelete(batches, i)
-		} else {
-			total += len(batches[i])
-		}
-	}
-
-	if limit == -1 {
-		limit = total
-	}
-
-	// this amazing equation will ensure that if one of the two sides goes very small (like 1 or 2)
-	//   the other can go very high (like 500) and we're still in the 'merge' branch.
-	// if values go somewhere in the middle then they may match the 'merge' branch (batches=20,limit=70)
-	//   or not (batches=25, limit=60)
-	if math.Log(float64(len(batches)*2))+math.Log(float64(limit)) < 8 {
-		if dst == nil {
-			dst = make([]nostr.Event, limit)
-		} else if cap(dst) < limit {
-			dst = slices.Grow(dst, limit-len(dst))
-		}
-		dst = dst[0:limit]
-		return mergesortedslices.MergeFuncNoEmptyListsIntoSlice(dst, batches, nostr.CompareEvent)
-	} else {
-		if dst == nil {
-			dst = make([]nostr.Event, total)
-		} else if cap(dst) < total {
-			dst = slices.Grow(dst, total-len(dst))
-		}
-		dst = dst[0:total]
-
-		// use quicksort in a dumb way that will still be fast because it's cheated
-		lastIndex := 0
-		for _, batch := range batches {
-			copy(dst[lastIndex:], batch)
-			lastIndex += len(batch)
-		}
-
-		slices.SortFunc(dst, nostr.CompareEvent)
-
-		for i, j := 0, total-1; i < j; i, j = i+1, j-1 {
-			dst[i], dst[j] = dst[j], dst[i]
-		}
-
-		if limit < len(dst) {
-			return dst[0:limit]
-		}
-		return dst
-	}
 }
 
 // BatchSizePerNumberOfQueries tries to make an educated guess for the batch size given the total filter limit and

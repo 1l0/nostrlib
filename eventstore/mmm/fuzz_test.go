@@ -103,7 +103,6 @@ func FuzzTest(f *testing.F) {
 			layer := mmm.layers[rnd.Int()%len(mmm.layers)]
 
 			evt, layers := mmm.GetByID(id)
-
 			if slices.Contains(deleted[id], layer) {
 				// already deleted from this layer
 				require.NotContains(t, layers, layer)

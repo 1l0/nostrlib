@@ -1,6 +1,7 @@
 package mmm
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"iter"
@@ -12,14 +13,61 @@ import (
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-// this iterator always goes backwards
 type iterator struct {
+	query query
+
+	// iteration stuff
 	cursor *lmdb.Cursor
 	key    []byte
 	posb   []byte
 	err    error
+
+	// this keeps track of last timestamp value pulled from this
+	last uint32
+
+	// if we shouldn't fetch more from this
+	exhausted bool
+
+	// results not yet emitted
+	posbs      [][]byte
+	timestamps []uint32
 }
 
+func (it *iterator) pull(n int, since uint32) {
+	query := it.query
+
+	for range n {
+		// in the beginning we already have a k and a v and an err from the cursor setup, so check and use these
+		if it.err != nil {
+			it.exhausted = true
+			return
+		}
+
+		if len(it.key) != query.keySize || !bytes.HasPrefix(it.key, query.prefix) {
+			// we reached the end of this prefix
+			it.exhausted = true
+			return
+		}
+
+		createdAt := binary.BigEndian.Uint32(it.key[len(it.key)-4:])
+		if createdAt < since {
+			it.exhausted = true
+			return
+		}
+
+		// got a key
+		it.posbs = append(it.posbs, it.posb)
+		it.timestamps = append(it.timestamps, createdAt)
+		it.last = createdAt
+
+		// advance the cursor for the next call
+		it.next()
+	}
+
+	return
+}
+
+// goes backwards
 func (it *iterator) seek(key []byte) {
 	if _, _, errsr := it.cursor.Get(key, nil, lmdb.SetRange); errsr != nil {
 		if operr, ok := errsr.(*lmdb.OpError); !ok || operr.Errno != lmdb.NotFound {
@@ -36,9 +84,86 @@ func (it *iterator) seek(key []byte) {
 	}
 }
 
+// goes backwards
 func (it *iterator) next() {
 	// move one back (we'll look into k and v and err in the next iteration)
 	it.key, it.posb, it.err = it.cursor.Get(nil, nil, lmdb.Prev)
+}
+
+type iterators []*iterator
+
+// quickselect reorders the slice just enough to make the top k elements be arranged at the end
+// i.e. [1, 700, 25, 312, 44, 28] with k=3 becomes something like [700, 312, 44, 1, 25, 28]
+// in this case it's hardcoded to use the 'last' field of the iterator
+// copied from https://github.com/chrislee87/go-quickselect
+// this is modified to also return the highest 'last' (because it's not guaranteed it will be the first item)
+func (its iterators) quickselect(k int) uint32 {
+	if len(its) == 0 || k >= len(its) {
+		return 0
+	}
+
+	left, right := 0, len(its)-1
+
+	for {
+		// insertion sort for small ranges
+		if right-left <= 20 {
+			for i := left + 1; i <= right; i++ {
+				for j := i; j > 0 && its[j].last > its[j-1].last; j-- {
+					its[j], its[j-1] = its[j-1], its[j]
+				}
+			}
+			return its[0].last
+		}
+
+		// median-of-three to choose pivot
+		pivotIndex := left + (right-left)/2
+		if its[right].last > its[left].last {
+			its[right], its[left] = its[left], its[right]
+		}
+		if its[pivotIndex].last > its[left].last {
+			its[pivotIndex], its[left] = its[left], its[pivotIndex]
+		}
+		if its[right].last > its[pivotIndex].last {
+			its[right], its[pivotIndex] = its[pivotIndex], its[right]
+		}
+
+		// partition
+		its[left], its[pivotIndex] = its[pivotIndex], its[left]
+		ll := left + 1
+		rr := right
+		for ll <= rr {
+			for ll <= right && its[ll].last > its[left].last {
+				ll++
+			}
+			for rr >= left && its[left].last > its[rr].last {
+				rr--
+			}
+			if ll <= rr {
+				its[ll], its[rr] = its[rr], its[ll]
+				ll++
+				rr--
+			}
+		}
+		its[left], its[rr] = its[rr], its[left] // swap into right place
+		pivotIndex = rr
+
+		if k == pivotIndex {
+			// now that stuff is selected we get the highest "last"
+			highest := its[0].last
+			for i := 1; i < k; i++ {
+				if its[i].last > highest {
+					highest = its[i].last
+				}
+			}
+			return highest
+		}
+
+		if k < pivotIndex {
+			right = pivotIndex - 1
+		} else {
+			left = pivotIndex + 1
+		}
+	}
 }
 
 type key struct {
