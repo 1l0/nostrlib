@@ -113,14 +113,12 @@ type iterators []*iterator
 // i.e. [1, 700, 25, 312, 44, 28] with k=3 becomes something like [700, 312, 44, 1, 25, 28]
 // in this case it's hardcoded to use the 'last' field of the iterator
 // copied from https://github.com/chrislee87/go-quickselect
-// this is modified to also return the highest 'last' (because it's not guaranteed it will be the first item)
-func (its iterators) quickselect(k int) uint32 {
+func (its iterators) quickselect(k int) {
 	if len(its) == 0 || k >= len(its) {
-		return 0
+		return
 	}
 
 	left, right := 0, len(its)-1
-
 	for {
 		// insertion sort for small ranges
 		if right-left <= 20 {
@@ -129,7 +127,7 @@ func (its iterators) quickselect(k int) uint32 {
 					its[j], its[j-1] = its[j-1], its[j]
 				}
 			}
-			return its[0].last
+			return
 		}
 
 		// median-of-three to choose pivot
@@ -165,14 +163,7 @@ func (its iterators) quickselect(k int) uint32 {
 		pivotIndex = rr
 
 		if k == pivotIndex {
-			// now that stuff is selected we get the highest "last"
-			highest := its[0].last
-			for i := 1; i < k; i++ {
-				if its[i].last > highest {
-					highest = its[i].last
-				}
-			}
-			return highest
+			return
 		}
 
 		if k < pivotIndex {
@@ -181,6 +172,17 @@ func (its iterators) quickselect(k int) uint32 {
 			left = pivotIndex + 1
 		}
 	}
+}
+
+// return the highest 'last' value among the first k items in its
+func (its iterators) threshold(k int) uint32 {
+	highest := its[0].last
+	for i := 1; i < k; i++ {
+		if its[i].last > highest {
+			highest = its[i].last
+		}
+	}
+	return highest
 }
 
 type key struct {

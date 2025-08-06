@@ -3,7 +3,6 @@ module fiatjaf.com/nostr
 go 1.24.1
 
 require (
-	fiatjaf.com/lib v0.2.0
 	github.com/FastFilter/xorfilter v0.2.1
 	github.com/ImVexed/fasturl v0.0.0-20230304231329-4e41488060f3
 	github.com/PowerDNS/lmdb-go v1.9.3
@@ -33,6 +32,7 @@ require (
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/urfave/cli/v3 v3.0.0-beta1
 	github.com/valyala/fasthttp v1.59.0
+	go.etcd.io/bbolt v1.4.2
 	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	golang.org/x/net v0.37.0
@@ -86,7 +86,6 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	go.etcd.io/bbolt v1.4.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	google.golang.org/protobuf v1.36.2 // indirect

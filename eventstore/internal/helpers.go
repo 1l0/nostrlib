@@ -83,9 +83,12 @@ func BatchSizePerNumberOfQueries(totalFilterLimit int, numberOfQueries int) int 
 		return totalFilterLimit
 	}
 
-	return int(
-		math.Ceil(
-			math.Pow(float64(totalFilterLimit), 0.80) / math.Pow(float64(numberOfQueries), 0.71),
+	return max(
+		4,
+		int(
+			math.Ceil(
+				math.Pow(float64(totalFilterLimit), 0.80)/math.Pow(float64(numberOfQueries), 0.71),
+			),
 		),
 	)
 }
