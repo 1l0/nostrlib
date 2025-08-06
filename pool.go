@@ -177,7 +177,15 @@ func (pool *Pool) PublishMany(ctx context.Context, urls []string, evt Event) cha
 	wg := sync.WaitGroup{}
 	wg.Add(len(urls))
 	go func() {
-		for _, url := range urls {
+		for i, url := range urls {
+			if slices.IndexFunc(urls[0:i], func(iurl string) bool {
+				return NormalizeURL(url) == NormalizeURL(iurl)
+			}) != -1 {
+				// duplicated URL
+				wg.Done()
+				continue
+			}
+
 			go func() {
 				defer wg.Done()
 
