@@ -210,4 +210,130 @@ func basicTest(t *testing.T, db eventstore.Store) {
 				"querying by 'q' tag")
 		}
 	}
+
+	// test ReplaceEvent()
+	{
+		pk3 := nostr.GetPublicKey(sk3)
+		originalProfile := nostr.Event{
+			CreatedAt: 200,
+			Content:   `{"name":"original","about":"original profile"}`,
+			Tags:      nostr.Tags{},
+			Kind:      0,
+		}
+		originalProfile.Sign(sk3)
+
+		err = db.ReplaceEvent(originalProfile)
+		require.NoError(t, err)
+
+		// verify
+		results := slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk3},
+			Kinds:   []nostr.Kind{0},
+		}, 1000))
+		require.Len(t, results, 1)
+		require.Equal(t, originalProfile.ID, results[0].ID)
+
+		// create newer profile event
+		newProfile := nostr.Event{
+			CreatedAt: 300, // newer timestamp
+			Content:   `{"name":"updated","about":"updated profile"}`,
+			Tags:      nostr.Tags{},
+			Kind:      0,
+		}
+		newProfile.Sign(sk3)
+
+		// replace with newer event
+		err = db.ReplaceEvent(newProfile)
+		require.NoError(t, err)
+
+		// verify only the newer event exists
+		results = slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk3},
+			Kinds:   []nostr.Kind{0},
+		}, 1000))
+		require.Len(t, results, 1)
+		require.Equal(t, newProfile.ID, results[0].ID)
+
+		// try to replace with older event (should be ignored)
+		olderProfile := nostr.Event{
+			CreatedAt: 250, // older than current
+			Content:   `{"name":"older","about":"older profile"}`,
+			Tags:      nostr.Tags{},
+			Kind:      0,
+		}
+		olderProfile.Sign(sk3)
+
+		err = db.ReplaceEvent(olderProfile)
+		require.NoError(t, err)
+
+		// verify the newer event is still there
+		results = slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk3},
+			Kinds:   []nostr.Kind{0},
+		}, 1000))
+		require.Len(t, results, 1)
+		require.Equal(t, newProfile.ID, results[0].ID)
+
+		// test addressable event (kind 30023 - article)
+		articleV1 := nostr.Event{
+			CreatedAt: 400,
+			Content:   "first version of article",
+			Tags:      nostr.Tags{{"d", "my-article"}}, // addressable identifier
+			Kind:      30023,                           // article - addressable
+		}
+		articleV1.Sign(sk3)
+
+		err = db.ReplaceEvent(articleV1)
+		require.NoError(t, err)
+
+		// verify article was saved
+		results = slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk3},
+			Kinds:   []nostr.Kind{30023},
+			Tags:    nostr.TagMap{"d": []string{"my-article"}},
+		}, 1000))
+		require.Len(t, results, 1)
+		require.Equal(t, articleV1.ID, results[0].ID)
+
+		// create updated version of same article
+		articleV2 := nostr.Event{
+			CreatedAt: 500,
+			Content:   "second version of article",
+			Tags:      nostr.Tags{{"d", "my-article"}}, // same identifier
+			Kind:      30023,
+		}
+		articleV2.Sign(sk3)
+
+		err = db.ReplaceEvent(articleV2)
+		require.NoError(t, err)
+
+		// verify only the newer version exists
+		results = slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk3},
+			Kinds:   []nostr.Kind{30023},
+			Tags:    nostr.TagMap{"d": []string{"my-article"}},
+		}, 1000))
+		require.Len(t, results, 1)
+		require.Equal(t, articleV2.ID, results[0].ID)
+		require.Equal(t, "second version of article", results[0].Content)
+
+		// create different article with different d tag
+		differentArticle := nostr.Event{
+			CreatedAt: 600,
+			Content:   "different article",
+			Tags:      nostr.Tags{{"d", "other-article"}}, // different identifier
+			Kind:      30023,
+		}
+		differentArticle.Sign(sk3)
+
+		err = db.ReplaceEvent(differentArticle)
+		require.NoError(t, err)
+
+		// verify both articles exist (different d tags)
+		results = slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk3},
+			Kinds:   []nostr.Kind{30023},
+		}, 1000))
+		require.Len(t, results, 2)
+	}
 }
