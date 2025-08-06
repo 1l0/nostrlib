@@ -17,7 +17,7 @@ func (il *IndexingLayer) ReplaceEvent(evt nostr.Event) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	filter := nostr.Filter{Limit: 1, Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
+	filter := nostr.Filter{Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
 	if evt.Kind.IsAddressable() {
 		// when addressable, add the "d" tag to the filter
 		filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}

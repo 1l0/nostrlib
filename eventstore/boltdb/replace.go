@@ -11,7 +11,7 @@ import (
 
 func (b *BoltBackend) ReplaceEvent(evt nostr.Event) error {
 	return b.DB.Update(func(txn *bbolt.Tx) error {
-		filter := nostr.Filter{Limit: 1, Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
+		filter := nostr.Filter{Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
 		if evt.Kind.IsAddressable() {
 			// when addressable, add the "d" tag to the filter
 			filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}

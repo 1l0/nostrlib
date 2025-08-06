@@ -11,7 +11,7 @@ import (
 
 func (b *LMDBBackend) ReplaceEvent(evt nostr.Event) error {
 	return b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
-		filter := nostr.Filter{Limit: 1, Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
+		filter := nostr.Filter{Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
 		if evt.Kind.IsAddressable() {
 			// when addressable, add the "d" tag to the filter
 			filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}
