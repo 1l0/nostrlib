@@ -28,11 +28,10 @@ func (il *IndexingLayer) ReplaceEvent(evt nostr.Event) error {
 
 		return il.lmdbEnv.Update(func(iltxn *lmdb.Txn) error {
 			// now we fetch the past events, whatever they are, delete them and then save the new
-			var yield_ func(nostr.Event) bool
+			var err error
 			var results iter.Seq[nostr.Event] = func(yield func(nostr.Event) bool) {
-				yield_ = yield
+				err = il.query(iltxn, filter, 10 /* in theory limit could be just 1 and this should work */, yield)
 			}
-			err := il.query(iltxn, filter, 10 /* in theory limit could be just 1 and this should work */, yield_)
 			if err != nil {
 				return fmt.Errorf("failed to query past events with %s: %w", filter, err)
 			}
