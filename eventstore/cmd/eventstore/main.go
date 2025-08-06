@@ -11,6 +11,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr/eventstore/boltdb"
 	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/eventstore/slicestore"
 	"github.com/urfave/cli/v3"
@@ -32,11 +33,11 @@ var app = &cli.Command{
 		&cli.StringFlag{
 			Name:    "type",
 			Aliases: []string{"t"},
-			Usage:   "store type ('lmdb', 'mmm')",
+			Usage:   "store type ('lmdb', 'boltdb', 'mmm')",
 		},
 	},
 	Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
-		path := strings.Trim(c.String("store"), "/")
+		path := strings.TrimSuffix(c.String("store"), "/")
 		typ := c.String("type")
 		if typ != "" {
 			// bypass automatic detection
@@ -70,6 +71,8 @@ var app = &cli.Command{
 		switch typ {
 		case "lmdb":
 			db = &lmdb.LMDBBackend{Path: path}
+		case "boltdb":
+			db = &boltdb.BoltBackend{Path: path}
 		case "mmm":
 			var err error
 			if db, err = doMmmInit(path); err != nil {
