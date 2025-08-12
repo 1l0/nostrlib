@@ -97,11 +97,9 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield
 
 		defer cursor.Close()
 		iterators[q].seek(queries[q].startingPoint)
-	}
 
-	// initial pull from all queries
-	for i := range iterators {
-		iterators[i].pull(batchSizePerQuery, since)
+		// initial pull
+		iterators[q].pull(batchSizePerQuery, since)
 	}
 
 	numberOfIteratorsToPullOnEachRound := max(1, int(math.Ceil(float64(len(iterators))/float64(12))))
