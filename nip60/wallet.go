@@ -12,6 +12,8 @@ import (
 	"fiatjaf.com/nostr"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/elnosh/gonuts/cashu/nuts/nut13"
+	"fiatjaf.com/nostr/nip60/client"
 )
 
 // WalletOptions contains options for loading a wallet
@@ -257,6 +259,18 @@ func (w *Wallet) AddMint(ctx context.Context, urls ...string) error {
 		return fmt.Errorf("can't do write operations: missing PublishUpdate function")
 	}
 
+	keysetIdList := []string{}
+	for i := range w.Mints {
+		keysets, err := client.GetAllKeysets(ctx, w.Mints[i])
+		if err != nil {
+			return err
+		}
+
+		for j := range keysets {
+			keysetIdList = append(keysetIdList, keysets[j].Id)
+		}
+	}
+
 	for _, url := range urls {
 		url, err := nostr.NormalizeHTTPURL(url)
 		if err != nil {
@@ -264,6 +278,18 @@ func (w *Wallet) AddMint(ctx context.Context, urls ...string) error {
 		}
 
 		if !slices.Contains(w.Mints, url) {
+			keysets, err := client.GetAllKeysets(ctx, url)
+			if err != nil {
+				return err
+			}
+
+			for j := range keysets {
+				err = nut13.CheckCollidingKeysets(keysetIdList, []string{keysets[j].Id})
+				if err != nil {
+					return err
+				}
+				keysetIdList = append(keysetIdList, keysets[j].Id)
+			}
 			w.Mints = append(w.Mints, url)
 		}
 	}

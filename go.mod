@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/dgraph-io/badger/v4 v4.5.0
 	github.com/dgraph-io/ristretto v1.0.0
-	github.com/elnosh/gonuts v0.3.1-0.20250123162555-7c0381a585e3
+	github.com/elnosh/gonuts v0.4.2
 	github.com/fasthttp/websocket v1.5.12
 	github.com/gomarkdown/markdown v0.0.0-20241205020045-f7e15b2f3e62
 	github.com/json-iterator/go v1.1.12
