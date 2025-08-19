@@ -122,9 +122,24 @@ type EntityPointer struct {
 
 // EntityPointerFromTag creates an EntityPointer from an "a" tag (but it doesn't check if the tag is really "a", it could be anything).
 func EntityPointerFromTag(refTag Tag) (EntityPointer, error) {
-	spl := strings.SplitN(refTag[1], ":", 3)
+	pointer, err := ParseAddrString(refTag[1])
+	if err != nil {
+		return EntityPointer{}, fmt.Errorf("invalid addr '%s': %w", refTag[1], err)
+	}
+
+	if len(refTag) > 2 {
+		if relay := (refTag)[2]; IsValidRelayURL(relay) {
+			pointer.Relays = []string{relay}
+		}
+	}
+
+	return pointer, nil
+}
+
+func ParseAddrString(addr string) (EntityPointer, error) {
+	spl := strings.SplitN(addr, ":", 3)
 	if len(spl) != 3 {
-		return EntityPointer{}, fmt.Errorf("invalid addr ref '%s'", refTag[1])
+		return EntityPointer{}, fmt.Errorf("invalid splits")
 	}
 
 	pk, err := PubKeyFromHex(spl[1])
@@ -134,21 +149,14 @@ func EntityPointerFromTag(refTag Tag) (EntityPointer, error) {
 
 	kind, err := strconv.Atoi(spl[0])
 	if err != nil || kind > (1<<16) {
-		return EntityPointer{}, fmt.Errorf("invalid addr kind '%s'", spl[0])
+		return EntityPointer{}, fmt.Errorf("invalid kind")
 	}
 
-	pointer := EntityPointer{
+	return EntityPointer{
 		Kind:       Kind(kind),
 		PublicKey:  pk,
 		Identifier: spl[2],
-	}
-	if len(refTag) > 2 {
-		if relay := (refTag)[2]; IsValidRelayURL(relay) {
-			pointer.Relays = []string{relay}
-		}
-	}
-
-	return pointer, nil
+	}, nil
 }
 
 // MatchesEvent checks if the pointer matches an event.

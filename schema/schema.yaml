@@ -1,0 +1,259 @@
+_profile: &profile
+  type: pubkey
+  required: true
+  next:
+    type: relay
+
+_event: &event
+  type: id
+  required: true
+  next:
+    type: relay
+    next:
+      type: pubkey
+
+_addr: &addr
+  type: addr
+  required: true
+  next:
+    type: relay
+
+_kind: &kind
+  type: kind
+  required: true
+
+_dtag: &dtag
+  name: d
+  next:
+    type: free
+    required: true
+
+_atag: &atag
+  name: a
+  next: *addr
+
+_ptag: &ptag
+  name: p
+  next: *profile
+
+0:
+  content: json
+
+1:
+  content: free
+  tags:
+    -
+      name: e
+      next:
+        type: id
+        required: true
+        next:
+          type: relay
+          next:
+            type: constrained
+            either:
+              - reply
+              - root
+            next:
+              type: pubkey
+    -
+      name: q
+      next:
+        type: id
+        required: true
+        next:
+          type: relay
+          next:
+            type: pubkey
+    -
+      name: q
+      next:
+        type: addr
+        required: true
+        next:
+          type: relay
+    -
+      name: p
+      next: *profile
+
+1111:
+    content: free
+    tags:
+      -
+        name: A
+        next: *addr
+      -
+        name: a
+        next: *addr
+      -
+        name: E
+        next: *event
+      -
+        name: e
+        next: *event
+      -
+        name: I
+        next: &external
+          type: free
+          required: true
+          next:
+            type: url
+      -
+        name: i
+        next: *external
+      -
+        name: K
+        next: *kind
+      -
+        name: K
+        next:
+          type: free
+          required: true
+      -
+        name: k
+        next: *kind
+      -
+        name: P
+        next: *profile
+      -
+        name: p
+        next: *profile
+
+10002:
+  content: empty
+  tags:
+    -
+      name: r
+      next:
+        type: relay
+        required: true
+        next:
+          type: constrained
+          either:
+            - read
+            - write
+
+9802:
+  content: free
+  tags:
+    -
+      name: p
+      next: *profile
+    -
+      name: e
+      next: *event
+    -
+      name: a
+      next: *addr
+
+30617:
+  content: empty
+  tags:
+    - *dtag
+    -
+      name: name
+      next:
+        type: free
+        required: true
+    -
+      name: description
+      next:
+        type: free
+        required: true
+    -
+      name: web
+      next:
+        type: url
+        required: true
+    -
+      name: clone
+      next:
+        type: giturl
+        required: true
+    -
+      name: relays
+      next:
+        type: relay
+        variadic: true
+    -
+      name: r
+      next:
+        type: gitcommit
+        required: true
+        next:
+          type: constrained
+          either:
+            - euc
+          required: true
+    -
+      name: maintainers
+      next:
+        type: pubkey
+        variadic: true
+
+30618:
+  content: empty
+  tags:
+    - *dtag
+    -
+      prefix: "refs/"
+      next:
+        type: gitcommit
+        required: true
+    -
+      name: HEAD
+      next:
+        type: free
+
+1617:
+  content: free
+  tags:
+    - *atag
+    -
+      name: r
+      next:
+        type: gitcommit
+        required: true
+    - *ptag
+    -
+      name: t
+      next:
+        type: constrained
+        either:
+          - root
+          - root-revision
+        required: true
+    -
+      name: commit
+      next:
+        type: gitcommit
+        required: true
+    -
+      name: r
+      next:
+        type: gitcommit
+        required: true
+    -
+      name: parent-commit
+      next:
+        type: gitcommit
+        required: true
+    -
+      name: commit-pgp-sig
+      next:
+        type: free
+        required: true
+    -
+      name: committer
+      next:
+        type: free
+        required: true
+        next:
+          type: free
+          required: true
+          next:
+            type: free
+            required: true
+            next:
+              type: free
+              required: true
