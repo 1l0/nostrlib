@@ -36,6 +36,10 @@ _ptag: &ptag
   name: p
   next: *profile
 
+_etag: &etag
+  name: e
+  next: *event
+
 0:
   content: json
 
@@ -75,6 +79,512 @@ _ptag: &ptag
     -
       name: p
       next: *profile
+    -
+      name: a
+      next: *addr
+    -
+      name: subject
+      next:
+        type: free
+        required: true
+    -
+      name: L
+      next:
+        type: free
+        required: true
+    -
+      name: l
+      next:
+        type: free
+        required: true
+        next:
+          type: free
+
+2:
+  content: free
+  deprecated: true
+
+3:
+  content: json
+  tags:
+    - *ptag
+
+4:
+  content: free
+  tags:
+    - *ptag
+
+5:
+  content: empty
+  tags:
+    - *etag
+
+6:
+  content: empty
+  tags:
+    - *etag
+    - *ptag
+
+7:
+  content: free
+  tags:
+    - *etag
+    - *ptag
+
+8:
+  content: empty
+  tags:
+    - *atag
+    - *ptag
+
+9:
+  content: free
+  tags:
+    -
+      name: e
+      next:
+        type: id
+        required: true
+        next:
+          type: relay
+          next:
+            type: constrained
+            either:
+              - root
+            next:
+              type: pubkey
+    - *ptag
+
+13:
+  content: free
+
+14:
+  content: free
+  tags:
+    - *ptag
+    - *etag
+    -
+      name: subject
+      next:
+        type: free
+        required: true
+
+15:
+  content: free
+  tags:
+    - *ptag
+    -
+      name: e
+      next:
+        type: id
+        required: true
+        next:
+          type: relay
+          next:
+            type: constrained
+            either:
+              - reply
+    -
+      name: subject
+      next:
+        type: free
+        required: true
+    -
+      name: file-type
+      next:
+        type: free
+        required: true
+    -
+      name: encryption-algorithm
+      next:
+        type: free
+        required: true
+    -
+      name: decryption-key
+      next:
+        type: free
+        required: true
+    -
+      name: decryption-nonce
+      next:
+        type: free
+        required: true
+    -
+      name: x
+      next:
+        type: free
+        required: true
+
+16:
+  content: empty
+  tags:
+    - *etag
+    - *ptag
+    -
+      name: k
+      next: *kind
+
+17:
+  content: free
+  tags:
+    -
+      name: r
+      next:
+        type: url
+        required: true
+
+40:
+  content: json
+
+41:
+  content: json
+  tags:
+    -
+      name: e
+      next:
+        type: id
+        required: true
+        next:
+          type: relay
+          next:
+            type: constrained
+            either:
+              - root
+    -
+      name: t
+      next:
+        type: free
+        required: true
+
+42:
+  content: free
+  tags:
+    -
+      name: e
+      next:
+        type: id
+        required: true
+        next:
+          type: relay
+          next:
+            type: constrained
+            either:
+              - root
+              - reply
+    - *ptag
+
+43:
+  content: json
+  tags:
+    -
+      name: e
+      next:
+        type: id
+        required: true
+
+44:
+  content: json
+  tags:
+    - *ptag
+
+64:
+  content: free
+  tags:
+    -
+      name: alt
+      next:
+        type: free
+        required: true
+
+818:
+  content: free
+  tags:
+    - *atag
+    - *ptag
+
+1018:
+  content: empty
+  tags:
+    -
+      name: e
+      next:
+        type: id
+        required: true
+    -
+      name: response
+      next:
+        type: free
+        required: true
+
+1021:
+  content: free
+  tags:
+    -
+      name: e
+      next:
+        type: id
+        required: true
+
+1022:
+  content: json
+  tags:
+    -
+      name: e
+      next:
+        type: id
+        required: true
+
+1059:
+  content: free
+  tags:
+    - *ptag
+
+1063:
+  content: free
+  tags:
+    -
+      name: url
+      next:
+        type: url
+        required: true
+    -
+      name: m
+      next:
+        type: free
+        required: true
+    -
+      name: x
+      next:
+        type: free
+        required: true
+    -
+      name: ox
+      next:
+        type: free
+    -
+      name: size
+      next:
+        type: free
+    -
+      name: dim
+      next:
+        type: free
+    -
+      name: magnet
+      next:
+        type: url
+    -
+      name: i
+      next:
+        type: free
+    -
+      name: blurhash
+      next:
+        type: free
+    -
+      name: thumb
+      next:
+        type: url
+        next:
+          type: free
+    -
+      name: image
+      next:
+        type: url
+        next:
+          type: free
+    -
+      name: summary
+      next:
+        type: free
+    -
+      name: alt
+      next:
+        type: free
+    -
+      name: fallback
+      next:
+        type: url
+    -
+      name: service
+      next:
+        type: free
+
+1068:
+  content: free
+  tags:
+    -
+      name: option
+      next:
+        type: free
+        required: true
+        next:
+          type: free
+          required: true
+    -
+      name: relay
+      next:
+        type: relay
+        required: true
+    -
+      name: polltype
+      next:
+        type: constrained
+        either:
+          - singlechoice
+          - multiplechoice
+    -
+      name: endsAt
+      next:
+        type: free
+        required: true
+
+1621:
+  content: free
+  tags:
+    - *atag
+    - *ptag
+    -
+      name: subject
+      next:
+        type: free
+        required: true
+    -
+      name: t
+      next:
+        type: free
+        required: true
+
+1984:
+  content: free
+  tags:
+    - *ptag
+    - *etag
+    - *atag
+    -
+      name: L
+      next:
+        type: free
+        required: true
+    -
+      name: l
+      next:
+        type: free
+        required: true
+        next:
+          type: free
+
+1985:
+  content: free
+  tags:
+    - *ptag
+    - *etag
+    - *atag
+    -
+      name: L
+      next:
+        type: free
+        required: true
+    -
+      name: l
+      next:
+        type: free
+        required: true
+        next:
+          type: free
+
+9041:
+  content: free
+  tags:
+    -
+      name: amount
+      next:
+        type: free
+        required: true
+    -
+      name: relays
+      next:
+        type: relay
+        variadic: true
+        required: true
+    -
+      name: closed_at
+      next:
+        type: free
+    -
+      name: image
+      next:
+        type: url
+    -
+      name: summary
+      next:
+        type: free
+    -
+      name: r
+      next:
+        type: url
+    - *atag
+    -
+      name: zap
+      next:
+        type: pubkey
+        required: true
+        next:
+          type: relay
+          next:
+            type: free
+
+9734:
+  content: free
+  tags:
+    -
+      name: relays
+      next:
+        type: relay
+        variadic: true
+        required: true
+    -
+      name: amount
+      next:
+        type: free
+    -
+      name: lnurl
+      next:
+        type: free
+    - *ptag
+    - *etag
+    - *atag
+    -
+      name: k
+      next: *kind
+
+9735:
+  content: empty
+  tags:
+    - *ptag
+    -
+      name: P
+      next:
+        type: pubkey
+        required: true
+    - *etag
+    -
+      name: k
+      next: *kind
+    -
+      name: bolt11
+      next:
+        type: free
+        required: true
+    -
+      name: description
+      next:
+        type: free
+        required: true
+    -
+      name: preimage
+      next:
+        type: free
 
 1111:
     content: free
@@ -139,12 +649,452 @@ _ptag: &ptag
     -
       name: p
       next: *profile
-    -
-      name: e
-      next: *event
+    - *etag
     -
       name: a
       next: *addr
+    -
+      name: r
+      next:
+        type: url
+        required: true
+    -
+      name: context
+      next:
+        type: free
+    -
+      name: comment
+      next:
+        type: free
+
+10050:
+  content: empty
+  tags:
+    -
+      name: relay
+      next:
+        type: relay
+        required: true
+
+27235:
+  content: empty
+  tags:
+    -
+      name: u
+      next:
+        type: url
+        required: true
+    -
+      name: method
+      next:
+        type: constrained
+        either:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+        required: true
+
+30008:
+  content: empty
+  tags:
+    - *dtag
+    - *atag
+    - *etag
+
+30009:
+  content: free
+  tags:
+    - *dtag
+    -
+      name: name
+      next:
+        type: free
+        required: true
+    -
+      name: description
+      next:
+        type: free
+    -
+      name: image
+      next:
+        type: url
+        next:
+          type: free
+    -
+      name: thumb
+      next:
+        type: url
+        next:
+          type: free
+
+30017:
+  content: json
+  tags:
+    - *dtag
+
+30018:
+  content: json
+  tags:
+    - *dtag
+    -
+      name: t
+      next:
+        type: free
+
+30020:
+  content: json
+  tags:
+    - *dtag
+
+30023:
+  content: free
+  tags:
+    - *dtag
+    -
+      name: title
+      next:
+        type: free
+        required: true
+    -
+      name: image
+      next:
+        type: url
+    -
+      name: summary
+      next:
+        type: free
+    -
+      name: published_at
+      next:
+        type: free
+    -
+      name: t
+      next:
+        type: free
+    - *etag
+    - *atag
+
+30024:
+  content: free
+  tags:
+    - *dtag
+    -
+      name: title
+      next:
+        type: free
+        required: true
+    -
+      name: image
+      next:
+        type: url
+    -
+      name: summary
+      next:
+        type: free
+    -
+      name: published_at
+      next:
+        type: free
+    -
+      name: t
+      next:
+        type: free
+    - *etag
+    - *atag
+
+30078:
+  content: free
+  tags:
+    - *dtag
+
+30315:
+  content: free
+  tags:
+    - *dtag
+    -
+      name: r
+      next:
+        type: url
+    - *ptag
+    - *etag
+    - *atag
+    -
+      name: expiration
+      next:
+        type: free
+
+30402:
+  content: free
+  tags:
+    - *dtag
+    -
+      name: title
+      next:
+        type: free
+        required: true
+    -
+      name: summary
+      next:
+        type: free
+    -
+      name: published_at
+      next:
+        type: free
+    -
+      name: location
+      next:
+        type: free
+    -
+      name: price
+      next:
+        type: free
+        required: true
+        next:
+          type: free
+          required: true
+          next:
+            type: free
+    -
+      name: status
+      next:
+        type: constrained
+        either:
+          - active
+          - sold
+    -
+      name: t
+      next:
+        type: free
+    -
+      name: image
+      next:
+        type: url
+        next:
+          type: free
+    -
+      name: g
+      next:
+        type: free
+    - *etag
+    - *atag
+
+30403:
+  content: free
+  tags:
+    - *dtag
+    -
+      name: title
+      next:
+        type: free
+        required: true
+    -
+      name: summary
+      next:
+        type: free
+    -
+      name: published_at
+      next:
+        type: free
+    -
+      name: location
+      next:
+        type: free
+    -
+      name: price
+      next:
+        type: free
+        required: true
+        next:
+          type: free
+          required: true
+          next:
+            type: free
+    -
+      name: status
+      next:
+        type: constrained
+        either:
+          - active
+          - sold
+    -
+      name: t
+      next:
+        type: free
+    -
+      name: image
+      next:
+        type: url
+        next:
+          type: free
+    -
+      name: g
+      next:
+        type: free
+    - *etag
+    - *atag
+
+31922:
+  content: free
+  tags:
+    - *dtag
+    -
+      name: title
+      next:
+        type: free
+        required: true
+    -
+      name: summary
+      next:
+        type: free
+    -
+      name: image
+      next:
+        type: url
+    -
+      name: location
+      next:
+        type: free
+    -
+      name: g
+      next:
+        type: free
+    - *ptag
+    -
+      name: t
+      next:
+        type: free
+    -
+      name: r
+      next:
+        type: url
+    - *atag
+    -
+      name: start
+      next:
+        type: free
+        required: true
+    -
+      name: end
+      next:
+        type: free
+
+31923:
+  content: free
+  tags:
+    - *dtag
+    -
+      name: title
+      next:
+        type: free
+        required: true
+    -
+      name: summary
+      next:
+        type: free
+    -
+      name: image
+      next:
+        type: url
+    -
+      name: location
+      next:
+        type: free
+    -
+      name: g
+      next:
+        type: free
+    - *ptag
+    -
+      name: t
+      next:
+        type: free
+    -
+      name: r
+      next:
+        type: url
+    - *atag
+    -
+      name: start
+      next:
+        type: free
+        required: true
+    -
+      name: end
+      next:
+        type: free
+    -
+      name: start_tzid
+      next:
+        type: free
+    -
+      name: end_tzid
+      next:
+        type: free
+
+31924:
+  content: free
+  tags:
+    - *dtag
+    -
+      name: title
+      next:
+        type: free
+        required: true
+    - *atag
+
+31925:
+  content: free
+  tags:
+    - *dtag
+    - *etag
+    - *atag
+    -
+      name: status
+      next:
+        type: constrained
+        either:
+          - accepted
+          - declined
+          - tentative
+        required: true
+    -
+      name: fb
+      next:
+        type: constrained
+        either:
+          - free
+          - busy
+    - *ptag
+
+31989:
+  content: empty
+  tags:
+    - *dtag
+    - *atag
+
+31990:
+  content: json
+  tags:
+    - *dtag
+    -
+      name: k
+      next: *kind
+    -
+      name: web
+      next:
+        type: url
+        required: true
+        next:
+          type: constrained
+          either:
+            - nevent
+            - nprofile
+    -
+      name: ios
+      next:
+        type: free
+        required: true
 
 30617:
   content: empty
