@@ -31,7 +31,7 @@ func (b *BoltBackend) SaveEvent(evt nostr.Event) error {
 		// check if we already have this id
 		bin := rawBucket.Get(evt.ID[16:24])
 		if bin != nil {
-			// we should get nil, otherwise end here
+			// we should get nil, otherwise we already have it so end here
 			return eventstore.ErrDupEvent
 		}
 

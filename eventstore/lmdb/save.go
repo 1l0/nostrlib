@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
@@ -28,12 +27,12 @@ func (b *LMDBBackend) SaveEvent(evt nostr.Event) error {
 
 		// check if we already have this id
 		_, err := txn.Get(b.indexId, evt.ID[0:8])
-		if operr, ok := err.(*lmdb.OpError); ok && operr.Errno != lmdb.NotFound {
+		if operr, ok := err.(*lmdb.OpError); ok && operr.Errno == lmdb.NotFound {
 			// we will only proceed if we get a NotFound
-			return eventstore.ErrDupEvent
+			return b.save(txn, evt)
 		}
 
-		return b.save(txn, evt)
+		return err
 	})
 }
 
