@@ -41,9 +41,11 @@ _etag: &etag
   next: *event
 
 0:
+  description: User Metadata
   content: json
 
 1:
+  description: Short Text Note
   content: free
   tags:
     -
@@ -101,25 +103,30 @@ _etag: &etag
           type: free
 
 2:
+  description: Recommend Relay
   content: free
   deprecated: true
 
 3:
+  description: Follows
   content: json
   tags:
     - *ptag
 
 4:
+  description: Encrypted Direct Messages
   content: free
   tags:
     - *ptag
 
 5:
+  description: Event Deletion Request
   content: empty
   tags:
     - *etag
 
 6:
+  description: Repost
   content: empty
   tags:
     - *etag
@@ -132,12 +139,14 @@ _etag: &etag
     - *ptag
 
 8:
+  description: Badge Award
   content: empty
   tags:
     - *atag
     - *ptag
 
 9:
+  description: Chat Message
   content: free
   tags:
     -
@@ -156,9 +165,11 @@ _etag: &etag
     - *ptag
 
 13:
+  description: Seal
   content: free
 
 14:
+  description: Direct Message
   content: free
   tags:
     - *ptag
@@ -170,6 +181,7 @@ _etag: &etag
         required: true
 
 15:
+  description: File Message
   content: free
   tags:
     - *ptag
@@ -216,6 +228,7 @@ _etag: &etag
         required: true
 
 16:
+  description: Generic Repost
   content: empty
   tags:
     - *etag
@@ -225,6 +238,7 @@ _etag: &etag
       next: *kind
 
 17:
+  description: Reaction to a website
   content: free
   tags:
     -
@@ -234,9 +248,11 @@ _etag: &etag
         required: true
 
 40:
+  description: Channel Creation
   content: json
 
 41:
+  description: Channel Metadata
   content: json
   tags:
     -
@@ -257,6 +273,7 @@ _etag: &etag
         required: true
 
 42:
+  description: Channel Message
   content: free
   tags:
     -
@@ -274,6 +291,7 @@ _etag: &etag
     - *ptag
 
 43:
+  description: Channel Hide Message
   content: json
   tags:
     -
@@ -283,11 +301,13 @@ _etag: &etag
         required: true
 
 44:
+  description: Channel Mute User
   content: json
   tags:
     - *ptag
 
 64:
+  description: Chess (PGN)
   content: free
   tags:
     -
@@ -297,12 +317,14 @@ _etag: &etag
         required: true
 
 818:
+  description: Merge Requests
   content: free
   tags:
     - *atag
     - *ptag
 
 1018:
+  description: Poll Response
   content: empty
   tags:
     -
@@ -317,6 +339,7 @@ _etag: &etag
         required: true
 
 1021:
+  description: Bid
   content: free
   tags:
     -
@@ -326,6 +349,7 @@ _etag: &etag
         required: true
 
 1022:
+  description: Bid confirmation
   content: json
   tags:
     -
@@ -334,12 +358,95 @@ _etag: &etag
         type: id
         required: true
 
+1040:
+  description: OpenTimestamps
+  content: free
+
+1222:
+  description: Voice Message
+  content: free
+
+1244:
+  description: Voice Message Comment
+  content: free
+
+1311:
+  description: Live Chat Message
+  content: free
+
+1337:
+  description: Code Snippet
+  content: free
+
+1622:
+  description: Git Replies (deprecated)
+  content: free
+  deprecated: true
+
+1971:
+  description: Problem Tracker
+  content: free
+
+1986:
+  description: Relay reviews
+  content: free
+
+1987:
+  description: AI Embeddings / Vector lists
+  content: free
+
+2003:
+  description: Torrent
+  content: free
+
+2004:
+  description: Torrent Comment
+  content: free
+
+2022:
+  description: Coinjoin Pool
+  content: free
+
+4550:
+  description: Community Post Approval
+  content: free
+
+7374:
+  description: Reserved Cashu Wallet Tokens
+  content: free
+
+7375:
+  description: Cashu Wallet Tokens
+  content: free
+
+7376:
+  description: Cashu Wallet History
+  content: free
+
+7516:
+  description: Geocache log
+  content: free
+
+7517:
+  description: Geocache proof of find
+  content: free
+
+9321:
+  description: Nutzap
+  content: free
+
+9467:
+  description: Tidal login
+  content: free
+
 1059:
+  description: Gift Wrap
   content: free
   tags:
     - *ptag
 
 1063:
+  description: File Metadata
   content: free
   tags:
     -
@@ -411,6 +518,7 @@ _etag: &etag
         type: free
 
 1068:
+  description: Poll
   content: free
   tags:
     -
@@ -440,6 +548,7 @@ _etag: &etag
         required: true
 
 1621:
+  description: Issues
   content: free
   tags:
     - *atag
@@ -456,6 +565,7 @@ _etag: &etag
         required: true
 
 1984:
+  description: Reporting
   content: free
   tags:
     - *ptag
@@ -475,6 +585,7 @@ _etag: &etag
           type: free
 
 1985:
+  description: Label
   content: free
   tags:
     - *ptag
@@ -494,6 +605,7 @@ _etag: &etag
           type: free
 
 9041:
+  description: Zap Goal
   content: free
   tags:
     -
@@ -535,6 +647,7 @@ _etag: &etag
             type: free
 
 9734:
+  description: Zap Request
   content: free
   tags:
     -
@@ -559,6 +672,7 @@ _etag: &etag
       next: *kind
 
 9735:
+  description: Zap
   content: empty
   tags:
     - *ptag
@@ -587,49 +701,51 @@ _etag: &etag
         type: free
 
 1111:
-    content: free
-    tags:
-      -
-        name: A
-        next: *addr
-      -
-        name: a
-        next: *addr
-      -
-        name: E
-        next: *event
-      -
-        name: e
-        next: *event
-      -
-        name: I
-        next: &external
-          type: free
-          required: true
-          next:
-            type: url
-      -
-        name: i
-        next: *external
-      -
-        name: K
-        next: *kind
-      -
-        name: K
+  description: Comment
+  content: free
+  tags:
+    -
+      name: A
+      next: *addr
+    -
+      name: a
+      next: *addr
+    -
+      name: E
+      next: *event
+    -
+      name: e
+      next: *event
+    -
+      name: I
+      next: &external
+        type: free
+        required: true
         next:
-          type: free
-          required: true
-      -
-        name: k
-        next: *kind
-      -
-        name: P
-        next: *profile
-      -
-        name: p
-        next: *profile
+          type: url
+    -
+      name: i
+      next: *external
+    -
+      name: K
+      next: *kind
+    -
+      name: K
+      next:
+        type: free
+        required: true
+    -
+      name: k
+      next: *kind
+    -
+      name: P
+      next: *profile
+    -
+      name: p
+      next: *profile
 
 10002:
+  description: Relay List Metadata
   content: empty
   tags:
     -
@@ -644,6 +760,7 @@ _etag: &etag
             - write
 
 9802:
+  description: Highlights
   content: free
   tags:
     -
@@ -668,6 +785,7 @@ _etag: &etag
         type: free
 
 10050:
+  description: Relay list to receive DMs
   content: empty
   tags:
     -
@@ -677,6 +795,7 @@ _etag: &etag
         required: true
 
 27235:
+  description: HTTP Auth
   content: empty
   tags:
     -
@@ -695,7 +814,120 @@ _etag: &etag
           - DELETE
         required: true
 
+10000:
+  description: Mute list
+  content: empty
+
+10001:
+  description: Pin list
+  content: empty
+
+10003:
+  description: Bookmark list
+  content: empty
+
+10004:
+  description: Communities list
+  content: empty
+
+10005:
+  description: Public chats list
+  content: empty
+
+10006:
+  description: Blocked relays list
+  content: empty
+
+10007:
+  description: Search relays list
+  content: empty
+
+10009:
+  description: User groups
+  content: empty
+
+10012:
+  description: Favorite relays list
+  content: empty
+
+10013:
+  description: Private event relay list
+  content: empty
+
+10015:
+  description: Interests list
+  content: empty
+
+10019:
+  description: Nutzap Mint Recommendation
+  content: empty
+
+10020:
+  description: Media follows
+  content: empty
+
+10030:
+  description: User emoji list
+  content: empty
+
+10063:
+  description: User server list
+  content: empty
+
+10096:
+  description: File storage server list
+  content: empty
+
+10166:
+  description: Relay Monitor Announcement
+  content: empty
+
+10312:
+  description: Room Presence
+  content: empty
+
+10377:
+  description: Proxy Announcement
+  content: empty
+
+11111:
+  description: Transport Method Announcement
+  content: empty
+
+13194:
+  description: Wallet Info
+  content: free
+
+17375:
+  description: Cashu Wallet Event
+  content: free
+
+21000:
+  description: Lightning Pub RPC
+  content: free
+
+22242:
+  description: Client Authentication
+  content: free
+
+23194:
+  description: Wallet Request
+  content: free
+
+23195:
+  description: Wallet Response
+  content: free
+
+24133:
+  description: Nostr Connect
+  content: free
+
+24242:
+  description: Blobs stored on mediaservers
+  content: free
+
 30008:
+  description: Profile Badges
   content: empty
   tags:
     - *dtag
@@ -703,6 +935,7 @@ _etag: &etag
     - *etag
 
 30009:
+  description: Badge Definition
   content: free
   tags:
     - *dtag
@@ -729,11 +962,13 @@ _etag: &etag
           type: free
 
 30017:
+  description: Create or update a stall
   content: json
   tags:
     - *dtag
 
 30018:
+  description: Create or update a product
   content: json
   tags:
     - *dtag
@@ -743,11 +978,13 @@ _etag: &etag
         type: free
 
 30020:
+  description: Product sold as an auction
   content: json
   tags:
     - *dtag
 
 30023:
+  description: Long-form Content
   content: free
   tags:
     - *dtag
@@ -776,6 +1013,7 @@ _etag: &etag
     - *atag
 
 30024:
+  description: Draft Long-form Content
   content: free
   tags:
     - *dtag
@@ -804,11 +1042,13 @@ _etag: &etag
     - *atag
 
 30078:
+  description: Application-specific Data
   content: free
   tags:
     - *dtag
 
 30315:
+  description: User Statuses
   content: free
   tags:
     - *dtag
@@ -825,6 +1065,7 @@ _etag: &etag
         type: free
 
 30402:
+  description: Classified Listing
   content: free
   tags:
     - *dtag
@@ -880,6 +1121,7 @@ _etag: &etag
     - *atag
 
 30403:
+  description: Draft Classified Listing
   content: free
   tags:
     - *dtag
@@ -935,6 +1177,7 @@ _etag: &etag
     - *atag
 
 31922:
+  description: Date-Based Calendar Event
   content: free
   tags:
     - *dtag
@@ -980,6 +1223,7 @@ _etag: &etag
         type: free
 
 31923:
+  description: Time-Based Calendar Event
   content: free
   tags:
     - *dtag
@@ -1033,6 +1277,7 @@ _etag: &etag
         type: free
 
 31924:
+  description: Calendar
   content: free
   tags:
     - *dtag
@@ -1044,6 +1289,7 @@ _etag: &etag
     - *atag
 
 31925:
+  description: Calendar Event RSVP
   content: free
   tags:
     - *dtag
@@ -1068,12 +1314,14 @@ _etag: &etag
     - *ptag
 
 31989:
+  description: Handler recommendation
   content: empty
   tags:
     - *dtag
     - *atag
 
 31990:
+  description: Handler information
   content: json
   tags:
     - *dtag
@@ -1097,6 +1345,7 @@ _etag: &etag
         required: true
 
 30617:
+  description: Repository announcements
   content: empty
   tags:
     - *dtag
@@ -1142,6 +1391,7 @@ _etag: &etag
         variadic: true
 
 30618:
+  description: Repository state announcements
   content: empty
   tags:
     - *dtag
@@ -1156,6 +1406,7 @@ _etag: &etag
         type: free
 
 1617:
+  description: Patches
   content: free
   tags:
     - *atag
@@ -1207,3 +1458,136 @@ _etag: &etag
             next:
               type: free
               required: true
+
+30000:
+  description: Follow sets
+  content: empty
+
+30001:
+  description: Generic lists
+  content: empty
+  deprecated: true
+
+30002:
+  description: Relay sets
+  content: empty
+
+30003:
+  description: Bookmark sets
+  content: empty
+
+30004:
+  description: Curation sets
+  content: empty
+
+30005:
+  description: Video sets
+  content: empty
+
+30007:
+  description: Kind mute sets
+  content: empty
+
+30015:
+  description: Interest sets
+  content: empty
+
+30019:
+  description: Marketplace UI/UX
+  content: json
+
+30030:
+  description: Emoji sets
+  content: empty
+
+30040:
+  description: Curated Publication Index
+  content: free
+
+30041:
+  description: Curated Publication Content
+  content: free
+
+30063:
+  description: Release artifact sets
+  content: empty
+
+30166:
+  description: Relay Discovery
+  content: empty
+
+30267:
+  description: App curation sets
+  content: empty
+
+30311:
+  description: Live Event
+  content: free
+
+30312:
+  description: Interactive Room
+  content: free
+
+30313:
+  description: Conference Event
+  content: free
+
+30388:
+  description: Slide Set
+  content: free
+
+30818:
+  description: Wiki article
+  content: free
+
+30819:
+  description: Redirects
+  content: free
+
+31234:
+  description: Draft Event
+  content: free
+
+31388:
+  description: Link Set
+  content: free
+
+31890:
+  description: Feed
+  content: free
+
+32267:
+  description: Software Application
+  content: free
+
+34550:
+  description: Community Definition
+  content: free
+
+37516:
+  description: Geocache listing
+  content: free
+
+38172:
+  description: Cashu Mint Announcement
+  content: free
+
+38173:
+  description: Fedimint Announcement
+  content: free
+
+38383:
+  description: Peer-to-peer Order events
+  content: free
+
+39089:
+  description: Starter packs
+  content: empty
+
+39092:
+  description: Media starter packs
+  content: empty
+
+39701:
+  description: Web bookmarks
+  content: free
