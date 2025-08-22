@@ -294,15 +294,15 @@ func (pool *Pool) FetchManyReplaceable(
 
 	seenAlreadyLatest := xsync.NewMapOf[ReplaceableKey, Timestamp]()
 	opts.CheckDuplicateReplaceable = func(rk ReplaceableKey, ts Timestamp) bool {
-		updated := false
+		discard := true
 		seenAlreadyLatest.Compute(rk, func(latest Timestamp, _ bool) (newValue Timestamp, delete bool) {
 			if ts > latest {
-				updated = true // we are updating the most recent
+				discard = false // we are going to use this, so don't discard it
 				return ts, false
 			}
-			return latest, false // the one we had was already more recent
+			return latest, false // the one we had was already more recent, so discard this
 		})
-		return updated
+		return discard
 	}
 
 	for _, url := range urls {
