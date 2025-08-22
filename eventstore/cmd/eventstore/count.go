@@ -10,11 +10,11 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var query = &cli.Command{
-	Name:        "query",
+var count = &cli.Command{
+	Name:        "count",
 	ArgsUsage:   "[<filter-json>]",
-	Usage:       "queries an eventstore for events, takes a filter as argument",
-	Description: "applies the filter to the currently open eventstore, returning up to 10 million events.\n takes either a filter as an argument or reads a stream of filters from stdin.",
+	Usage:       "counts all events that match a given filter",
+	Description: "applies the filter to the currently open eventstore, counting the results",
 	Action: func(ctx context.Context, c *cli.Command) error {
 		hasError := false
 		for line := range getStdinLinesOrFirstArgument(c) {
@@ -25,9 +25,13 @@ var query = &cli.Command{
 				continue
 			}
 
-			for evt := range db.QueryEvents(filter, 10_000_000) {
-				fmt.Println(evt)
+			res, err := db.CountEvents(filter)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "failed to count '%s': %s\n", filter, err)
+				hasError = true
+				continue
 			}
+			fmt.Println(res)
 		}
 
 		if hasError {

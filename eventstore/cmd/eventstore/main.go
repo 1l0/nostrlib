@@ -115,6 +115,7 @@ var app = &cli.Command{
 	Commands: []*cli.Command{
 		queryOrSave,
 		query,
+		count,
 		save,
 		delete_,
 		neg,
