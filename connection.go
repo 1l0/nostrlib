@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,6 +22,7 @@ type connection struct {
 	writeQueue   chan writeRequest
 	closed       *atomic.Bool
 	closedNotify chan struct{}
+	closeMutex   sync.Mutex
 }
 
 type writeRequest struct {
@@ -136,7 +138,9 @@ func (c *connection) doClose(code ws.StatusCode, reason string) {
 	wasClosed := c.closed.Swap(true)
 	if !wasClosed {
 		c.conn.Close(code, reason)
+		c.closeMutex.Lock()
 		close(c.closedNotify)
 		close(c.writeQueue)
+		c.closeMutex.Unlock()
 	}
 }

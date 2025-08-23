@@ -216,22 +216,33 @@ func (r *Relay) handleMessage(message string) {
 
 // Write queues an arbitrary message to be sent to the relay.
 func (r *Relay) Write(msg []byte) {
+	r.connection.closeMutex.Lock()
+	defer r.connection.closeMutex.Unlock()
 	select {
-	case r.connection.writeQueue <- writeRequest{msg: msg, answer: nil}:
 	case <-r.connection.closedNotify:
+		return
+	default:
+	}
+	select {
 	case <-r.connectionContext.Done():
+	case r.connection.writeQueue <- writeRequest{msg: msg, answer: nil}:
 	}
 }
 
 // WriteWithError is like Write, but returns an error if the write fails (and the connection gets closed).
 func (r *Relay) WriteWithError(msg []byte) error {
 	ch := make(chan error)
+	r.connection.closeMutex.Lock()
+	defer r.connection.closeMutex.Unlock()
 	select {
-	case r.connection.writeQueue <- writeRequest{msg: msg, answer: ch}:
-	case <-r.connectionContext.Done():
-		return fmt.Errorf("failed to write to %s: %w", r.URL, context.Cause(r.connectionContext))
 	case <-r.connection.closedNotify:
 		return fmt.Errorf("failed to write to %s: <closed>", r.URL)
+	default:
+	}
+	select {
+	case <-r.connectionContext.Done():
+		return fmt.Errorf("failed to write to %s: %w", r.URL, context.Cause(r.connectionContext))
+	case r.connection.writeQueue <- writeRequest{msg: msg, answer: ch}:
 	}
 	return <-ch
 }

@@ -471,7 +471,7 @@ func (pool *Pool) subMany(
 			subscribe:
 				sub, err = relay.Subscribe(ctx, filter, opts)
 				if err != nil {
-					debugLogf("[pool] subscription to %s died: %s -- will retry\n", nm, err)
+					debugLogf("[pool] subscription to %s failed: %s -- will retry\n", nm, err)
 					goto reconnect
 				}
 
