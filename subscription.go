@@ -56,9 +56,6 @@ type SubscriptionOptions struct {
 	// Label puts a label on the subscription (it is prepended to the automatic id) that is sent to relays.
 	Label string
 
-	// ID sets the ID absolutely on a subscription. Do not touch unless you know what you're doing.
-	ID string
-
 	// CheckDuplicate is a function that, when present, is ran on events before they're parsed.
 	// if it returns true the event will be discarded and not processed further.
 	CheckDuplicate func(id ID, relay string) bool
