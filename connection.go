@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -19,6 +20,7 @@ var ErrDisconnected = errors.New("<disconnected>")
 // Connection represents a websocket connection to a Nostr relay.
 type connection struct {
 	conn         *ws.Conn
+	cancel       context.CancelCauseFunc
 	writeQueue   chan writeRequest
 	closed       *atomic.Bool
 	closedNotify chan struct{}
@@ -32,6 +34,7 @@ type writeRequest struct {
 
 func newConnection(
 	ctx context.Context,
+	cancel context.CancelCauseFunc,
 	url string,
 	handleMessage func(string),
 	requestHeader http.Header,
@@ -62,6 +65,7 @@ func newConnection(
 
 	conn := &connection{
 		conn:         c,
+		cancel:       cancel,
 		writeQueue:   writeQueue,
 		closed:       &atomic.Bool{},
 		closedNotify: make(chan struct{}),
@@ -81,8 +85,8 @@ func newConnection(
 				err := c.Ping(ctx)
 				cancel()
 				if err != nil {
-					conn.doClose(ws.StatusAbnormalClosure, "ping took too long")
 					debugLogf("{%s} closing!, ping failed: '%s'\n", url, err)
+					conn.doClose(ws.StatusAbnormalClosure, "ping took too long")
 					return
 				}
 			case wr := <-writeQueue:
@@ -91,11 +95,11 @@ func newConnection(
 				err := c.Write(ctx, ws.MessageText, wr.msg)
 				cancel()
 				if err != nil {
+					debugLogf("{%s} closing!, write failed: '%s'\n", url, err)
 					conn.doClose(ws.StatusAbnormalClosure, "write failed")
 					if wr.answer != nil {
 						wr.answer <- err
 					}
-					debugLogf("{%s} closing!, write failed: '%s'\n", url, err)
 					return
 				}
 				if wr.answer != nil {
@@ -138,6 +142,7 @@ func (c *connection) doClose(code ws.StatusCode, reason string) {
 	wasClosed := c.closed.Swap(true)
 	if !wasClosed {
 		c.conn.Close(code, reason)
+		c.cancel(fmt.Errorf("doClose(): %s", reason))
 		c.closeMutex.Lock()
 		close(c.closedNotify)
 		close(c.writeQueue)

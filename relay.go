@@ -118,7 +118,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 		return fmt.Errorf("invalid relay URL '%s'", r.URL)
 	}
 
-	conn, err := newConnection(ctx, r.URL, r.handleMessage, r.requestHeader, tlsConfig)
+	conn, err := newConnection(ctx, r.connectionContextCancel, r.URL, r.handleMessage, r.requestHeader, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}
