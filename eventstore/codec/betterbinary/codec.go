@@ -122,9 +122,9 @@ func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 		nitems := int(data[tagbase+offset])
 		tag := make(nostr.Tag, nitems)
 
-		curr := tagbase + offset + 1
+		curr := int(tagbase + offset + 1)
 		for i := range tag {
-			length := binary.LittleEndian.Uint16(data[curr:])
+			length := int(binary.LittleEndian.Uint16(data[curr:]))
 			tag[i] = string(data[curr+2 : curr+2+length])
 			curr += 2 + length
 		}
