@@ -145,8 +145,8 @@ func (b *BoltBackend) query(txn *bbolt.Tx, filter nostr.Filter, limit int, yield
 					// decode the entire thing
 					event := nostr.Event{}
 					if err := betterbinary.Unmarshal(bin, &event); err != nil {
-						log.Printf("bolt: value read error (id %x) on query prefix %x sp %x dbi %s: %s\n",
-							betterbinary.GetID(bin), iterators[i].query.prefix, iterators[i].query.startingPoint, string(iterators[i].query.bucket), err)
+						log.Printf("bolt: value read error (id %s) on query prefix %x sp %x dbi %s: %s\n",
+							betterbinary.GetID(bin).Hex(), iterators[i].query.prefix, iterators[i].query.startingPoint, string(iterators[i].query.bucket), err)
 						continue
 					}
 

@@ -148,8 +148,8 @@ func (b *LMDBBackend) query(txn *lmdb.Txn, filter nostr.Filter, limit int, yield
 					// decode the entire thing
 					event := nostr.Event{}
 					if err := betterbinary.Unmarshal(bin, &event); err != nil {
-						log.Printf("lmdb: value read error (id %x) on query prefix %x sp %x dbi %s: %s\n",
-							betterbinary.GetID(bin), iterators[i].query.prefix, iterators[i].query.startingPoint, b.dbiName(iterators[i].query.dbi), err)
+						log.Printf("lmdb: value read error (id %s) on query prefix %x sp %x dbi %s: %s\n",
+							betterbinary.GetID(bin).Hex(), iterators[i].query.prefix, iterators[i].query.startingPoint, b.dbiName(iterators[i].query.dbi), err)
 						continue
 					}
 
