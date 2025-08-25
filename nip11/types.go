@@ -9,13 +9,13 @@ import (
 type RelayInformationDocument struct {
 	URL string `json:"-"`
 
-	Name          string       `json:"name"`
-	Description   string       `json:"description"`
-	PubKey        nostr.PubKey `json:"pubkey"`
-	Contact       string       `json:"contact"`
-	SupportedNIPs []any        `json:"supported_nips"`
-	Software      string       `json:"software"`
-	Version       string       `json:"version"`
+	Name          string        `json:"name,omitempty"`
+	Description   string        `json:"description,omitempty"`
+	PubKey        *nostr.PubKey `json:"pubkey,omitempty"`
+	Contact       string        `json:"contact,omitempty"`
+	SupportedNIPs []any         `json:"supported_nips,omitempty"`
+	Software      string        `json:"software,omitempty"`
+	Version       string        `json:"version,omitempty"`
 
 	Limitation     *RelayLimitationDocument  `json:"limitation,omitempty"`
 	RelayCountries []string                  `json:"relay_countries,omitempty"`
@@ -25,8 +25,8 @@ type RelayInformationDocument struct {
 	PaymentsURL    string                    `json:"payments_url,omitempty"`
 	Fees           *RelayFeesDocument        `json:"fees,omitempty"`
 	Retention      []*RelayRetentionDocument `json:"retention,omitempty"`
-	Icon           string                    `json:"icon"`
-	Banner         string                    `json:"banner"`
+	Icon           string                    `json:"icon,omitempty"`
+	Banner         string                    `json:"banner,omitempty"`
 }
 
 func (info *RelayInformationDocument) AddSupportedNIP(number int) {
