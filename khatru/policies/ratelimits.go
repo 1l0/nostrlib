@@ -33,7 +33,11 @@ func ConnectionRateLimiter(tokensPerInterval int, interval time.Duration, maxTok
 	rl := startRateLimitSystem[string](tokensPerInterval, interval, maxTokens)
 
 	return func(r *http.Request) bool {
-		return rl(khatru.GetIPFromRequest(r))
+		ip := khatru.GetIPFromRequest(r)
+		if ip == "127.0.0.1" {
+			return false
+		}
+		return rl(ip)
 	}
 }
 
