@@ -9,13 +9,13 @@ import (
 type RelayInformationDocument struct {
 	URL string `json:"-"`
 
-	Name          string        `json:"name,omitempty"`
-	Description   string        `json:"description,omitempty"`
-	PubKey        *nostr.PubKey `json:"pubkey,omitempty"`
-	Contact       string        `json:"contact,omitempty"`
-	SupportedNIPs []any         `json:"supported_nips,omitempty"`
-	Software      string        `json:"software,omitempty"`
-	Version       string        `json:"version,omitempty"`
+	Name          string       `json:"name,omitempty"`
+	Description   string       `json:"description,omitempty"`
+	PubKey        nostr.PubKey `json:"pubkey,omitempty"`
+	Contact       string       `json:"contact,omitempty"`
+	SupportedNIPs []any        `json:"supported_nips,omitempty"`
+	Software      string       `json:"software,omitempty"`
+	Version       string       `json:"version,omitempty"`
 
 	Limitation     *RelayLimitationDocument  `json:"limitation,omitempty"`
 	RelayCountries []string                  `json:"relay_countries,omitempty"`
