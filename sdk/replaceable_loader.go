@@ -122,7 +122,8 @@ func (sys *System) batchLoadReplaceableEvents(
 	// query all relays with the prepared filters
 	wg.Wait()
 	multiSubs := sys.Pool.BatchedQueryMany(aggregatedContext, relayFilter, nostr.SubscriptionOptions{
-		Label: "repl~" + strconv.Itoa(int(kind)),
+		Label:          "repl~" + strconv.Itoa(int(kind)),
+		MaxWaitForEOSE: time.Second * 3,
 	})
 	for {
 		select {

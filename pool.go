@@ -304,6 +304,9 @@ func (pool *Pool) FetchManyReplaceable(
 		})
 		return discard
 	}
+	if opts.MaxWaitForEOSE == 0 {
+		opts.MaxWaitForEOSE = time.Second * 4
+	}
 
 	for _, url := range urls {
 		go func(nm string) {

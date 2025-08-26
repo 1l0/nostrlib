@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // Subscription represents a subscription to a relay.
@@ -62,6 +63,10 @@ type SubscriptionOptions struct {
 
 	// CheckDuplicateReplaceable is like CheckDuplicate, but runs on replaceable/addressable events
 	CheckDuplicateReplaceable func(rk ReplaceableKey, ts Timestamp) bool
+
+	// a fake EndOfStoredEvents will be dispatched at this time if nothing is received before.
+	// defaults to 7s (in order to disable, set it to time.Duration(math.MaxInt64))
+	MaxWaitForEOSE time.Duration
 }
 
 func (sub *Subscription) start() {

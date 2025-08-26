@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"sync"
@@ -403,6 +404,18 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filter Filter, opts Sub
 
 	// we track subscriptions only by their counter, no need for the full id
 	r.Subscriptions.Store(int64(sub.counter), sub)
+
+	// start counting down for dispatching the fake EOSE
+	if opts.MaxWaitForEOSE != math.MaxInt64 {
+		if opts.MaxWaitForEOSE == 0 {
+			opts.MaxWaitForEOSE = time.Second * 7
+		}
+
+		go func() {
+			time.Sleep(opts.MaxWaitForEOSE)
+			sub.dispatchEose()
+		}()
+	}
 
 	// start handling events, eose, unsub etc:
 	go sub.start()
