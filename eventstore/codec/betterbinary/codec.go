@@ -114,15 +114,24 @@ func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 	evt.Sig = [64]byte(data[71:135])
 
 	const tagbase = 135
-	tagsSectionLength := binary.LittleEndian.Uint16(data[tagbase:])
+	tagsSectionLength := int(binary.LittleEndian.Uint16(data[tagbase:]))
 	ntags := binary.LittleEndian.Uint16(data[tagbase+2:])
 	evt.Tags = make(nostr.Tags, ntags)
+	prevOffset := 0
+	overflows := 0
 	for t := range evt.Tags {
-		offset := binary.LittleEndian.Uint16(data[tagbase+4+t*2:])
+		offset := int(binary.LittleEndian.Uint16(data[tagbase+4+t*2:]))
+		if offset < prevOffset {
+			// we've reached the u16 overflow for the tag offsets, so we do this amazing hack
+			overflows++
+		}
+		prevOffset = offset
+		offset += (1 << 16) * overflows
+
 		nitems := int(data[tagbase+offset])
 		tag := make(nostr.Tag, nitems)
 
-		curr := int(tagbase + offset + 1)
+		curr := tagbase + offset + 1
 		for i := range tag {
 			length := int(binary.LittleEndian.Uint16(data[curr:]))
 			tag[i] = string(data[curr+2 : curr+2+length])
@@ -131,7 +140,8 @@ func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 		evt.Tags[t] = tag
 	}
 
-	contentLength := binary.LittleEndian.Uint16(data[tagbase+tagsSectionLength:])
+	tagsSectionLength += (1 << 16) * overflows
+	contentLength := int(binary.LittleEndian.Uint16(data[tagbase+tagsSectionLength:]))
 	evt.Content = string(data[tagbase+tagsSectionLength+2 : tagbase+tagsSectionLength+2+contentLength])
 
 	return err
