@@ -66,6 +66,16 @@ func PreventLargeTags(maxTagValueLen int) func(context.Context, nostr.Event) (bo
 	}
 }
 
+// PreventLargeContent rejects events with content too large
+func PreventLargeContent(maxContent int) func(context.Context, nostr.Event) (bool, string) {
+	return func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
+		if len(event.Content) > maxContent {
+			return true, "content is too big"
+		}
+		return false, ""
+	}
+}
+
 // RestrictToSpecifiedKinds returns a function that can be used as a RejectFilter that will reject
 // any events with kinds different than the specified ones.
 func RestrictToSpecifiedKinds(allowEphemeral bool, kinds ...nostr.Kind) func(context.Context, nostr.Event) (bool, string) {
