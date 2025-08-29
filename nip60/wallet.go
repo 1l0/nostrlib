@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip60/client"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/elnosh/gonuts/cashu/nuts/nut13"
-	"fiatjaf.com/nostr/nip60/client"
 )
 
 // WalletOptions contains options for loading a wallet
@@ -41,6 +41,7 @@ type Wallet struct {
 	)
 
 	// Processed, if not nil, is called every time a received event is processed
+	// (do not do any wallet operations while handling this as that will cause a mutex deadlock).
 	Processed func(nostr.Event, error)
 
 	// Stable is closed when we have gotten an EOSE from all relays
@@ -154,6 +155,10 @@ func loadWallet(
 						w.removeDeletedToken(id)
 					}
 				}
+			}
+
+			if w.Processed != nil {
+				w.Processed(ie.Event, nil)
 			}
 			w.Unlock()
 		}
