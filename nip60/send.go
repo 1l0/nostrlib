@@ -119,9 +119,9 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 					IsNutzap: false,
 				})
 			}
-			continue
+		} else {
+			updatedTokens = append(updatedTokens, token)
 		}
-		updatedTokens = append(updatedTokens, token)
 	}
 
 	if len(changeToken.Proofs) > 0 {
