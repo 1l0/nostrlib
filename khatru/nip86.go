@@ -35,7 +35,7 @@ type RelayManagementAPI struct {
 	AllowKind                   func(ctx context.Context, kind int) error
 	DisallowKind                func(ctx context.Context, kind int) error
 	ListAllowedKinds            func(ctx context.Context) ([]int, error)
-	ListDisAllowedKinds         func(ctx context.Context) ([]int, error)
+	ListDisallowedKinds         func(ctx context.Context) ([]int, error)
 	BlockIP                     func(ctx context.Context, ip net.IP, reason string) error
 	UnblockIP                   func(ctx context.Context, ip net.IP, reason string) error
 	ListBlockedIPs              func(ctx context.Context) ([]nip86.IPReason, error)
@@ -302,9 +302,9 @@ func (rl *Relay) HandleNIP86(w http.ResponseWriter, r *http.Request) {
 				resp.Result = true
 			}
 		case nip86.ListDisallowedKinds:
-			if rl.ManagementAPI.ListDisAllowedKinds == nil {
+			if rl.ManagementAPI.ListDisallowedKinds == nil {
 				resp.Error = fmt.Sprintf("method %s not supported", thing.MethodName())
-			} else if result, err := rl.ManagementAPI.ListDisAllowedKinds(ctx); err != nil {
+			} else if result, err := rl.ManagementAPI.ListDisallowedKinds(ctx); err != nil {
 				resp.Error = err.Error()
 			} else {
 				resp.Result = result
