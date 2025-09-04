@@ -31,10 +31,10 @@ relay.Info.Description = "this is my custom relay"
 relay.Info.Icon = "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fliquipedia.net%2Fcommons%2Fimages%2F3%2F35%2FSCProbe.jpg&f=1&nofb=1&ipt=0cbbfef25bce41da63d910e86c3c343e6c3b9d63194ca9755351bb7c2efa3359&ipo=images"
 ```
 
-Now we must set up the basic functions for accepting events and answering queries. We could make our own querying engine from scratch, but we can also use [eventstore](https://pkg.go.dev/fiatjaf.com/nostr/eventstore). In this example we'll use the Badger adapter:
+Now we must set up the basic functions for accepting events and answering queries. We could make our own querying engine from scratch, but we can also use [eventstore](https://pkg.go.dev/fiatjaf.com/nostr/eventstore). In this example we'll use the BoltDB adapter:
 
 ```go
-db := badger.BadgerBackend{Path: "/tmp/khatru-badger-tmp"}
+db := boltdb.BoltBackend{Path: "/tmp/khatru-bolt-tmp"}
 if err := db.Init(); err != nil {
 	panic(err)
 }

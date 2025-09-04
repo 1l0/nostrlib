@@ -105,7 +105,7 @@ There are other `Reject*` hooks you can also implement, but this is the most imp
 Blossom needs a database to keep track of blob metadata in order to know which user owns each blob, for example (and mind you that more than one user might own the same blob so when of them deletes the blob we don't actually delete it because the other user still has a claim to it). The simplest way to do it currently is by relying on a wrapper on top of fake Nostr events over eventstore, which is `EventStoreBlobIndexWrapper`, but other solutions can be used.
 
 ```go
-db := &badger.BadgerBackend{Path: "/tmp/khatru-badger-blossom-blobstore"}
+db := &boltdb.BoltBackend{Path: "/tmp/khatru-bolt-blossom-blobstore"}
 db.Init()
 
 bl.Store = blossom.EventStoreBlobIndexWrapper{

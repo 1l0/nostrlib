@@ -1,4 +1,4 @@
-package badgerh
+package bbolth
 
 import (
 	"encoding/binary"
@@ -6,9 +6,9 @@ import (
 	"fiatjaf.com/nostr"
 )
 
-func encodeKey(pubhintkey nostr.PubKey, relay string) []byte {
+func encodeKey(pubkey nostr.PubKey, relay string) []byte {
 	k := make([]byte, 32+len(relay))
-	copy(k[0:32], pubhintkey[:])
+	copy(k[0:32], pubkey[:])
 	copy(k[32:], relay)
 	return k
 }

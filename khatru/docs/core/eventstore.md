@@ -14,7 +14,7 @@ The library includes many different adapters -- often called "backends" --, writ
 
 For all of them you start by instantiating a struct containing some basic options and a pointer (a file path for local databases, a connection string for remote databases) to the data. Then you call `.Init()` and if all is well you're ready to start storing, querying and deleting events, so you can pass the respective functions to their `khatru` counterparts. These eventstores also expose a `.Close()` function that must be called if you're going to stop using that store and keep your application open.
 
-Here's an example with the [Badger](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/badger) adapter, made for the [Badger](https://github.com/dgraph-io/badger) embedded key-value database:
+Here's an example with the [BoltDB](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/boltdb) adapter, made for the [BoltDB](https://github.com/etcd-io/bbolt) embedded key-value database:
 
 ```go
 package main
@@ -23,14 +23,14 @@ import (
 	"fmt"
 	"net/http"
 
-	"fiatjaf.com/nostr/eventstore/badger"
+	"fiatjaf.com/nostr/eventstore/boltdb"
 	"fiatjaf.com/nostr/khatru"
 )
 
 func main() {
 	relay := khatru.NewRelay()
 
-	db := badger.BadgerBackend{Path: "/tmp/khatru-badger-tmp"}
+	db := boltdb.BoltBackend{Path: "/tmp/khatru-bolt-tmp"}
 	if err := db.Init(); err != nil {
 		panic(err)
 	}

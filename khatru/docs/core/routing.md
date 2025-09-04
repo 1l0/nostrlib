@@ -12,7 +12,7 @@ It also can be handy if you get a [`khatru.Relay`](https://pkg.go.dev/github.com
 sk := os.Getenv("RELAY_SECRET_KEY")
 
 // a relay for NIP-29 groups
-groupsStore := badger.BadgerBackend{}
+groupsStore := boltdb.BoltBackend{}
 groupsStore.Init()
 groupsRelay, _ := khatru29.Init(relay29.Options{Domain: "example.com", DB: groupsStore, SecretKey: sk})
 // ...
