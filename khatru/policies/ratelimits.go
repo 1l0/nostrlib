@@ -14,7 +14,7 @@ func EventIPRateLimiter(tokensPerInterval int, interval time.Duration, maxTokens
 
 	return func(ctx context.Context, _ nostr.Event) (reject bool, msg string) {
 		ip := khatru.GetIP(ctx)
-		if ip == "127.0.0.1" {
+		if ip == "127.0.0.1" || ip == "::1" {
 			return false, ""
 		}
 		return rl(ip), "rate-limited: slow down, please"
@@ -26,7 +26,7 @@ func EventPubKeyRateLimiter(tokensPerInterval int, interval time.Duration, maxTo
 
 	return func(ctx context.Context, evt nostr.Event) (reject bool, msg string) {
 		ip := khatru.GetIP(ctx)
-		if ip == "127.0.0.1" {
+		if ip == "127.0.0.1" || ip == "::1" {
 			return false, ""
 		}
 		return rl(evt.PubKey.Hex()), "rate-limited: slow down, please"
@@ -38,7 +38,7 @@ func ConnectionRateLimiter(tokensPerInterval int, interval time.Duration, maxTok
 
 	return func(r *http.Request) bool {
 		ip := khatru.GetIPFromRequest(r)
-		if ip == "127.0.0.1" {
+		if ip == "127.0.0.1" || ip == "::1" {
 			return false
 		}
 		return rl(ip)
