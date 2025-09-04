@@ -8,7 +8,6 @@ import (
 
 var EventRejectionStrictDefaults = SeqEvent(
 	RejectEventsWithBase64Media,
-	PreventLargeTags(100),
 	PreventTooManyIndexableTags(12, []nostr.Kind{3}, nil),
 	PreventTooManyIndexableTags(1200, nil, []nostr.Kind{3}),
 	PreventLargeContent(5000),

@@ -52,20 +52,6 @@ func PreventTooManyIndexableTags(max int, ignoreKinds []nostr.Kind, onlyKinds []
 	}
 }
 
-// PreventLargeTags rejects events that have indexable tag values greater than maxTagValueLen.
-func PreventLargeTags(maxTagValueLen int) func(context.Context, nostr.Event) (bool, string) {
-	return func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
-		for _, tag := range event.Tags {
-			if len(tag) > 1 && len(tag[0]) == 1 {
-				if len(tag[1]) > maxTagValueLen {
-					return true, "event contains too large tags"
-				}
-			}
-		}
-		return false, ""
-	}
-}
-
 // PreventLargeContent rejects events with content too large
 func PreventLargeContent(maxContent int) func(context.Context, nostr.Event) (bool, string) {
 	return func(ctx context.Context, event nostr.Event) (reject bool, msg string) {
