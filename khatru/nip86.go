@@ -86,13 +86,25 @@ func (rl *Relay) HandleNIP86(w http.ResponseWriter, r *http.Request) {
 			goto respond
 		}
 
-		if uTag := evt.Tags.Find("u"); uTag == nil || rl.getBaseURL(r) != uTag[1] {
-			resp.Error = fmt.Sprintf("invalid 'u' tag, expected '%s', got '%s'", rl.getBaseURL(r), uTag[1])
+		uTag := evt.Tags.Find("u")
+		if uTag == nil {
+			resp.Error = "missing \"u\" tag"
 			goto respond
-		} else if pht := evt.Tags.FindWithValue("payload", hex.EncodeToString(payloadHash[:])); pht == nil {
+		}
+
+		expected := nostr.NormalizeURL(rl.getBaseURL(r))
+		got := nostr.NormalizeURL(uTag[1])
+		if expected != got {
+			resp.Error = fmt.Sprintf("invalid \"u\" tag, expected '%s', got '%s'", expected, got)
+			goto respond
+		}
+
+		if pht := evt.Tags.FindWithValue("payload", hex.EncodeToString(payloadHash[:])); pht == nil {
 			resp.Error = "invalid auth event payload hash"
 			goto respond
-		} else if evt.CreatedAt < nostr.Now()-30 {
+		}
+
+		if evt.CreatedAt < nostr.Now()-30 {
 			resp.Error = "auth event is too old"
 			goto respond
 		}
