@@ -22,15 +22,15 @@ func main() {
 	bl.Store = blossom.EventStoreBlobIndexWrapper{Store: blobdb, ServiceURL: bl.ServiceURL}
 
     // implement the required storage functions
-    bl.StoreBlob = func(ctx context.Context, sha256 string, body []byte) error {
+    bl.StoreBlob = func(ctx context.Context, sha256 string, ext string, body []byte) error {
         // store the blob data somewhere
         return nil
     }
-    bl.LoadBlob = func(ctx context.Context, sha256 string) (io.ReadSeeker, *url.URL, error) {
+    bl.LoadBlob = func(ctx context.Context, sha256 string, ext string) (io.ReadSeeker, *url.URL, error) {
         // load and return the blob data, or a redirect URL
         return nil, nil, nil
     }
-    bl.DeleteBlob = func(ctx context.Context, sha256 string) error {
+    bl.DeleteBlob = func(ctx context.Context, sha256 string, ext string) error {
         // delete the blob data
         return nil
     }

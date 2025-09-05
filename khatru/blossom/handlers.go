@@ -7,7 +7,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -130,13 +129,17 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	hash := sha256.Sum256(b)
 	hhash := hex.EncodeToString(hash[:])
+	mimeType := mime.TypeByExtension(ext)
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
 
 	// keep track of the blob descriptor
 	bd := BlobDescriptor{
 		URL:      bs.ServiceURL + "/" + hhash + ext,
 		SHA256:   hhash,
 		Size:     len(b),
-		Type:     mime.TypeByExtension(ext),
+		Type:     mimeType,
 		Uploaded: nostr.Now(),
 	}
 	if err := bs.Store.Keep(r.Context(), bd, auth.PubKey); err != nil {
@@ -146,7 +149,7 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// save actual blob
 	if nil != bs.StoreBlob {
-		if err := bs.StoreBlob(r.Context(), hhash, b); err != nil {
+		if err := bs.StoreBlob(r.Context(), hhash, ext, b); err != nil {
 			blossomError(w, "failed to save: "+err.Error(), 500)
 			return
 		}
@@ -187,21 +190,27 @@ func (bs BlossomServer) handleGetBlob(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var ext string
+	bd, err := bs.Store.Get(r.Context(), hhash)
+	if err != nil {
+		// can't find the BlobDescriptor, try to get the extension from the URL
+		if len(spl) == 2 {
+			ext = spl[1]
+		}
+	} else if bd != nil {
+		ext = getExtension(bd.Type)
+	}
+
 	if nil != bs.RejectGet {
-		reject, reason, code := bs.RejectGet(r.Context(), auth, hhash)
+		reject, reason, code := bs.RejectGet(r.Context(), auth, hhash, ext)
 		if reject {
 			blossomError(w, reason, code)
 			return
 		}
 	}
 
-	var ext string
-	if len(spl) == 2 {
-		ext = "." + spl[1]
-	}
-
 	if bs.LoadBlob != nil {
-		reader, redirectURL, err := bs.LoadBlob(r.Context(), hhash)
+		reader, redirectURL, err := bs.LoadBlob(r.Context(), hhash, ext)
 		if err == nil && redirectURL != nil {
 			// check that the redirectURL contains the hash of the file
 			if ok, _ := regexp.MatchString(`\b`+hhash+`\b`, redirectURL.String()); !ok {
@@ -329,9 +338,20 @@ func (bs BlossomServer) handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var ext string
+	bd, err := bs.Store.Get(r.Context(), hhash)
+	if err != nil {
+		// can't find the BlobDescriptor, try to get the extension from the URL
+		if len(spl) == 2 {
+			ext = spl[1]
+		}
+	} else if bd != nil {
+		ext = getExtension(bd.Type)
+	}
+
 	// should we accept this delete?
 	if nil != bs.RejectDelete {
-		reject, reason, code := bs.RejectDelete(r.Context(), auth, hhash)
+		reject, reason, code := bs.RejectDelete(r.Context(), auth, hhash, ext)
 		if reject {
 			blossomError(w, reason, code)
 			return
@@ -347,7 +367,7 @@ func (bs BlossomServer) handleDelete(w http.ResponseWriter, r *http.Request) {
 	// we will actually only delete the file if no one else owns it
 	if bd, err := bs.Store.Get(r.Context(), hhash); err == nil && bd == nil {
 		if nil != bs.DeleteBlob {
-			if err := bs.DeleteBlob(r.Context(), hhash); err != nil {
+			if err := bs.DeleteBlob(r.Context(), hhash, ext); err != nil {
 				blossomError(w, "failed to delete blob: "+err.Error(), 500)
 				return
 			}
@@ -415,7 +435,6 @@ func (bs BlossomServer) handleMirror(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		blossomError(w, "failed to read response body: "+err.Error(), 503)
@@ -437,9 +456,10 @@ func (bs BlossomServer) handleMirror(w http.ResponseWriter, r *http.Request) {
 	contentType := resp.Header.Get("Content-Type")
 	if contentType != "" {
 		ext = getExtension(contentType)
-	} else {
-		// try to detect from url
-		ext = filepath.Ext(req.URL)
+	} else if ft, _ := magic.Lookup(body); ft != nil {
+		ext = "." + ft.Extension
+	} else if idx := strings.LastIndex(req.URL, "."); idx != -1 {
+		ext = req.URL[idx:]
 	}
 
 	// run reject hook if defined
@@ -466,7 +486,7 @@ func (bs BlossomServer) handleMirror(w http.ResponseWriter, r *http.Request) {
 
 	// save actual blob
 	if bs.StoreBlob != nil {
-		if err := bs.StoreBlob(r.Context(), hhash, body); err != nil {
+		if err := bs.StoreBlob(r.Context(), hhash, ext, body); err != nil {
 			blossomError(w, "failed to save: "+err.Error(), 500)
 			return
 		}
