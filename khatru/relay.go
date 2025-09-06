@@ -26,7 +26,7 @@ func NewRelay() *Relay {
 		Log: log.New(os.Stderr, "[khatru-relay] ", log.LstdFlags),
 
 		Info: &nip11.RelayInformationDocument{
-			Software:      "https://fiatjaf.com/nostr/khatru",
+			Software:      "https://pkg.go.dev/fiatjaf.com/nostr/khatru",
 			Version:       "n/a",
 			SupportedNIPs: []any{1, 11, 40, 42, 70, 86},
 		},
@@ -46,6 +46,8 @@ func NewRelay() *Relay {
 		PongWait:       60 * time.Second,
 		PingPeriod:     30 * time.Second,
 		MaxMessageSize: 512000,
+
+		MaxAuthenticatedClients: 32,
 	}
 
 	rl.expirationManager = newExpirationManager(rl)
@@ -112,10 +114,11 @@ type Relay struct {
 	httpServer *http.Server
 
 	// websocket options
-	WriteWait      time.Duration // Time allowed to write a message to the peer.
-	PongWait       time.Duration // Time allowed to read the next pong message from the peer.
-	PingPeriod     time.Duration // Send pings to peer with this period. Must be less than pongWait.
-	MaxMessageSize int64         // Maximum message size allowed from peer.
+	WriteWait               time.Duration // Time allowed to write a message to the peer.
+	PongWait                time.Duration // Time allowed to read the next pong message from the peer.
+	PingPeriod              time.Duration // Send pings to peer with this period. Must be less than pongWait.
+	MaxMessageSize          int64         // Maximum message size allowed from peer.
+	MaxAuthenticatedClients int
 
 	// NIP-40 expiration manager
 	expirationManager *expirationManager

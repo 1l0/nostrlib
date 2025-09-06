@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,6 +77,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 		conn:               conn,
 		Request:            r,
 		Challenge:          rl.ChallengePrefix + hex.EncodeToString(challenge),
+		AuthedPublicKeys:   make([]nostr.PubKey, 0),
 		negentropySessions: xsync.NewMapOf[string, *NegentropySession](),
 	}
 	ws.Context, ws.cancel = context.WithCancel(context.Background())
@@ -317,11 +319,22 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 				case *nostr.AuthEnvelope:
 					wsBaseUrl := strings.Replace(rl.getBaseURL(r), "http", "ws", 1)
 					if pubkey, ok := nip42.ValidateAuthEvent(env.Event, ws.Challenge, wsBaseUrl); ok {
-						ws.AuthedPublicKey = pubkey
+
+						total := len(ws.AuthedPublicKeys) - 1
 						ws.authLock.Lock()
-						if ws.Authed != nil {
-							close(ws.Authed)
-							ws.Authed = nil
+						if idx := slices.Index(ws.AuthedPublicKeys, pubkey); idx == -1 {
+							// this public key is not authenticated
+							if total < rl.MaxAuthenticatedClients {
+								// add it to the end (the last pubkey is the one we'll use in a single-user context)
+								ws.AuthedPublicKeys = append(ws.AuthedPublicKeys, pubkey)
+							} else {
+								// remove the first (oldest) and add the new pubkey to the end
+								ws.AuthedPublicKeys[0] = ws.AuthedPublicKeys[total-1]
+								ws.AuthedPublicKeys[total-1] = pubkey
+							}
+						} else {
+							// this is already authed, so move it to the end
+							ws.AuthedPublicKeys[idx], ws.AuthedPublicKeys[total-1] = ws.AuthedPublicKeys[total-1], ws.AuthedPublicKeys[idx]
 						}
 						ws.authLock.Unlock()
 						ws.WriteJSON(nostr.OKEnvelope{EventID: env.Event.ID, OK: true})

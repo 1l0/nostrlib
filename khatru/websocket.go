@@ -22,14 +22,12 @@ type WebSocket struct {
 	cancel  context.CancelFunc
 
 	// nip42
-	Challenge       string
-	AuthedPublicKey nostr.PubKey
-	Authed          chan struct{}
+	Challenge        string
+	AuthedPublicKeys []nostr.PubKey
+	authLock         sync.Mutex
 
 	// nip77
 	negentropySessions *xsync.MapOf[string, *NegentropySession]
-
-	authLock sync.Mutex
 }
 
 func (ws *WebSocket) WriteJSON(any any) error {

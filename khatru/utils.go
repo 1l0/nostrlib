@@ -15,11 +15,6 @@ const (
 
 func RequestAuth(ctx context.Context) {
 	ws := GetConnection(ctx)
-	ws.authLock.Lock()
-	if ws.Authed == nil {
-		ws.Authed = make(chan struct{})
-	}
-	ws.authLock.Unlock()
 	ws.WriteJSON(nostr.AuthEnvelope{Challenge: &ws.Challenge})
 }
 
@@ -31,14 +26,38 @@ func GetConnection(ctx context.Context) *WebSocket {
 	return nil
 }
 
+// GetAuthed returns the last pubkey to have authenticated. Returns false if no one has.
+//
+// In a NIP-86 context it returns the single pubkey that have authenticated for that specific method call.
 func GetAuthed(ctx context.Context) (nostr.PubKey, bool) {
 	if conn := GetConnection(ctx); conn != nil {
-		return conn.AuthedPublicKey, conn.AuthedPublicKey != nostr.ZeroPK
+		total := len(conn.AuthedPublicKeys)
+		if total == 0 {
+			return nostr.ZeroPK, false
+		}
+		return conn.AuthedPublicKeys[total-1], true
 	}
 	if nip86Auth := ctx.Value(nip86HeaderAuthKey); nip86Auth != nil {
 		return nip86Auth.(nostr.PubKey), true
 	}
 	return nostr.ZeroPK, false
+}
+
+// IsAuthed checks if the given public key is among the multiple that may have potentially authenticated.
+func IsAuthed(ctx context.Context, pubkey nostr.PubKey) bool {
+	if conn := GetConnection(ctx); conn != nil {
+		for _, pk := range conn.AuthedPublicKeys {
+			if pk == pubkey {
+				return true
+			}
+		}
+	}
+
+	if nip86Auth := ctx.Value(nip86HeaderAuthKey); nip86Auth != nil {
+		return nip86Auth.(nostr.PubKey) == pubkey
+	}
+
+	return false
 }
 
 // IsInternalCall returns true when a call to QueryEvents, for example, is being made because of a deletion
