@@ -320,7 +320,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					wsBaseUrl := strings.Replace(rl.getBaseURL(r), "http", "ws", 1)
 					if pubkey, ok := nip42.ValidateAuthEvent(env.Event, ws.Challenge, wsBaseUrl); ok {
 
-						total := len(ws.AuthedPublicKeys) - 1
+						total := len(ws.AuthedPublicKeys)
 						ws.authLock.Lock()
 						if idx := slices.Index(ws.AuthedPublicKeys, pubkey); idx == -1 {
 							// this public key is not authenticated
