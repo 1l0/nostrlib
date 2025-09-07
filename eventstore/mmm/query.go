@@ -20,7 +20,7 @@ func (b *MultiMmapManager) GetByID(id nostr.ID) (*nostr.Event, IndexingLayers) {
 	layers := b.queryByIDs([]nostr.ID{id}, func(evt nostr.Event) bool {
 		event = &evt
 		return false
-	}, true)
+	}, nil, true)
 
 	if event != nil {
 		present := make([]*IndexingLayer, len(layers))
@@ -37,6 +37,7 @@ func (b *MultiMmapManager) GetByID(id nostr.ID) (*nostr.Event, IndexingLayers) {
 func (b *MultiMmapManager) queryByIDs(
 	ids []nostr.ID,
 	yield func(nostr.Event) bool,
+	restrictToLayer *uint16, // pass -1 if not restricted
 	withLayers bool,
 ) (layers []uint16) {
 	b.lmdbEnv.View(func(txn *lmdb.Txn) error {
@@ -51,16 +52,27 @@ func (b *MultiMmapManager) queryByIDs(
 					panic(fmt.Errorf("failed to decode event from %v: %w", pos, err))
 				}
 
-				keepGoing := yield(evt)
-
+				restrictionSatisfied := restrictToLayer == nil
 				if withLayers {
 					layers = make([]uint16, 0, (len(val)-12)/2)
+				}
+				if withLayers || !restrictionSatisfied {
 					for s := 12; s < len(val); s += 2 {
-						layers = append(layers, binary.BigEndian.Uint16(val[s:s+2]))
+						layer := binary.BigEndian.Uint16(val[s : s+2])
+						if withLayers {
+							layers = append(layers, layer)
+						}
+						if !restrictionSatisfied && layer == *restrictToLayer {
+							restrictionSatisfied = true
+						}
 					}
 				}
 
-				if !keepGoing {
+				if !restrictionSatisfied {
+					continue
+				}
+
+				if !yield(evt) {
 					return nil
 				}
 			}
@@ -75,7 +87,7 @@ func (b *MultiMmapManager) queryByIDs(
 func (il *IndexingLayer) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event] {
 	return func(yield func(nostr.Event) bool) {
 		if filter.IDs != nil {
-			il.mmmm.queryByIDs(filter.IDs, yield, false)
+			il.mmmm.queryByIDs(filter.IDs, yield, &il.id, false)
 			return
 		}
 
