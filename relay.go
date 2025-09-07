@@ -364,8 +364,11 @@ func (r *Relay) Subscribe(ctx context.Context, filter Filter, opts SubscriptionO
 	}
 
 	go func() {
-		<-r.connection.closedNotify
-		sub.unsub(ErrDisconnected)
+		select {
+		case <-r.connection.closedNotify:
+			sub.unsub(ErrDisconnected)
+		case <-ctx.Done():
+		}
 	}()
 
 	return sub, nil
