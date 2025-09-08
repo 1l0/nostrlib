@@ -417,6 +417,7 @@ func (pool *Pool) subMany(
 		if idx := slices.Index(urls, url); idx != i {
 			// skip duplicate relays in the list
 			eoseWg.Done()
+			pending.Dec()
 			continue
 		}
 
