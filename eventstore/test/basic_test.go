@@ -13,11 +13,13 @@ func basicTest(t *testing.T, db eventstore.Store) {
 	err := db.Init()
 	require.NoError(t, err)
 
+	// define public keys for use throughout the test
+	pk3 := nostr.GetPublicKey(sk3)
+	pk4 := nostr.GetPublicKey(sk4)
+
 	// from basic-test.patch
 	{
 		// create test events with different tags and authors
-		pk3 := nostr.GetPublicKey(sk3)
-		pk4 := nostr.GetPublicKey(sk4)
 
 		events := []nostr.Event{
 			// event with 'e' tag
@@ -213,7 +215,6 @@ func basicTest(t *testing.T, db eventstore.Store) {
 
 	// test ReplaceEvent()
 	{
-		pk3 := nostr.GetPublicKey(sk3)
 		originalProfile := nostr.Event{
 			CreatedAt: 200,
 			Content:   `{"name":"original","about":"original profile"}`,
@@ -335,5 +336,78 @@ func basicTest(t *testing.T, db eventstore.Store) {
 			Kinds:   []nostr.Kind{30023},
 		}, 1000))
 		require.Len(t, results, 2)
+	}
+
+	// test DeleteEvent()
+	{
+		// create other events to ensure they are not deleted
+		otherEvent1 := nostr.Event{
+			CreatedAt: 601,
+			Content:   "other event 1",
+			Tags:      nostr.Tags{},
+			Kind:      1,
+		}
+		otherEvent1.Sign(sk3)
+		err = db.SaveEvent(otherEvent1)
+		require.NoError(t, err)
+
+		otherEvent2 := nostr.Event{
+			CreatedAt: 602,
+			Content:   "other event 2",
+			Tags:      nostr.Tags{},
+			Kind:      2,
+		}
+		otherEvent2.Sign(sk4)
+		err = db.SaveEvent(otherEvent2)
+		require.NoError(t, err)
+
+		// create a test event to delete
+		deleteEvent := nostr.Event{
+			CreatedAt: 600,
+			Content:   "event to be deleted",
+			Tags:      nostr.Tags{},
+			Kind:      1,
+		}
+		deleteEvent.Sign(sk3)
+		err = db.SaveEvent(deleteEvent)
+		require.NoError(t, err)
+
+		// verify events exist
+		results := slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk3},
+			Kinds:   []nostr.Kind{1},
+		}, 1000))
+		require.Contains(t, results, deleteEvent)
+		require.Contains(t, results, otherEvent1)
+
+		results2 := slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk4},
+			Kinds:   []nostr.Kind{2},
+		}, 1000))
+		require.Contains(t, results2, otherEvent2)
+
+		// delete the event
+		err = db.DeleteEvent(deleteEvent.ID)
+		require.NoError(t, err)
+
+		// verify event is deleted
+		results = slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk3},
+			Kinds:   []nostr.Kind{1},
+		}, 1000))
+		require.NotContains(t, results, deleteEvent)
+		require.Contains(t, results, otherEvent1)
+
+		// verify other event still exists
+		results2 = slices.Collect(db.QueryEvents(nostr.Filter{
+			Authors: []nostr.PubKey{pk4},
+			Kinds:   []nostr.Kind{2},
+		}, 1000))
+		require.Contains(t, results2, otherEvent2)
+
+		// test deleting non-existent event (should not error)
+		fakeID, _ := nostr.IDFromHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		err = db.DeleteEvent(fakeID)
+		require.NoError(t, err)
 	}
 }
