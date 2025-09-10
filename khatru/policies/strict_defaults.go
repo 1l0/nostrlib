@@ -11,6 +11,7 @@ var EventRejectionStrictDefaults = SeqEvent(
 	PreventTooManyIndexableTags(12, []nostr.Kind{3}, nil),
 	PreventTooManyIndexableTags(1200, nil, []nostr.Kind{3}),
 	PreventLargeContent(5000),
+	RejectUnprefixedNostrReferences,
 	EventIPRateLimiter(2, time.Minute*3, 10),
 )
 

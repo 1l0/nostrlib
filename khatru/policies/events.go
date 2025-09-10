@@ -3,11 +3,13 @@ package policies
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
 	"fiatjaf.com/nostr/nip70"
 )
 
@@ -110,4 +112,28 @@ func OnlyAllowNIP70ProtectedEvents(ctx context.Context, event nostr.Event) (reje
 		return false, ""
 	}
 	return true, "blocked: we only accept events protected with the nip70 \"-\" tag"
+}
+
+func RejectUnprefixedNostrReferences(ctx context.Context, event nostr.Event) (bool, string) {
+	pattern := `\b(nevent1|npub1|nprofile1|note1)\w*\b`
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		// if regex error, allow
+		return false, ""
+	}
+	matches := re.FindAllStringIndex(event.Content, -1)
+	for _, match := range matches {
+		start := match[0]
+		end := match[1]
+		ref := event.Content[start:end]
+		_, _, err := nip19.Decode(ref)
+		if err != nil {
+			// invalid reference, ignore and allow
+			continue
+		}
+		if start < 6 || event.Content[start-6:start] != "nostr:" {
+			return true, "references must be prefixed with \"nostr:\""
+		}
+	}
+	return false, ""
 }
