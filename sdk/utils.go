@@ -4,6 +4,9 @@ import (
 	"math"
 	"strings"
 	"testing"
+
+	"fiatjaf.com/nostr"
+	"github.com/tidwall/gjson"
 )
 
 // IsVirtualRelay returns true if the given normalized relay URL shouldn't be considered for outbox-model calculations.
@@ -43,4 +46,26 @@ func PerQueryLimitInBatch(totalFilterLimit int, numberOfQueries int) int {
 			),
 		),
 	)
+}
+
+// GetMainContent returns the user-provided text of the event. This is often the "content", but sometimes,
+// like on kind:9802 highlights' "comment" tag, it's on a tag.
+// for many other events it is nowhere, as the event doesn't contain any user-provided free text.
+// (incomplete)
+func GetMainContent(event nostr.Event) string {
+	switch event.Kind {
+	case 9802:
+		// for highlights, check if the comment is in the desired language
+		// only check the quote language if there is no comment
+		if tag := event.Tags.Find("comment"); tag != nil && len(tag[1]) > 0 {
+			return tag[1]
+		}
+		return ""
+	case 0:
+		return gjson.Get(event.Content, "about").Str
+	case 443, 27235, 22242, 1059, 13:
+		return ""
+	default:
+		return event.Content
+	}
 }

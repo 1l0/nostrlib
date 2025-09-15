@@ -10,7 +10,9 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/nip27"
 	"fiatjaf.com/nostr/nip70"
+	"fiatjaf.com/nostr/sdk"
 )
 
 // PreventTooManyIndexableTags returns a function that can be used as a RejectFilter that will reject
@@ -114,26 +116,31 @@ func OnlyAllowNIP70ProtectedEvents(ctx context.Context, event nostr.Event) (reje
 	return true, "blocked: we only accept events protected with the nip70 \"-\" tag"
 }
 
+var nostrReferencesPrefix = regexp.MustCompile(`\b(nevent1|npub1|nprofile1|note1)\w*\b`)
+
 func RejectUnprefixedNostrReferences(ctx context.Context, event nostr.Event) (bool, string) {
-	pattern := `\b(nevent1|npub1|nprofile1|note1)\w*\b`
-	re, err := regexp.Compile(pattern)
-	if err != nil {
-		// if regex error, allow
-		return false, ""
-	}
-	matches := re.FindAllStringIndex(event.Content, -1)
-	for _, match := range matches {
-		start := match[0]
-		end := match[1]
-		ref := event.Content[start:end]
-		_, _, err := nip19.Decode(ref)
-		if err != nil {
-			// invalid reference, ignore and allow
-			continue
+	content := sdk.GetMainContent(event)
+
+	// only do it for stuff that wasn't parsed as blocks already
+	// (since those are already good references or URLs)
+	for block := range nip27.Parse(content) {
+		if block.Pointer == nil {
+			matches := nostrReferencesPrefix.FindAllStringIndex(block.Text, -1)
+			for _, match := range matches {
+				start := match[0]
+				end := match[1]
+				ref := block.Text[start:end]
+				_, _, err := nip19.Decode(ref)
+				if err != nil {
+					// invalid reference, ignore and allow
+					// (it's probably someone saying something like "oh, write something like npub1foo...")
+					continue
+				}
+
+				return true, "references must be prefixed with \"nostr:\""
+			}
 		}
-		if start < 6 || event.Content[start-6:start] != "nostr:" {
-			return true, "references must be prefixed with \"nostr:\""
-		}
 	}
+
 	return false, ""
 }
