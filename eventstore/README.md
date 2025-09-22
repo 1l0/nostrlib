@@ -11,21 +11,35 @@ type Store interface {
 	// Close must be called after you're done using the store, to free up resources and so on.
 	Close()
 
-	// QueryEvents is invoked upon a client's REQ as described in NIP-01.
-	// it should return a channel with the events as they're recovered from a database.
-	// the channel should be closed after the events are all delivered.
-	QueryEvents(context.Context, nostr.Filter) (chan *nostr.Event, error)
+	// QueryEvents returns events that match the filter
+	QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq[nostr.Event]
 
-	// DeleteEvent is used to handle deletion events, as per NIP-09.
-	DeleteEvent(context.Context, *nostr.Event) error
+	// DeleteEvent deletes an event atomically by ID
+	DeleteEvent(nostr.ID) error
 
-	// SaveEvent is called once Relay.AcceptEvent reports true.
-	SaveEvent(context.Context, *nostr.Event) error
+	// SaveEvent just saves an event, no side-effects.
+	SaveEvent(nostr.Event) error
+
+	// ReplaceEvent atomically replaces a replaceable or addressable event.
+	// Conceptually it is like a Query->Delete->Save, but streamlined.
+	ReplaceEvent(nostr.Event) error
+
+	// CountEvents counts all events that match a given filter
+	CountEvents(nostr.Filter) (uint32, error)
 }
 ```
 
 [![Go Reference](https://pkg.go.dev/badge/fiatjaf.com/nostr/eventstore.svg)](https://pkg.go.dev/fiatjaf.com/nostr/eventstore) [![Run Tests](https://fiatjaf.com/nostr/eventstore/actions/workflows/test.yml/badge.svg)](https://fiatjaf.com/nostr/eventstore/actions/workflows/test.yml)
 
-## command-line tool
+## Available Implementations
+
+- **bluge**: Full-text search and indexing using the Bluge search library
+- **boltdb**: Embedded key-value database using BoltDB
+- **lmdb**: High-performance embedded database using LMDB
+- **mmm**: Custom memory-mapped storage with advanced indexing
+- **nullstore**: No-op store for testing and development
+- **slicestore**: Simple in-memory slice-based store
+
+## Command-line Tool
 
 There is an [`eventstore` command-line tool](cmd/eventstore) that can be used to query these databases directly.

@@ -26,14 +26,23 @@ This will automatically determine the storage type being used at `/path/to/store
 ~> echo '{"id":"35369e6bae5f77c4e1745c2eb5db84c4493e87f6e449aee62a261bbc1fea2788","pubkey":"79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798","created_at":1701193836,"kind":1,"tags":[],"content":"hello","sig":"ef08d559e042d9af4cdc3328a064f737603d86ec4f929f193d5a3ce9ea22a3fb8afc1923ee3c3742fd01856065352c5632e91f633528c80e9c5711fa1266824c"}' | eventstore -d /path/to/store save
 ```
 
-You can also create a database from scratch if it's a disk database, but then you have to specify `-t` to `boltdb` or `lmdb`.
+### Counting events matching a filter
 
-### Connecting to Postgres, MySQL and other remote databases
-
-You should be able to connect by just passing the database connection URI to `-d`:
-
-```bash
-~> eventstore -d 'postgres://myrelay:38yg4o83yf48a3s7g@localhost:5432/myrelay?sslmode=disable' <query|save|delete>
+```fish
+~> echo '{"kinds":[1]}' | eventstore -d /path/to/store count
 ```
 
-That should be prefixed with `postgres://` for Postgres, `mysql://` for MySQL and `https://` for ElasticSearch.
+### Deleting an event by ID
+
+```fish
+~> echo '35369e6bae5f77c4e1745c2eb5db84c4493e87f6e449aee62a261bbc1fea2788' | eventstore -d /path/to/store delete
+```
+
+### Query or save (default command)
+
+Pipes events or filters and handles them appropriately.
+
+You can also create a database from scratch if it's a disk database, but then you have to specify `-t` to `boltdb` or `lmdb`.
+
+Supported store types: `lmdb`, `boltdb`, `mmm`, `file` (for JSONL files).
+
