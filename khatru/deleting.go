@@ -23,7 +23,7 @@ func (rl *Relay) handleDeleteRequest(ctx context.Context, evt nostr.Event) error
 				}
 				f = nostr.Filter{IDs: []nostr.ID{id}}
 			case "a":
-				spl := strings.Split(tag[1], ":")
+				spl := strings.SplitN(tag[1], ":", 3)
 				if len(spl) != 3 {
 					continue
 				}
