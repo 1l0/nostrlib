@@ -79,6 +79,7 @@ func (it *iterator) pull(n int, since uint32) {
 func (it *iterator) seek(key []byte) {
 	fullkey, _ := it.cursor.Seek(key)
 	if fullkey == nil || bytes.Compare(fullkey, key) == 1 {
+		// we're at the end or passed our desired point, so go back one
 		fullkey, _ = it.cursor.Prev()
 		if fullkey == nil {
 			it.exhausted = true
@@ -87,7 +88,11 @@ func (it *iterator) seek(key []byte) {
 	}
 
 	s := len(fullkey)
-	it.key = it.key[0 : s-8]
+	if cap(it.key) >= s-8 {
+		it.key = it.key[0 : s-8]
+	} else {
+		it.key = make([]byte, s-8)
+	}
 	copy(it.key, fullkey[0:s-8])
 	copy(it.currIdPtr, fullkey[s-8:])
 }
