@@ -50,7 +50,7 @@ func main() {
 	relay.OnEvent = policies.SeqEvent(
 		// built-in policies
 		policies.ValidateKind,
-		policies.PreventLargeTags(100),
+		policies.RejectUnprefixedNostrReferences,
 
 		// define your own policies
 		func(ctx context.Context, event nostr.Event) (reject bool, msg string) {

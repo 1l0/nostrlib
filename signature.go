@@ -42,7 +42,7 @@ func (evt *Event) Sign(secretKey [32]byte) error {
 
 	sk, pk := btcec.PrivKeyFromBytes(secretKey[:])
 	pkBytes := pk.SerializeCompressed()[1:]
-	evt.PubKey = [32]byte(pkBytes)
+	evt.PubKey = PubKey(pkBytes)
 
 	h := sha256.Sum256(evt.Serialize())
 	sig, err := schnorr.Sign(sk, h[:], schnorr.FastSign())
