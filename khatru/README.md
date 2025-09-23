@@ -108,7 +108,7 @@ func main() {
 
 ### But I don't want to write my own database!
 
-Fear no more. Using the https://fiatjaf.com/nostr/eventstore module you get a bunch of compatible databases out of the box and you can just plug them into your relay. For example, [sqlite](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/lmdb):
+Fear no more. Using the https://fiatjaf.com/nostr/eventstore module you get a bunch of compatible databases out of the box and you can just plug them into your relay. For example, [lmdb](https://pkg.go.dev/fiatjaf.com/nostr/eventstore/lmdb):
 
 ```go
 	db := lmdb.LMDBackend{Path: "/tmp/khatru-lmdb-tmp"}

@@ -22,7 +22,7 @@ var db eventstore.Store
 var app = &cli.Command{
 	Name:      "eventstore",
 	Usage:     "a CLI for all the eventstore backends",
-	UsageText: "eventstore -d ./data/sqlite <query|save|delete> ...",
+	UsageText: "eventstore -d ./data <query|save|delete> ...",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:     "store",
