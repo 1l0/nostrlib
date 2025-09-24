@@ -34,7 +34,10 @@ func Fetch(ctx context.Context, u string) (info RelayInformationDocument, err er
 	}
 
 	// make request
-	req, _ := http.NewRequestWithContext(ctx, "GET", "http"+u[2:], nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "http"+u[2:], nil)
+	if err != nil {
+		return info, fmt.Errorf("invalid request")
+	}
 
 	// add the NIP-11 header
 	req.Header.Add("Accept", "application/nostr+json")
