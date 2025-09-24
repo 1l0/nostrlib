@@ -104,18 +104,20 @@ func (sys *System) trackEventRelay(id nostr.ID, relay string, onlyIfItExists boo
 
 // GetEventRelays returns all known relay URLs an event is known to be available on.
 // It is based on information kept on KVStore.
-func (sys *System) GetEventRelays(id nostr.ID) ([]string, error) {
+func (sys *System) GetEventRelays(id nostr.ID) []string {
 	// get the key for this event
 	key := makeEventRelayKey(id)
 
 	// get stored relay list
-	data, err := sys.KVStore.Get(key)
-	if err != nil {
-		return nil, err
-	}
+	data, _ := sys.KVStore.Get(key)
 	if data == nil {
-		return nil, nil
+		return nil
 	}
 
-	return decodeRelayList(data), nil
+	return decodeRelayList(data)
+}
+
+func (sys *System) EraseEventRelays(id nostr.ID) error {
+	key := makeEventRelayKey(id)
+	return sys.KVStore.Delete(key)
 }

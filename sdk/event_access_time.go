@@ -49,3 +49,8 @@ func (sys *System) GetEventAccessTime(id nostr.ID) nostr.Timestamp {
 
 	return decodeEventAccessTime(data)
 }
+
+func (sys *System) EraseAccessTime(id nostr.ID) error {
+	key := makeEventAccessTimeKey(id)
+	return sys.KVStore.Delete(key)
+}
