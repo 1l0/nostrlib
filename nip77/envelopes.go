@@ -6,9 +6,9 @@ import (
 	"strings"
 	"unsafe"
 
+	"fiatjaf.com/nostr"
 	"github.com/mailru/easyjson"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	"fiatjaf.com/nostr"
 	"github.com/tidwall/gjson"
 )
 

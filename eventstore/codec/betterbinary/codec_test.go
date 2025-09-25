@@ -5,9 +5,9 @@ import (
 	"slices"
 	"testing"
 
+	"fiatjaf.com/nostr"
 	"github.com/kr/pretty"
 	"github.com/mailru/easyjson"
-	"fiatjaf.com/nostr"
 )
 
 func TestBaseCase(t *testing.T) {

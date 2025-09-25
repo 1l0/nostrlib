@@ -3,8 +3,8 @@ package lmdb
 import (
 	"os"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
 	"fiatjaf.com/nostr/sdk/kvstore"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
 var _ kvstore.KVStore = (*Store)(nil)

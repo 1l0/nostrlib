@@ -3,8 +3,8 @@ package betterbinary
 import (
 	"testing"
 
-	"github.com/mailru/easyjson"
 	"fiatjaf.com/nostr"
+	"github.com/mailru/easyjson"
 )
 
 func TestTagFiltering(t *testing.T) {

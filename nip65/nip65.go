@@ -31,4 +31,3 @@ func ParseRelayList(event nostr.Event) (readRelays []string, writeRelays []strin
 
 	return readRelays, writeRelays
 }
-
