@@ -12,6 +12,7 @@ type RelayInformationDocument struct {
 	Name          string        `json:"name,omitempty"`
 	Description   string        `json:"description,omitempty"`
 	PubKey        *nostr.PubKey `json:"pubkey,omitempty"`
+	Self          *nostr.PubKey `json:"self,omitempty"`
 	Contact       string        `json:"contact,omitempty"`
 	SupportedNIPs []any         `json:"supported_nips,omitempty"`
 	Software      string        `json:"software,omitempty"`

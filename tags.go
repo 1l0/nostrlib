@@ -19,6 +19,16 @@ func (tags Tags) GetD() string {
 	return ""
 }
 
+// Has returns true if a tag exists with the given key (whether or not it has a value)
+func (tags Tags) Has(key string) bool {
+	for _, v := range tags {
+		if len(v) >= 1 && v[0] == key {
+			return true
+		}
+	}
+	return false
+}
+
 // Find returns the first tag with the given key/tagName that also has one value (i.e. at least 2 items)
 func (tags Tags) Find(key string) Tag {
 	for _, v := range tags {
