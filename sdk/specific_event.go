@@ -91,6 +91,8 @@ func (sys *System) FetchSpecificEvent(
 		relays = nostr.AppendUnique(relays, sys.FallbackRelays.Next())
 		fallback = append(fallback, sys.FallbackRelays.Next(), sys.FallbackRelays.Next())
 		priorityRelays = append(priorityRelays, v.Relays...)
+	default:
+		return nil, nil, fmt.Errorf("can't call sys.FetchSpecificEvent() with a %v", pointer)
 	}
 
 	// try to fetch in our internal eventstore first
