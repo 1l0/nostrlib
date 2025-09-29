@@ -165,7 +165,7 @@ attempts:
 	}
 
 	if result == nil {
-		return nil, nil, fmt.Errorf("couldn't find this %v", pointer)
+		return nil, nil, nil
 	}
 
 	// save stuff in cache and in internal store
