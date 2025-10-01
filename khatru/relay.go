@@ -20,15 +20,18 @@ import (
 )
 
 func NewRelay() *Relay {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancelCause(context.Background())
 
 	rl := &Relay{
+		ctx:    ctx,
+		cancel: cancel,
+
 		Log: log.New(os.Stderr, "[khatru-relay] ", log.LstdFlags),
 
 		Info: &nip11.RelayInformationDocument{
 			Software:      "https://pkg.go.dev/fiatjaf.com/nostr/khatru",
 			Version:       "n/a",
-			SupportedNIPs: []any{1, 11, 40, 42, 70, 86},
+			SupportedNIPs: []any{1, 11, 42, 70, 86},
 		},
 
 		upgrader: websocket.Upgrader{
@@ -51,12 +54,14 @@ func NewRelay() *Relay {
 	}
 
 	rl.expirationManager = newExpirationManager(rl)
-	go rl.expirationManager.start(ctx)
 
 	return rl
 }
 
 type Relay struct {
+	ctx    context.Context
+	cancel context.CancelCauseFunc
+
 	// setting this variable overwrites the hackish workaround we do to try to figure out our own base URL
 	ServiceURL string
 
@@ -145,6 +150,9 @@ func (rl *Relay) UseEventstore(store eventstore.Store, maxQueryLimit int) {
 	rl.DeleteEvent = func(ctx context.Context, id nostr.ID) error {
 		return store.DeleteEvent(id)
 	}
+
+	// only when using the eventstore we automatically set up the expiration manager
+	rl.StartExpirationManager()
 }
 
 func (rl *Relay) getBaseURL(r *http.Request) string {
@@ -173,8 +181,17 @@ func (rl *Relay) getBaseURL(r *http.Request) string {
 	return proto + "://" + host
 }
 
-func (rl *Relay) DisableExpiration() {
+func (rl *Relay) StartExpirationManager() {
+	if rl.expirationManager != nil {
+		go rl.expirationManager.start(rl.ctx)
+		rl.Info.AddSupportedNIP(40)
+	}
+}
+
+func (rl *Relay) DisableExpirationManager() {
 	rl.expirationManager.stop()
+	rl.expirationManager = nil
+
 	idx := slices.Index(rl.Info.SupportedNIPs, 40)
 	if idx != -1 {
 		rl.Info.SupportedNIPs[idx] = rl.Info.SupportedNIPs[len(rl.Info.SupportedNIPs)-1]
