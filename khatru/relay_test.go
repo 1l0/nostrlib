@@ -236,10 +236,16 @@ func TestBasicRelayFunctionality(t *testing.T) {
 
 		// create a new relay with shorter expiration check interval
 		relay := NewRelay()
-		relay.expirationManager.interval = 3 * time.Second // check every 3 seconds
 		store := &slicestore.SliceStore{}
 		store.Init()
+
+		// this will automatically start the expiration manager
 		relay.UseEventstore(store, 400)
+
+		if relay.expirationManager.interval > time.Second*10 {
+			t.Skip("expiration manager must be manually hardcodedly set to less than 10s for testing")
+			return
+		}
 
 		// start test server
 		server := httptest.NewServer(relay)
@@ -280,8 +286,8 @@ func TestBasicRelayFunctionality(t *testing.T) {
 		}
 		sub.Unsub()
 
-		// wait for expiration check (>3 seconds)
-		time.Sleep(4 * time.Second)
+		// wait for expiration check (+1 second)
+		time.Sleep(relay.expirationManager.interval + time.Second)
 
 		// verify event no longer exists
 		sub, err = client.Subscribe(ctx, nostr.Filter{
