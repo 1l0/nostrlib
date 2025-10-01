@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -52,8 +51,6 @@ func NewRelay() *Relay {
 
 		MaxAuthenticatedClients: 32,
 	}
-
-	rl.expirationManager = newExpirationManager(rl)
 
 	return rl
 }
@@ -152,7 +149,7 @@ func (rl *Relay) UseEventstore(store eventstore.Store, maxQueryLimit int) {
 	}
 
 	// only when using the eventstore we automatically set up the expiration manager
-	rl.StartExpirationManager()
+	rl.StartExpirationManager(rl.QueryStored, rl.DeleteEvent)
 }
 
 func (rl *Relay) getBaseURL(r *http.Request) string {
@@ -179,22 +176,4 @@ func (rl *Relay) getBaseURL(r *http.Request) string {
 		}
 	}
 	return proto + "://" + host
-}
-
-func (rl *Relay) StartExpirationManager() {
-	if rl.expirationManager != nil {
-		go rl.expirationManager.start(rl.ctx)
-		rl.Info.AddSupportedNIP(40)
-	}
-}
-
-func (rl *Relay) DisableExpirationManager() {
-	rl.expirationManager.stop()
-	rl.expirationManager = nil
-
-	idx := slices.Index(rl.Info.SupportedNIPs, 40)
-	if idx != -1 {
-		rl.Info.SupportedNIPs[idx] = rl.Info.SupportedNIPs[len(rl.Info.SupportedNIPs)-1]
-		rl.Info.SupportedNIPs = rl.Info.SupportedNIPs[0 : len(rl.Info.SupportedNIPs)-1]
-	}
 }

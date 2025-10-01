@@ -3,6 +3,8 @@ package khatru
 import (
 	"container/heap"
 	"context"
+	"iter"
+	"slices"
 	"sync"
 	"time"
 
@@ -34,23 +36,16 @@ func (h *expiringEventHeap) Pop() interface{} {
 }
 
 type expirationManager struct {
-	events          expiringEventHeap
-	mu              sync.Mutex
-	relay           *Relay
+	events expiringEventHeap
+	mu     sync.Mutex
+
+	queryStored func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event]
+	deleteEvent func(ctx context.Context, id nostr.ID) error
+
 	interval        time.Duration
 	initialScanDone bool
 	kill            chan struct{} // used for manually killing this
 	killonce        *sync.Once
-}
-
-func newExpirationManager(relay *Relay) *expirationManager {
-	return &expirationManager{
-		events:   make(expiringEventHeap, 0),
-		relay:    relay,
-		interval: time.Hour,
-		kill:     make(chan struct{}),
-		killonce: &sync.Once{},
-	}
 }
 
 func (em *expirationManager) stop() {
@@ -86,14 +81,12 @@ func (em *expirationManager) initialScan(ctx context.Context) {
 
 	// query all events
 	ctx = context.WithValue(ctx, internalCallKey, struct{}{})
-	if nil != em.relay.QueryStored {
-		for evt := range em.relay.QueryStored(ctx, nostr.Filter{}) {
-			if expiresAt := nip40.GetExpiration(evt.Tags); expiresAt != -1 {
-				heap.Push(&em.events, expiringEvent{
-					id:        evt.ID,
-					expiresAt: expiresAt,
-				})
-			}
+	for evt := range em.queryStored(ctx, nostr.Filter{}) {
+		if expiresAt := nip40.GetExpiration(evt.Tags); expiresAt != -1 {
+			heap.Push(&em.events, expiringEvent{
+				id:        evt.ID,
+				expiresAt: expiresAt,
+			})
 		}
 	}
 
@@ -116,9 +109,7 @@ func (em *expirationManager) checkExpiredEvents(ctx context.Context) {
 		heap.Pop(&em.events)
 
 		ctx := context.WithValue(ctx, internalCallKey, struct{}{})
-		if nil != em.relay.DeleteEvent {
-			em.relay.DeleteEvent(ctx, next.id)
-		}
+		em.deleteEvent(ctx, next.id)
 	}
 }
 
@@ -143,5 +134,35 @@ func (em *expirationManager) removeEvent(id nostr.ID) {
 			heap.Remove(&em.events, i)
 			break
 		}
+	}
+}
+
+func (rl *Relay) StartExpirationManager(
+	queryStored func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event],
+	deleteEvent func(ctx context.Context, id nostr.ID) error,
+) {
+	rl.expirationManager = &expirationManager{
+		events: make(expiringEventHeap, 0),
+
+		queryStored: queryStored,
+		deleteEvent: deleteEvent,
+
+		interval: time.Hour,
+		kill:     make(chan struct{}),
+		killonce: &sync.Once{},
+	}
+
+	go rl.expirationManager.start(rl.ctx)
+	rl.Info.AddSupportedNIP(40)
+}
+
+func (rl *Relay) DisableExpirationManager() {
+	rl.expirationManager.stop()
+	rl.expirationManager = nil
+
+	idx := slices.Index(rl.Info.SupportedNIPs, 40)
+	if idx != -1 {
+		rl.Info.SupportedNIPs[idx] = rl.Info.SupportedNIPs[len(rl.Info.SupportedNIPs)-1]
+		rl.Info.SupportedNIPs = rl.Info.SupportedNIPs[0 : len(rl.Info.SupportedNIPs)-1]
 	}
 }
