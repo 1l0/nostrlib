@@ -41,11 +41,12 @@ type Group struct {
 	Name    string
 	Picture string
 	About   string
-	Members map[string][]*Role
+	Members map[nostr.PubKey][]*Role
 	Private bool
 	Closed  bool
 
-	Roles []*Role
+	Roles       []*Role
+	InviteCodes []string
 
 	LastMetadataUpdate nostr.Timestamp
 	LastAdminsUpdate   nostr.Timestamp
@@ -67,7 +68,7 @@ func (group Group) String() string {
 	members := make([]string, len(group.Members))
 	i := 0
 	for pubkey, roles := range group.Members {
-		members[i] = pubkey
+		members[i] = pubkey.Hex()
 		if len(roles) > 0 {
 			members[i] += ":"
 		}
@@ -103,7 +104,7 @@ func NewGroup(gadstr string) (Group, error) {
 	return Group{
 		Address: gad,
 		Name:    gad.ID,
-		Members: make(map[string][]*Role),
+		Members: make(map[nostr.PubKey][]*Role),
 	}, nil
 }
 
@@ -114,15 +115,15 @@ func NewGroupFromMetadataEvent(relayURL string, evt *nostr.Event) (Group, error)
 			ID:    evt.Tags.GetD(),
 		},
 		Name:    evt.Tags.GetD(),
-		Members: make(map[string][]*Role),
+		Members: make(map[nostr.PubKey][]*Role),
 	}
 
 	err := g.MergeInMetadataEvent(evt)
 	return g, err
 }
 
-func (group Group) ToMetadataEvent() *nostr.Event {
-	evt := &nostr.Event{
+func (group Group) ToMetadataEvent() nostr.Event {
+	evt := nostr.Event{
 		Kind:      nostr.KindSimpleGroupMetadata,
 		CreatedAt: group.LastMetadataUpdate,
 		Tags: nostr.Tags{
@@ -154,8 +155,8 @@ func (group Group) ToMetadataEvent() *nostr.Event {
 	return evt
 }
 
-func (group Group) ToAdminsEvent() *nostr.Event {
-	evt := &nostr.Event{
+func (group Group) ToAdminsEvent() nostr.Event {
+	evt := nostr.Event{
 		Kind:      nostr.KindSimpleGroupAdmins,
 		CreatedAt: group.LastAdminsUpdate,
 		Tags:      make(nostr.Tags, 1, 1+len(group.Members)/3),
@@ -171,7 +172,7 @@ func (group Group) ToAdminsEvent() *nostr.Event {
 		// is an admin
 		tag := make([]string, 2, 2+len(roles))
 		tag[0] = "p"
-		tag[1] = member
+		tag[1] = member.Hex()
 		for _, role := range roles {
 			tag = append(tag, role.Name)
 		}
@@ -181,8 +182,8 @@ func (group Group) ToAdminsEvent() *nostr.Event {
 	return evt
 }
 
-func (group Group) ToMembersEvent() *nostr.Event {
-	evt := &nostr.Event{
+func (group Group) ToMembersEvent() nostr.Event {
+	evt := nostr.Event{
 		Kind:      nostr.KindSimpleGroupMembers,
 		CreatedAt: group.LastMembersUpdate,
 		Tags:      make(nostr.Tags, 1, 1+len(group.Members)),
@@ -191,14 +192,14 @@ func (group Group) ToMembersEvent() *nostr.Event {
 
 	for member := range group.Members {
 		// include both admins and normal members
-		evt.Tags = append(evt.Tags, nostr.Tag{"p", member})
+		evt.Tags = append(evt.Tags, nostr.Tag{"p", member.Hex()})
 	}
 
 	return evt
 }
 
-func (group Group) ToRolesEvent() *nostr.Event {
-	evt := &nostr.Event{
+func (group Group) ToRolesEvent() nostr.Event {
+	evt := nostr.Event{
 		Kind:      nostr.KindSimpleGroupRoles,
 		CreatedAt: group.LastMembersUpdate,
 		Tags:      make(nostr.Tags, 1, 1+len(group.Members)),
@@ -260,12 +261,14 @@ func (group *Group) MergeInAdminsEvent(evt *nostr.Event) error {
 		if tag[0] != "p" {
 			continue
 		}
-		if !nostr.IsValid32ByteHex(tag[1]) {
+
+		member, err := nostr.PubKeyFromHex(tag[1])
+		if err != nil {
 			continue
 		}
 
 		for _, roleName := range tag[2:] {
-			group.Members[tag[1]] = append(group.Members[tag[1]], group.GetRoleByName(roleName))
+			group.Members[member] = append(group.Members[member], group.GetRoleByName(roleName))
 		}
 	}
 
@@ -288,13 +291,15 @@ func (group *Group) MergeInMembersEvent(evt *nostr.Event) error {
 		if tag[0] != "p" {
 			continue
 		}
-		if !nostr.IsValid32ByteHex(tag[1]) {
+
+		member, err := nostr.PubKeyFromHex(tag[1])
+		if err != nil {
 			continue
 		}
 
-		_, exists := group.Members[tag[1]]
+		_, exists := group.Members[member]
 		if !exists {
-			group.Members[tag[1]] = nil
+			group.Members[member] = nil
 		}
 	}
 
