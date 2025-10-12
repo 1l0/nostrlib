@@ -49,7 +49,7 @@ func (b *MultiMmapManager) queryByIDs(
 				pos := positionFromBytes(val[0:12])
 				evt := nostr.Event{}
 				if err := b.loadEvent(pos, &evt); err != nil {
-					panic(fmt.Errorf("failed to decode event from %v: %w", pos, err))
+					panic(fmt.Errorf("failed to decode event %s from %v: %w", id, pos, err))
 				}
 
 				restrictionSatisfied := restrictToLayer == nil
