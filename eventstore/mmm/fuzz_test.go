@@ -40,7 +40,9 @@ func FuzzTest(f *testing.F) {
 
 		for i := range nlayers {
 			name := string([]byte{97 + byte(i)})
-			err = mmmm.EnsureLayer(name, &IndexingLayer{})
+			il := &IndexingLayer{}
+			err = mmmm.EnsureLayer(name, il)
+			defer il.Close()
 			require.NoError(t, err, "layer %s/%d", name, i)
 		}
 

@@ -329,4 +329,6 @@ func (b *MultiMmapManager) Close() {
 	for _, il := range b.layers {
 		il.Close()
 	}
+
+	syscall.Munmap(b.mmapf)
 }
