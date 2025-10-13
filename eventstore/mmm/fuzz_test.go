@@ -88,13 +88,13 @@ func FuzzTest(f *testing.F) {
 		}
 
 		// verify each layer has the correct events
-		for _, layer := range mmmm.layers {
+		for i, layer := range mmmm.layers {
 			count := 0
-			for evt := range layer.QueryEvents(nostr.Filter{}, 500) {
+			for evt := range layer.QueryEvents(nostr.Filter{}, 11000) {
 				require.True(t, evt.Tags.ContainsAny("t", []string{layer.name}))
 				count++
 			}
-			require.Equal(t, count, len(storedByLayer[layer.name]))
+			require.Equal(t, count, len(storedByLayer[layer.name]), "layer %d ('%s')", i, layer.name)
 		}
 
 		// randomly select n events to delete from random layers
@@ -147,13 +147,13 @@ func FuzzTest(f *testing.F) {
 				for _, layer := range mmmm.layers {
 					// verify event still accessible from other layers
 					if slices.Contains(foundlayers, layer) {
-						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}}, 500)) // hack
+						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}}, 11000)) // hack
 						_, fetched := next()
 						require.True(t, fetched)
 						stop()
 					} else {
 						// and not accessible from this layer we just deleted
-						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}}, 500)) // hack
+						next, stop := iter.Pull(layer.QueryEvents(nostr.Filter{Kinds: []nostr.Kind{evt.Kind}}, 11000)) // hack
 						_, fetched := next()
 						require.True(t, fetched)
 						stop()
@@ -165,7 +165,7 @@ func FuzzTest(f *testing.F) {
 		// now delete a layer and events that only exist in that layer should vanish
 		layer := mmmm.layers[rnd.Int()%len(mmmm.layers)]
 		eventsThatShouldVanish := make([]nostr.ID, 0, nevents/2)
-		for evt := range layer.QueryEvents(nostr.Filter{}, 500) {
+		for evt := range layer.QueryEvents(nostr.Filter{}, 11000) {
 			if len(evt.Tags) == 1+len(deleted[evt.ID]) {
 				eventsThatShouldVanish = append(eventsThatShouldVanish, evt.ID)
 			}

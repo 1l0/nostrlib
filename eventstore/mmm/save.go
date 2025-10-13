@@ -42,8 +42,14 @@ func (il *IndexingLayer) SaveEvent(evt nostr.Event) error {
 		return err
 	}
 
-	mmmtxn.Commit()
-	iltxn.Commit()
+	if err := mmmtxn.Commit(); err != nil {
+		return err
+	}
+
+	if err := iltxn.Commit(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -152,7 +158,7 @@ func (b *MultiMmapManager) storeOn(
 		val = binary.BigEndian.AppendUint16(val, il.id)
 	}
 
-	// store the id index with the refcounts
+	// store the id index with the layer references
 	if err := mmmtxn.Put(b.indexId, evt.ID[0:8], val, 0); err != nil {
 		panic(fmt.Errorf("failed to store %x by id: %w", evt.ID[:], err))
 	}
