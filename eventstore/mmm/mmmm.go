@@ -51,6 +51,11 @@ const (
 )
 
 func (b *MultiMmapManager) Init() error {
+	if b.Logger == nil {
+		nopLogger := zerolog.Nop()
+		b.Logger = &nopLogger
+	}
+
 	// create directory if it doesn't exist
 	dbpath := filepath.Join(b.Dir, "mmmm")
 	if err := os.MkdirAll(dbpath, 0755); err != nil {
@@ -128,12 +133,14 @@ func (b *MultiMmapManager) Init() error {
 	return nil
 }
 
-func (b *MultiMmapManager) EnsureLayer(name string, il *IndexingLayer) error {
+func (b *MultiMmapManager) EnsureLayer(name string) (*IndexingLayer, error) {
 	b.writeMutex.Lock()
 	defer b.writeMutex.Unlock()
 
-	il.mmmm = b
-	il.name = name
+	il := &IndexingLayer{
+		mmmm: b,
+		name: name,
+	}
 
 	err := b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
 		txn.RawRead = true
@@ -164,11 +171,11 @@ func (b *MultiMmapManager) EnsureLayer(name string, il *IndexingLayer) error {
 		}
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	b.layers = append(b.layers, il)
-	return nil
+	return il, nil
 }
 
 func (b *MultiMmapManager) DropLayer(name string) error {

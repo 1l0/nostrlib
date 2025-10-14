@@ -22,9 +22,6 @@ func doMmmInit(path string) (eventstore.Store, error) {
 	if err := mmmm.Init(); err != nil {
 		return nil, err
 	}
-	il := &mmm.IndexingLayer{}
-	if err := mmmm.EnsureLayer(filepath.Base(path), il); err != nil {
-		return nil, err
-	}
-	return il, nil
+
+	return mmmm.EnsureLayer(filepath.Base(path))
 }

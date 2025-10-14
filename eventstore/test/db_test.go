@@ -68,11 +68,10 @@ func TestMMM(t *testing.T) {
 			err := mmmm.Init()
 			require.NoError(t, err)
 
-			il := mmm.IndexingLayer{}
-			err = mmmm.EnsureLayer("test", &il)
+			il, err := mmmm.EnsureLayer("test")
 			require.NoError(t, err)
 
-			test.run(t, &il)
+			test.run(t, il)
 		})
 	}
 }

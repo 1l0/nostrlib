@@ -41,7 +41,7 @@ func (b *MultiMmapManager) Rescan() error {
 				borked = true
 			}
 
-			var evt *nostr.Event
+			evt := &nostr.Event{}
 			var layersToRemove []uint16
 
 			// then for every layer referenced in there we check
@@ -52,7 +52,7 @@ func (b *MultiMmapManager) Rescan() error {
 					continue
 				}
 
-				layer.lmdbEnv.View(func(txn *lmdb.Txn) error {
+				layer.lmdbEnv.Update(func(txn *lmdb.Txn) error {
 					txn.RawRead = true
 
 					if borked {
@@ -80,8 +80,10 @@ func (b *MultiMmapManager) Rescan() error {
 
 									// act as if it's borked
 									if err := layer.bruteDeleteIndexes(txn, pos); err != nil {
-										panic(err)
+										return err
 									}
+
+									return nil
 								} else {
 									goto haveEvent
 								}
@@ -109,7 +111,7 @@ func (b *MultiMmapManager) Rescan() error {
 					if slices.Contains(layersToRemove, binary.BigEndian.Uint16(val[s:s+2])) {
 						// swap-delete
 						copy(val[s:s+2], val[len(val)-2:])
-						val = val[len(val)-2:]
+						val = val[0 : len(val)-2]
 					} else {
 						s += 2
 					}
@@ -191,15 +193,16 @@ func (il *IndexingLayer) bruteDeleteIndexes(iltxn *lmdb.Txn, pos position) error
 	} {
 		cursor, err := iltxn.OpenCursor(index)
 		if err != nil {
-			panic(err)
+			return err
 		}
-		defer cursor.Close()
 
 		for key, val, err := cursor.Get(nil, nil, lmdb.First); err == nil; key, val, err = cursor.Get(key, val, lmdb.Next) {
 			if positionFromBytes(val[0:12]) == pos {
 				toDelete = append(toDelete, entry{key, val})
 			}
 		}
+
+		cursor.Close()
 
 		for _, entry := range toDelete {
 			if err := iltxn.Del(index, entry.key, entry.val); err != nil {
