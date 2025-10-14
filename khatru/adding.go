@@ -61,7 +61,9 @@ func (rl *Relay) handleNormal(ctx context.Context, evt nostr.Event) (skipBroadca
 	}
 
 	// track event expiration if applicable
-	rl.expirationManager.trackEvent(evt)
+	if rl.expirationManager != nil {
+		rl.expirationManager.trackEvent(evt)
+	}
 
 	return false, nil
 }

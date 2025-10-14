@@ -67,7 +67,9 @@ func (rl *Relay) handleDeleteRequest(ctx context.Context, evt nostr.Event) error
 						}
 
 						// if it was tracked to be expired that is not needed anymore
-						rl.expirationManager.removeEvent(target.ID)
+						if rl.expirationManager != nil {
+							rl.expirationManager.removeEvent(target.ID)
+						}
 					} else {
 						// fail and stop here
 						return fmt.Errorf("blocked: %s", msg)
