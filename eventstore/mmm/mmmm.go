@@ -293,6 +293,13 @@ func (b *MultiMmapManager) loadEvent(pos position, eventReceiver *nostr.Event) e
 	return betterbinary.Unmarshal(b.mmapf[pos.start:pos.start+uint64(pos.size)], eventReceiver)
 }
 
+func (b *MultiMmapManager) loadJustTimestamp(pos position) (nostr.Timestamp, error) {
+	if len(b.mmapf) < int(pos.start+uint64(pos.size)) {
+		return 0, fmt.Errorf("out of bounds")
+	}
+	return betterbinary.GetCreatedAt(b.mmapf[pos.start : pos.start+uint64(pos.size)]), nil
+}
+
 // getNextAvailableLayerId iterates through all existing layers to find a vacant id
 func (b *MultiMmapManager) getNextAvailableLayerId(txn *lmdb.Txn) (uint16, error) {
 	cursor, err := txn.OpenCursor(b.knownLayers)

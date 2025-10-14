@@ -66,17 +66,25 @@ func (il *IndexingLayer) delete(mmmtxn *lmdb.Txn, iltxn *lmdb.Txn, id nostr.ID) 
 		return fmt.Errorf("failed to load event %x when deleting: %w", id[:], err)
 	}
 
-	// calculate all index keys we have for this event and delete them
-	for k := range il.getIndexKeysForEvent(evt) {
-		if err := iltxn.Del(k.dbi, k.key, val[0:12]); err != nil && !lmdb.IsNotFound(err) {
-			return fmt.Errorf("index entry %v/%x deletion failed: %w", k.dbi, k.key, err)
-		}
+	if err := il.deleteIndexes(iltxn, evt, val[0:12]); err != nil {
+		return fmt.Errorf("failed to delete indexes for %s=>%v: %w", evt.ID, val[0:12], err)
 	}
 
 	// if there are no more refs we delete the event from the id index and mmap
 	if zeroRefs {
 		if err := b.purge(mmmtxn, id[0:8], pos); err != nil {
 			panic(err)
+		}
+	}
+
+	return nil
+}
+
+func (il *IndexingLayer) deleteIndexes(iltxn *lmdb.Txn, event nostr.Event, posbytes []byte) error {
+	// calculate all index keys we have for this event and delete them
+	for k := range il.getIndexKeysForEvent(event) {
+		if err := iltxn.Del(k.dbi, k.key, posbytes); err != nil && !lmdb.IsNotFound(err) {
+			return fmt.Errorf("index entry %v/%x deletion failed: %w", k.dbi, k.key, err)
 		}
 	}
 
