@@ -87,6 +87,11 @@ func FuzzTest(f *testing.F) {
 			nTags[evt.ID] = len(evt.Tags)
 		}
 
+		// perform random rescans -- shouldn't break the database
+		if rnd.UintN(3) == 1 {
+			mmmm.Rescan()
+		}
+
 		// verify each layer has the correct events
 		for i, layer := range mmmm.layers {
 			count := 0
@@ -118,6 +123,11 @@ func FuzzTest(f *testing.F) {
 				// was never saved to this in the first place
 				require.NotContains(t, layers, layer)
 			}
+		}
+
+		// perform random rescans -- shouldn't break the database
+		if rnd.UintN(3) == 1 {
+			mmmm.Rescan()
 		}
 
 		for id, deletedlayers := range deleted {
@@ -162,6 +172,11 @@ func FuzzTest(f *testing.F) {
 			}
 		}
 
+		// perform random rescans -- shouldn't break the database
+		if rnd.UintN(3) == 1 {
+			mmmm.Rescan()
+		}
+
 		// now delete a layer and events that only exist in that layer should vanish
 		layer := mmmm.layers[rnd.Int()%len(mmmm.layers)]
 		eventsThatShouldVanish := make([]nostr.ID, 0, nevents/2)
@@ -171,8 +186,18 @@ func FuzzTest(f *testing.F) {
 			}
 		}
 
+		// perform random rescans -- shouldn't break the database
+		if rnd.UintN(3) == 1 {
+			mmmm.Rescan()
+		}
+
 		err = mmmm.DropLayer(layer.name)
 		require.NoError(t, err)
+
+		// perform random rescans -- shouldn't break the database
+		if rnd.UintN(3) == 1 {
+			mmmm.Rescan()
+		}
 
 		for _, id := range eventsThatShouldVanish {
 			v, ils := mmmm.GetByID(id)
