@@ -114,10 +114,6 @@ func (b *MultiMmapManager) storeOn(
 				})
 			}
 
-			if err := b.saveFreeRanges(mmmtxn); err != nil {
-				return false, fmt.Errorf("failed to save modified free ranges: %w", err)
-			}
-
 			break
 		}
 	}

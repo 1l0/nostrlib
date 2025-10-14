@@ -50,8 +50,6 @@ const (
 	maxuint32          = 4294967295
 )
 
-var FREERANGES_KEY = []byte{'F'}
-
 func (b *MultiMmapManager) Init() error {
 	// create directory if it doesn't exist
 	dbpath := filepath.Join(b.Dir, "mmmm")
@@ -119,24 +117,8 @@ func (b *MultiMmapManager) Init() error {
 			b.indexId = dbi
 		}
 
-		// load all free ranges into memory
-		{
-			data, err := txn.Get(b.stuff, FREERANGES_KEY)
-			if err != nil && !lmdb.IsNotFound(err) {
-				return fmt.Errorf("on freeranges: %w", err)
-			}
-			b.freeRanges = make([]position, len(data)/12)
-			logOp := b.Logger.Debug()
-			for f := range b.freeRanges {
-				pos := positionFromBytes(data[f*12 : (f+1)*12])
-				b.freeRanges[f] = pos
-				if pos.size > 20 {
-					logOp = logOp.Uint32(fmt.Sprintf("%d", pos.start), pos.size)
-				}
-			}
-			slices.SortFunc(b.freeRanges, func(a, b position) int { return int(a.size - b.size) })
-			logOp.Msg("loaded free ranges")
-		}
+		// scan index table to calculate free ranges from used positions
+		b.GatherFreeRanges(txn)
 
 		return nil
 	}); err != nil {

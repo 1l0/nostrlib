@@ -1,11 +1,59 @@
 package mmm
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
+
+func (b *MultiMmapManager) GatherFreeRanges(txn *lmdb.Txn) error {
+	cursor, err := txn.OpenCursor(b.indexId)
+	if err != nil {
+		return fmt.Errorf("failed to open cursor on indexId: %w", err)
+	}
+	defer cursor.Close()
+
+	usedPositions := make([]position, 0, 256)
+	for key, val, err := cursor.Get(nil, nil, lmdb.First); err == nil; key, val, err = cursor.Get(key, val, lmdb.Next) {
+		pos := positionFromBytes(val[0:12])
+		usedPositions = append(usedPositions, pos)
+	}
+
+	// sort used positions by start
+	slices.SortFunc(usedPositions, func(a, b position) int { return cmp.Compare(a.start, b.start) })
+
+	// calculate free ranges as gaps between used positions
+	b.freeRanges = make([]position, 0, len(usedPositions)/2)
+	var currentStart uint64 = 0
+	for _, pos := range usedPositions {
+		if pos.start > currentStart {
+			// gap from currentStart to pos.start
+			freeSize := pos.start - currentStart
+			if freeSize > 0 {
+				b.freeRanges = append(b.freeRanges, position{
+					start: currentStart,
+					size:  uint32(freeSize),
+				})
+			}
+		}
+		currentStart = pos.start + uint64(pos.size)
+	}
+
+	// sort free ranges by size (smallest first, as before)
+	slices.SortFunc(b.freeRanges, func(a, b position) int { return cmp.Compare(a.size, b.size) })
+
+	logOp := b.Logger.Debug()
+	for _, pos := range b.freeRanges {
+		if pos.size > 20 {
+			logOp = logOp.Uint32(fmt.Sprintf("%d", pos.start), pos.size)
+		}
+	}
+	logOp.Msg("calculated free ranges from index scan")
+
+	return nil
+}
 
 func (b *MultiMmapManager) mergeNewFreeRange(pos position) (isAtEnd bool) {
 	// before adding check if we can merge this with some other range
@@ -52,17 +100,4 @@ func (b *MultiMmapManager) addNewFreeRange(pos position) {
 		}
 	})
 	b.freeRanges = slices.Insert(b.freeRanges, idx, pos)
-}
-
-func (b *MultiMmapManager) saveFreeRanges(txn *lmdb.Txn) error {
-	// save to database
-	valReserve, err := txn.PutReserve(b.stuff, FREERANGES_KEY, len(b.freeRanges)*12, 0)
-	if err != nil {
-		return fmt.Errorf("on put freeranges: %w", err)
-	}
-	for f, fr := range b.freeRanges {
-		bytesFromPosition(valReserve[f*12:], fr)
-	}
-
-	return nil
 }

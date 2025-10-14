@@ -131,7 +131,7 @@ func (b *MultiMmapManager) Rescan() error {
 			}
 		}
 
-		return nil
+		return b.GatherFreeRanges(mmmtxn)
 	})
 }
 

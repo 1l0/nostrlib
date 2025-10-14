@@ -32,5 +32,5 @@ func (b *MultiMmapManager) purge(txn *lmdb.Txn, idPrefix8 []byte, pos position) 
 		copy(b.mmapf[pos.start:], bytes.Repeat([]byte{'!'}, int(pos.size)))
 	}
 
-	return b.saveFreeRanges(txn)
+	return nil
 }
