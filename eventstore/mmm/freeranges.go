@@ -24,6 +24,9 @@ func (b *MultiMmapManager) gatherFreeRanges(txn *lmdb.Txn) (positions, error) {
 	// sort used positions by start
 	slices.SortFunc(usedPositions, func(a, b position) int { return cmp.Compare(a.start, b.start) })
 
+	// if there is free space at the end (which doesn't happen in normal conditions) do this to simulate it
+	usedPositions = append(usedPositions, position{start: b.mmapfEnd, size: 0})
+
 	// calculate free ranges as gaps between used positions
 	freeRanges := make(positions, 0, len(usedPositions)/2)
 	var currentStart uint64 = 0

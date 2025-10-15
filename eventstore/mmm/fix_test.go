@@ -101,7 +101,7 @@ func FuzzBorkedRescan(f *testing.F) {
 					borkedEvents = append(borkedEvents, evt)
 
 					// manually corrupt the mmapped file at these positions
-					copy(mmmm.mmapf[pos.start:], []byte("CORRUPTED_DATA_XXXX"))
+					copy(mmmm.mmapf[pos.start:], []byte("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"))
 				} else if chance(inconsistencyProbability) {
 					// inconsistently delete from some layers
 					var evt nostr.Event

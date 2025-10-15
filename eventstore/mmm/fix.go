@@ -1,7 +1,9 @@
 package mmm
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"slices"
 
 	"fiatjaf.com/nostr"
@@ -15,7 +17,7 @@ func (b *MultiMmapManager) Rescan() error {
 	return b.lmdbEnv.Update(func(mmmtxn *lmdb.Txn) error {
 		cursor, err := mmmtxn.OpenCursor(b.indexId)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		defer cursor.Close()
 
@@ -30,18 +32,17 @@ func (b *MultiMmapManager) Rescan() error {
 
 			// for every event in this index
 			var borked bool
-			var ts nostr.Timestamp
+
 			// we try to load it
-			if ts_, err := b.loadJustTimestamp(pos); err == nil {
-				// if we succeed we assume the event is ok for now
+			var evt nostr.Event
+			if err := b.loadEvent(pos, &evt); err == nil && bytes.Equal(evt.ID[0:8], key) {
+				// all good
 				borked = false
-				ts = ts_
 			} else {
-				// otherwise we know it's borked
+				// it's borked
 				borked = true
 			}
 
-			evt := &nostr.Event{}
 			var layersToRemove []uint16
 
 			// then for every layer referenced in there we check
@@ -52,7 +53,7 @@ func (b *MultiMmapManager) Rescan() error {
 					continue
 				}
 
-				layer.lmdbEnv.Update(func(txn *lmdb.Txn) error {
+				if err := layer.lmdbEnv.Update(func(txn *lmdb.Txn) error {
 					txn.RawRead = true
 
 					if borked {
@@ -60,7 +61,7 @@ func (b *MultiMmapManager) Rescan() error {
 						if layer.hasAtPosition(txn, pos) {
 							// expected -- delete anyway since it's borked
 							if err := layer.bruteDeleteIndexes(txn, pos); err != nil {
-								panic(err)
+								return err
 							}
 						} else {
 							// this stuff is doubly borked -- let's do nothing
@@ -68,30 +69,13 @@ func (b *MultiMmapManager) Rescan() error {
 						}
 					} else {
 						// otherwise we do a more reasonable check
-						if layer.hasAtTimestampAndPosition(txn, ts, pos) {
+						if layer.hasAtTimestampAndPosition(txn, evt.CreatedAt, pos) {
 							// expected, all good
 						} else {
 							// can't find it in this layer, so update source reference to remove this
 							// and clear it from this layer (if any traces remain)
-							if evt == nil {
-								if err := b.loadEvent(pos, evt); err != nil {
-									// can't load event, means it's borked
-									borked = true
-
-									// act as if it's borked
-									if err := layer.bruteDeleteIndexes(txn, pos); err != nil {
-										return err
-									}
-
-									return nil
-								} else {
-									goto haveEvent
-								}
-							}
-
-						haveEvent:
-							if err := layer.deleteIndexes(txn, *evt, val[0:12]); err != nil {
-								panic(err)
+							if err := layer.deleteIndexes(txn, evt, val[0:12]); err != nil {
+								return err
 							}
 
 							// we'll remove references to this later
@@ -101,7 +85,9 @@ func (b *MultiMmapManager) Rescan() error {
 					}
 
 					return nil
-				})
+				}); err != nil {
+					return err
+				}
 			}
 
 			if borked {
@@ -119,7 +105,7 @@ func (b *MultiMmapManager) Rescan() error {
 
 				if len(val) > 12 {
 					if err := mmmtxn.Put(b.indexId, key, val, 0); err != nil {
-						panic(err)
+						return err
 					}
 				} else {
 					toPurge = append(toPurge, entry{idPrefix: key, pos: pos})
@@ -128,8 +114,11 @@ func (b *MultiMmapManager) Rescan() error {
 		}
 
 		for _, entry := range toPurge {
-			if err := b.purge(mmmtxn, entry.idPrefix, entry.pos); err != nil {
-				panic(err)
+			// just delete from the ids index,
+			// no need to deal with the freeranges list as it will be recalculated afterwards.
+			// this also ensures any brokenly overlapping overwritten events don't have to be sacrificed.
+			if err := mmmtxn.Del(b.indexId, entry.idPrefix, nil); err != nil {
+				return err
 			}
 		}
 
