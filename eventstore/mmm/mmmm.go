@@ -37,7 +37,7 @@ type MultiMmapManager struct {
 	knownLayers lmdb.DBI
 	indexId     lmdb.DBI
 
-	freeRanges []position
+	freeRanges positions
 }
 
 func (b *MultiMmapManager) String() string {
@@ -123,7 +123,18 @@ func (b *MultiMmapManager) Init() error {
 		}
 
 		// scan index table to calculate free ranges from used positions
-		b.GatherFreeRanges(txn)
+		b.freeRanges, err = b.gatherFreeRanges(txn)
+		if err != nil {
+			return err
+		}
+
+		logOp := b.Logger.Debug()
+		for _, pos := range b.freeRanges {
+			if pos.size > 20 {
+				logOp = logOp.Uint32(fmt.Sprintf("%d", pos.start), pos.size)
+			}
+		}
+		logOp.Msg("calculated free ranges from index scan")
 
 		return nil
 	}); err != nil {

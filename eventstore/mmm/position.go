@@ -3,7 +3,22 @@ package mmm
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 )
+
+type positions []position
+
+func (poss positions) String() string {
+	str := strings.Builder{}
+	str.Grow(10 + 20*len(poss))
+	str.WriteString("positions:[")
+	for _, pos := range poss {
+		str.WriteByte(' ')
+		str.WriteString(pos.String())
+	}
+	str.WriteString(" ]")
+	return str.String()
+}
 
 type position struct {
 	start uint64

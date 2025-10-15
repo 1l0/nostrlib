@@ -104,14 +104,15 @@ func (b *MultiMmapManager) storeOn(
 			pos.start = fr.start
 
 			// modify the free ranges we're keeping track of
-			// (i.e. delete the current and add a new freerange with the remaining space)
-			b.freeRanges = slices.Delete(b.freeRanges, f, f+1)
-
-			if pos.size != fr.size {
-				b.addNewFreeRange(position{
+			if pos.size == fr.size {
+				// if we've used it entirely just delete it
+				b.freeRanges = slices.Delete(b.freeRanges, f, f+1)
+			} else {
+				// otherwise modify it in place
+				b.freeRanges[f] = position{
 					start: fr.start + uint64(pos.size),
 					size:  fr.size - pos.size,
-				})
+				}
 			}
 
 			break

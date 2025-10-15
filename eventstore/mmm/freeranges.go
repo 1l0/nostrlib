@@ -8,14 +8,14 @@ import (
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
-func (b *MultiMmapManager) GatherFreeRanges(txn *lmdb.Txn) error {
+func (b *MultiMmapManager) gatherFreeRanges(txn *lmdb.Txn) (positions, error) {
 	cursor, err := txn.OpenCursor(b.indexId)
 	if err != nil {
-		return fmt.Errorf("failed to open cursor on indexId: %w", err)
+		return nil, fmt.Errorf("failed to open cursor on indexId: %w", err)
 	}
 	defer cursor.Close()
 
-	usedPositions := make([]position, 0, 256)
+	usedPositions := make(positions, 0, 256)
 	for key, val, err := cursor.Get(nil, nil, lmdb.First); err == nil; key, val, err = cursor.Get(key, val, lmdb.Next) {
 		pos := positionFromBytes(val[0:12])
 		usedPositions = append(usedPositions, pos)
@@ -25,79 +25,85 @@ func (b *MultiMmapManager) GatherFreeRanges(txn *lmdb.Txn) error {
 	slices.SortFunc(usedPositions, func(a, b position) int { return cmp.Compare(a.start, b.start) })
 
 	// calculate free ranges as gaps between used positions
-	b.freeRanges = make([]position, 0, len(usedPositions)/2)
+	freeRanges := make(positions, 0, len(usedPositions)/2)
 	var currentStart uint64 = 0
-	for _, pos := range usedPositions {
-		if pos.start > currentStart {
+	for _, used := range usedPositions {
+		if used.start > currentStart {
 			// gap from currentStart to pos.start
-			freeSize := pos.start - currentStart
+			freeSize := used.start - currentStart
 			if freeSize > 0 {
-				b.freeRanges = append(b.freeRanges, position{
+				freeRanges = append(freeRanges, position{
 					start: currentStart,
 					size:  uint32(freeSize),
 				})
 			}
 		}
-		currentStart = pos.start + uint64(pos.size)
+		currentStart = used.start + uint64(used.size)
 	}
 
-	// sort free ranges by size (smallest first, as before)
-	slices.SortFunc(b.freeRanges, func(a, b position) int { return cmp.Compare(a.size, b.size) })
-
-	logOp := b.Logger.Debug()
-	for _, pos := range b.freeRanges {
-		if pos.size > 20 {
-			logOp = logOp.Uint32(fmt.Sprintf("%d", pos.start), pos.size)
-		}
-	}
-	logOp.Msg("calculated free ranges from index scan")
-
-	return nil
+	return freeRanges, nil
 }
 
-func (b *MultiMmapManager) mergeNewFreeRange(pos position) (isAtEnd bool) {
-	// before adding check if we can merge this with some other range
-	// (to merge means to delete the previous and add a new one)
-	toDelete := make([]int, 0, 2)
-	for f, fr := range b.freeRanges {
-		if pos.start+uint64(pos.size) == fr.start {
-			// [new_pos_to_be_freed][existing_fr] -> merge!
-			toDelete = append(toDelete, f)
-			pos.size = pos.size + fr.size
-		} else if fr.start+uint64(fr.size) == pos.start {
-			// [existing_fr][new_pos_to_be_freed] -> merge!
-			toDelete = append(toDelete, f)
-			pos.start = fr.start
-			pos.size = fr.size + pos.size
+// this injects the new free range into the list, merging it with existing free ranges if necessary.
+// it also takes a pointer so it can modify it for the caller to use it in setting up the new mmapf.
+func (b *MultiMmapManager) mergeNewFreeRange(newFreeRange *position) (isAtEnd bool) {
+	// use binary search to find the insertion point for the new pos
+	idx, exists := slices.BinarySearchFunc(b.freeRanges, newFreeRange.start, func(item position, target uint64) int {
+		return cmp.Compare(item.start, target)
+	})
+
+	if exists {
+		panic(fmt.Errorf("can't add free range that already exists: %s", newFreeRange))
+	}
+
+	deleteStart := -1
+	deleting := 0
+
+	// check the range immediately before
+	if idx > 0 {
+		before := b.freeRanges[idx-1]
+		if before.start+uint64(before.size) == newFreeRange.start {
+			deleteStart = idx - 1
+			deleting++
+			newFreeRange.start = before.start
+			newFreeRange.size = before.size + newFreeRange.size
 		}
 	}
-	slices.SortFunc(toDelete, func(a, b int) int { return b - a })
-	for _, idx := range toDelete {
-		b.freeRanges = slices.Delete(b.freeRanges, idx, idx+1)
+
+	// check the range immediately after
+	if idx < len(b.freeRanges) {
+		after := b.freeRanges[idx]
+		if newFreeRange.start+uint64(newFreeRange.size) == after.start {
+			if deleteStart == -1 {
+				deleteStart = idx
+			}
+			deleting++
+
+			newFreeRange.size = newFreeRange.size + after.size
+		}
 	}
 
 	// when we're at the end of a file we just delete everything and don't add new free ranges
 	// the caller will truncate the mmap file and adjust the position accordingly
-	if pos.start+uint64(pos.size) == b.mmapfEnd {
+	if newFreeRange.start+uint64(newFreeRange.size) == b.mmapfEnd {
+		if deleting > 0 {
+			b.freeRanges = slices.Delete(b.freeRanges, deleteStart, deleteStart+deleting)
+		}
 		return true
 	}
 
-	b.addNewFreeRange(pos)
-	return false
-}
+	switch deleting {
+	case 0:
+		// if we are not deleting anything we must insert the new free range
+		b.freeRanges = slices.Insert(b.freeRanges, idx, *newFreeRange)
+	case 1:
+		// if we're deleting a single range, don't delete it, modify it in-place instead.
+		b.freeRanges[deleteStart] = *newFreeRange
+	case 2:
+		// now if we're deleting two ranges, delete just one instead and modify the other in place
+		b.freeRanges[deleteStart] = *newFreeRange
+		b.freeRanges = slices.Delete(b.freeRanges, deleteStart+1, deleteStart+1+1)
+	}
 
-func (b *MultiMmapManager) addNewFreeRange(pos position) {
-	// update freeranges slice in memory
-	idx, _ := slices.BinarySearchFunc(b.freeRanges, pos, func(item, target position) int {
-		if item.size > target.size {
-			return 1
-		} else if target.size > item.size {
-			return -1
-		} else if item.start > target.start {
-			return 1
-		} else {
-			return -1
-		}
-	})
-	b.freeRanges = slices.Insert(b.freeRanges, idx, pos)
+	return false
 }

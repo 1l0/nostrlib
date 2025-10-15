@@ -17,8 +17,7 @@ func (b *MultiMmapManager) purge(txn *lmdb.Txn, idPrefix8 []byte, pos position) 
 	}
 
 	// will add the current range to free ranges, which means it is "deleted" (or merge with existing)
-	isAtEnd := b.mergeNewFreeRange(pos)
-
+	isAtEnd := b.mergeNewFreeRange(&pos)
 	if isAtEnd {
 		// when at the end, truncate the mmap
 		// [new_pos_to_be_freed][end_of_file] -> shrink file!
