@@ -7,7 +7,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore/internal"
-	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
 func (il *IndexingLayer) ReplaceEvent(evt nostr.Event) error {
@@ -23,36 +22,80 @@ func (il *IndexingLayer) ReplaceEvent(evt nostr.Event) error {
 		filter.Tags = nostr.TagMap{"d": []string{evt.Tags.GetD()}}
 	}
 
-	return il.mmmm.lmdbEnv.Update(func(mmmtxn *lmdb.Txn) error {
-		mmmtxn.RawRead = true
+	// prepare transactions
+	mmmtxn, err := il.mmmm.lmdbEnv.BeginTxn(nil, 0)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		// defer abort but only if we haven't committed (we'll set it to nil after committing)
+		if mmmtxn != nil {
+			mmmtxn.Abort()
+		}
+	}()
+	mmmtxn.RawRead = true
 
-		return il.lmdbEnv.Update(func(iltxn *lmdb.Txn) error {
-			// now we fetch the past events, whatever they are, delete them and then save the new
-			var err error
-			var results iter.Seq[nostr.Event] = func(yield func(nostr.Event) bool) {
-				err = il.query(iltxn, filter, 10 /* in theory limit could be just 1 and this should work */, yield)
-			}
-			if err != nil {
-				return fmt.Errorf("failed to query past events with %s: %w", filter, err)
-			}
+	iltxn, err := il.lmdbEnv.BeginTxn(nil, 0)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		// defer abort but only if we haven't committed (we'll set it to nil after committing)
+		if iltxn != nil {
+			iltxn.Abort()
+		}
+	}()
+	iltxn.RawRead = true
 
-			shouldStore := true
-			for previous := range results {
-				if internal.IsOlder(previous, evt) {
-					if err := il.delete(mmmtxn, iltxn, previous.ID); err != nil {
-						return fmt.Errorf("failed to delete event %s for replacing: %w", previous.ID, err)
-					}
-				} else {
-					// there is a newer event already stored, so we won't store this
-					shouldStore = false
+	// now we fetch the past events, whatever they are, delete them and then save the new
+	var results iter.Seq[nostr.Event] = func(yield func(nostr.Event) bool) {
+		err = il.query(iltxn, filter, 10 /* in theory limit could be just 1 and this should work */, yield)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to query past events with %s: %w", filter, err)
+	}
+
+	var acquiredFreeRangeFromDelete *position
+	shouldStore := true
+	for previous := range results {
+		if internal.IsOlder(previous, evt) {
+			if pos, shouldPurge, err := il.delete(mmmtxn, iltxn, previous.ID); err != nil {
+				return fmt.Errorf("failed to delete event %s for replacing: %w", previous.ID, err)
+			} else if shouldPurge {
+				// purge
+				if err := mmmtxn.Del(il.mmmm.indexId, previous.ID[0:8], nil); err != nil {
+					return err
 				}
+				acquiredFreeRangeFromDelete = &pos
 			}
-			if shouldStore {
-				_, err := il.mmmm.storeOn(mmmtxn, []*IndexingLayer{il}, []*lmdb.Txn{iltxn}, evt)
-				return err
-			}
+		} else {
+			// there is a newer event already stored, so we won't store this
+			shouldStore = false
+		}
+	}
 
-			return nil
-		})
-	})
+	if shouldStore {
+		_, err := il.mmmm.storeOn(mmmtxn, iltxn, il, evt)
+		if err != nil {
+			return err
+		}
+	}
+
+	// commit in this order to minimize problematic inconsistencies
+	if err := mmmtxn.Commit(); err != nil {
+		return fmt.Errorf("can't commit mmmtxn: %w", err)
+	}
+	mmmtxn = nil
+	if err := iltxn.Commit(); err != nil {
+		return fmt.Errorf("can't commit iltxn: %w", err)
+	}
+	iltxn = nil
+
+	// finally merge in the new free range (in this order it makes more sense, the worst that can
+	// happen is that we lose this free range but we'll have it again on the next startup)
+	if acquiredFreeRangeFromDelete != nil {
+		il.mmmm.mergeNewFreeRange(*acquiredFreeRangeFromDelete)
+	}
+
+	return nil
 }

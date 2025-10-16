@@ -34,8 +34,6 @@ type iterator struct {
 }
 
 func (it *iterator) pull(n int, since uint32) {
-	query := it.query
-
 	for range n {
 		// in the beginning we already have a k and a v and an err from the cursor setup, so check and use these
 		if it.err != nil {
@@ -43,7 +41,7 @@ func (it *iterator) pull(n int, since uint32) {
 			return
 		}
 
-		if len(it.key) != query.keySize || !bytes.HasPrefix(it.key, query.prefix) {
+		if len(it.key) != it.query.keySize || !bytes.HasPrefix(it.key, it.query.prefix) {
 			// we reached the end of this prefix
 			it.exhausted = true
 			return

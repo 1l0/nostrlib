@@ -24,7 +24,7 @@ func (b *MultiMmapManager) gatherFreeRanges(txn *lmdb.Txn) (positions, error) {
 	// sort used positions by start
 	slices.SortFunc(usedPositions, func(a, b position) int { return cmp.Compare(a.start, b.start) })
 
-	// if there is free space at the end (which doesn't happen in normal conditions) do this to simulate it
+	// if there is free space at the end this will simulate it
 	usedPositions = append(usedPositions, position{start: b.mmapfEnd, size: 0})
 
 	// calculate free ranges as gaps between used positions
@@ -47,9 +47,7 @@ func (b *MultiMmapManager) gatherFreeRanges(txn *lmdb.Txn) (positions, error) {
 	return freeRanges, nil
 }
 
-// this injects the new free range into the list, merging it with existing free ranges if necessary.
-// it also takes a pointer so it can modify it for the caller to use it in setting up the new mmapf.
-func (b *MultiMmapManager) mergeNewFreeRange(newFreeRange *position) (isAtEnd bool) {
+func (b *MultiMmapManager) mergeNewFreeRange(newFreeRange position) {
 	// use binary search to find the insertion point for the new pos
 	idx, exists := slices.BinarySearchFunc(b.freeRanges, newFreeRange.start, func(item position, target uint64) int {
 		return cmp.Compare(item.start, target)
@@ -86,27 +84,16 @@ func (b *MultiMmapManager) mergeNewFreeRange(newFreeRange *position) (isAtEnd bo
 		}
 	}
 
-	// when we're at the end of a file we just delete everything and don't add new free ranges
-	// the caller will truncate the mmap file and adjust the position accordingly
-	if newFreeRange.start+uint64(newFreeRange.size) == b.mmapfEnd {
-		if deleting > 0 {
-			b.freeRanges = slices.Delete(b.freeRanges, deleteStart, deleteStart+deleting)
-		}
-		return true
-	}
-
 	switch deleting {
 	case 0:
 		// if we are not deleting anything we must insert the new free range
-		b.freeRanges = slices.Insert(b.freeRanges, idx, *newFreeRange)
+		b.freeRanges = slices.Insert(b.freeRanges, idx, newFreeRange)
 	case 1:
 		// if we're deleting a single range, don't delete it, modify it in-place instead.
-		b.freeRanges[deleteStart] = *newFreeRange
+		b.freeRanges[deleteStart] = newFreeRange
 	case 2:
 		// now if we're deleting two ranges, delete just one instead and modify the other in place
-		b.freeRanges[deleteStart] = *newFreeRange
+		b.freeRanges[deleteStart] = newFreeRange
 		b.freeRanges = slices.Delete(b.freeRanges, deleteStart+1, deleteStart+1+1)
 	}
-
-	return false
 }

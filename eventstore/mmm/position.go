@@ -36,7 +36,7 @@ func positionFromBytes(posb []byte) position {
 	}
 }
 
-func bytesFromPosition(out []byte, pos position) {
+func writeBytesFromPosition(out []byte, pos position) {
 	binary.BigEndian.PutUint32(out[0:4], pos.size)
 	binary.BigEndian.PutUint64(out[4:12], pos.start)
 }

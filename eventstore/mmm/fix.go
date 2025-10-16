@@ -3,7 +3,6 @@ package mmm
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"slices"
 
 	"fiatjaf.com/nostr"
@@ -21,12 +20,7 @@ func (b *MultiMmapManager) Rescan() error {
 		}
 		defer cursor.Close()
 
-		type entry struct {
-			idPrefix []byte
-			pos      position
-		}
-		var toPurge []entry
-
+		var toPurge [][]byte // a list of idPrefix entries
 		for key, val, err := cursor.Get(nil, nil, lmdb.First); err == nil; key, val, err = cursor.Get(key, val, lmdb.Next) {
 			pos := positionFromBytes(val[0:12])
 
@@ -91,7 +85,7 @@ func (b *MultiMmapManager) Rescan() error {
 			}
 
 			if borked {
-				toPurge = append(toPurge, entry{idPrefix: key, pos: pos})
+				toPurge = append(toPurge, key)
 			} else if len(layersToRemove) > 0 {
 				for s := 12; s < len(val); {
 					if slices.Contains(layersToRemove, binary.BigEndian.Uint16(val[s:s+2])) {
@@ -108,16 +102,16 @@ func (b *MultiMmapManager) Rescan() error {
 						return err
 					}
 				} else {
-					toPurge = append(toPurge, entry{idPrefix: key, pos: pos})
+					toPurge = append(toPurge, key)
 				}
 			}
 		}
 
-		for _, entry := range toPurge {
+		for _, idPrefix := range toPurge {
 			// just delete from the ids index,
 			// no need to deal with the freeranges list as it will be recalculated afterwards.
 			// this also ensures any brokenly overlapping overwritten events don't have to be sacrificed.
-			if err := mmmtxn.Del(b.indexId, entry.idPrefix, nil); err != nil {
+			if err := mmmtxn.Del(b.indexId, idPrefix, nil); err != nil {
 				return err
 			}
 		}

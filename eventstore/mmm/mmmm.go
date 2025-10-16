@@ -276,9 +276,11 @@ func (b *MultiMmapManager) removeAllReferencesFromLayer(txn *lmdb.Txn, layerId u
 			posb := val[0:12]
 			pos := positionFromBytes(posb)
 
-			if err := b.purge(txn, idPrefix8, pos); err != nil {
+			if err := txn.Del(b.indexId, idPrefix8, nil); err != nil {
 				return fmt.Errorf("failed to purge unreferenced event %x: %w", idPrefix8, err)
 			}
+
+			b.mergeNewFreeRange(pos)
 		} else if update {
 			if err := txn.Put(b.indexId, idPrefix8, val, 0); err != nil {
 				return fmt.Errorf("failed to put updated index+refs: %w", err)

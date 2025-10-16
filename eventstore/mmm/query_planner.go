@@ -14,7 +14,6 @@ type query struct {
 	i             int
 	dbi           lmdb.DBI
 	prefix        []byte
-	results       chan *nostr.Event
 	keySize       int
 	timestampSize int
 	startingPoint []byte
@@ -46,7 +45,6 @@ func (il *IndexingLayer) prepareQueries(filter nostr.Filter) (
 			sp = sp[0:len(q.prefix)]
 			copy(sp, q.prefix)
 			queries[i].startingPoint = binary.BigEndian.AppendUint32(sp, uint32(until))
-			queries[i].results = make(chan *nostr.Event, 12)
 		}
 	}()
 

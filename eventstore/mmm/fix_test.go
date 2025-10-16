@@ -113,7 +113,7 @@ func FuzzBorkedRescan(f *testing.F) {
 					// this won't be erased, just removed from this specific layer
 					layer := layers[rnd.IntN(len(layers))]
 					posb := make([]byte, 12)
-					bytesFromPosition(posb, pos)
+					writeBytesFromPosition(posb, pos)
 
 					if err := layer.lmdbEnv.Update(func(iltxn *lmdb.Txn) error {
 						return layer.deleteIndexes(iltxn, evt, posb)
