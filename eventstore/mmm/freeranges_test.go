@@ -45,17 +45,30 @@ func FuzzFreeRanges(f *testing.F) {
 
 		total := 0
 		for {
-			for range rnd.IntN(40) {
+			freeBefore := countUsableFreeRanges(mmmm)
+
+			for i := range rnd.IntN(40) {
+				content := "1" // ensure at least one event is as small as it can be
+				if i > 0 {
+					strings.Repeat("z", rnd.IntN(1000))
+				}
+
 				evt := nostr.Event{
 					CreatedAt: nostr.Timestamp(rnd.Uint32()),
 					Kind:      1,
-					Content:   strings.Repeat("z", rnd.IntN(1000)),
+					Content:   content,
+					Tags:      nostr.Tags{},
 				}
 				evt.Sign(sk)
 				err := il.SaveEvent(evt)
 				require.NoError(t, err)
 
 				total++
+			}
+
+			freeAfter := countUsableFreeRanges(mmmm)
+			if freeBefore > 0 {
+				require.Lessf(t, freeAfter, freeBefore, "must use some of the existing free ranges when inserting new events")
 			}
 
 			// delete some events
@@ -75,11 +88,20 @@ func FuzzFreeRanges(f *testing.F) {
 				require.Equalf(t, expectedFreeRanges, mmmm.freeRanges, "expected %s, got %s", expectedFreeRanges, mmmm.freeRanges)
 				return nil
 			})
-			t.Logf("loop -- current %d", total)
 
-			if chance(30) {
+			if chance(20) {
 				break
 			}
 		}
 	})
+}
+
+func countUsableFreeRanges(mmmm *MultiMmapManager) int {
+	count := 0
+	for _, fr := range mmmm.freeRanges {
+		if fr.size > 150 {
+			count++
+		}
+	}
+	return count
 }
