@@ -441,7 +441,9 @@ func (r *Relay) QueryEvents(filter Filter) iter.Seq[Event] {
 		for {
 			select {
 			case evt := <-sub.Events:
-				yield(evt)
+				if !yield(evt) {
+					return
+				}
 			case <-sub.EndOfStoredEvents:
 				return
 			case <-sub.ClosedReason:
