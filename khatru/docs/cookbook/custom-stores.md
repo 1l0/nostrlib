@@ -69,12 +69,13 @@ func handleWeatherQuery(ctx context.Context, filter nostr.Filter) iter.Seq[nostr
 						}
 					}
 					evt.Sign(global.RelaySecretKey)
-					ch <- evt
+					if !yield(evt) {
+						return
+					}
 				}
 			}
 		}
 	}()
-	return ch, nil
 	}
 }
 ```

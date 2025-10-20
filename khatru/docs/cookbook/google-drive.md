@@ -16,7 +16,7 @@ func main () {
 	// other stuff here
 }
 
-func handleEvent(ctx context.Context, event *nostr.Event) error {
+func handleEvent(ctx context.Context, event nostr.Event) error {
 	// store each event as a file on google drive
 	_, err := gdriveService.Files.Create(googledrive.CreateOptions{
 		Name: event.ID, // with the name set to their id
@@ -25,12 +25,9 @@ func handleEvent(ctx context.Context, event *nostr.Event) error {
 	return err
 }
 
-func handleQuery(ctx context.Context, filter nostr.Filter) (ch chan *nostr.Event, err error) {
-	// QueryEvents functions are expected to return a channel
-	ch := make(chan *nostr.Event)
-
-	// and they can do their query asynchronously, emitting events to the channel as they come
-	go func () {
+func handleQuery(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
+	// QueryEvents functions return an iterator
+	return func(yield func(nostr.Event) bool) {
 		if len(filter.IDs) > 0 {
 			// if the query is for ids we can do a simpler name match
 			for _, id := range filter.IDS {
@@ -40,7 +37,9 @@ func handleQuery(ctx context.Context, filter nostr.Filter) (ch chan *nostr.Event
 				if len(results) > 0 {
 					var evt nostr.Event
 					json.Unmarshal(results[0].Body, &evt)
-					ch <- evt
+					if !yield(evt) {
+						return
+					}
 				}
 			}
 		} else {
@@ -53,14 +52,14 @@ func handleQuery(ctx context.Context, filter nostr.Filter) (ch chan *nostr.Event
 					var evt nostr.Event
 					json.Unmarshal(results[0].Body, &evt)
 					if filter.Match(evt) {
-						ch <- evt
+						if !yield(evt) {
+							return
+						}
 					}
 				}
 			}
 		}
-	}()
-
-	return ch, nil
+	}
 }
 ```
 

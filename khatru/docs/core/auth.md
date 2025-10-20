@@ -33,7 +33,7 @@ If on `OnRequest` or `OnEvent` you prefix the message with `auth-required: `, th
 relay.OnRequest = func(ctx context.Context, filter nostr.Filter) (bool, string) {
 	return true, "auth-required: this query requires you to be authenticated"
 }
-relay.OnEvent = func(ctx context.Context, event *nostr.Event) (bool, string) {
+relay.OnEvent = func(ctx context.Context, event nostr.Event) (bool, string) {
 	return true, "auth-required: publishing this event requires authentication"
 }
 ```

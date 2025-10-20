@@ -35,7 +35,7 @@ features:
     details: You just define your custom handlers for each RPC call and they will be exposed appropriately to management clients.
   - title: It's written in Go
     icon: 🛵
-    link: https://pkg.go.dev/github.com/fiatjaf/khatru
+    link: https://pkg.go.dev/fiatjaf.com/nostr/khatru
     details: That means it is fast and lightweight, you can learn the language in 5 minutes and it builds your relay into a single binary that's easy to ship and deploy.
 ---
 

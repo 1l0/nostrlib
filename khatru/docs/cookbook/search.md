@@ -25,9 +25,24 @@ func main () {
 		panic(err)
 	}
 
-	relay.StoreEvent = policies.SeqStore(normal.SaveEvent, search.SaveEvent)
-	relay.QueryStored = policies.SeqQuery(normal.QueryEvents, search.QueryEvents)
-	relay.DeleteEvent = policies.SeqDelete(normal.DeleteEvent, search.DeleteEvent)
+	relay.StoreEvent = func(ctx context.Context, evt nostr.Event) error {
+		if err := normal.SaveEvent(evt); err != nil {
+			return err
+		}
+		return search.SaveEvent(evt)
+	}
+	relay.QueryStored = func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
+		if filter.Search != "" {
+			return search.QueryEvents(filter)
+		}
+		return normal.QueryEvents(filter)
+	}
+	relay.DeleteEvent = func(ctx context.Context, id nostr.ID) error {
+		if err := normal.DeleteEvent(id); err != nil {
+			return err
+		}
+		return search.DeleteEvent(id)
+	}
 
     // other stuff here
 }

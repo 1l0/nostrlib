@@ -63,7 +63,7 @@ func main() {
 }
 ```
 
-Every [`khatru.Relay`](https://pkg.go.dev/github.com/fiatjaf/khatru#Relay) instance comes with its own ['http.ServeMux`](https://pkg.go.dev/net/http#ServeMux) inside. It ensures all requests are handled normally, but intercepts the requests that are pertinent to the relay operation, specifically the WebSocket requests, and the [NIP-11](https://nips.nostr.com/11) and the [NIP-86](https://nips.nostr.com/86) HTTP requests.
+Every [`khatru.Relay`](https://pkg.go.dev/fiatjaf.com/nostr/khatru#Relay) instance comes with its own ['http.ServeMux`](https://pkg.go.dev/net/http#ServeMux) inside. It ensures all requests are handled normally, but intercepts the requests that are pertinent to the relay operation, specifically the WebSocket requests, and the [NIP-11](https://nips.nostr.com/11) and the [NIP-86](https://nips.nostr.com/86) HTTP requests.
 
 ## Exposing multiple relays at the same path or at the root
 

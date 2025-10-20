@@ -62,7 +62,7 @@ You can do a kind of sharding, for example, by storing some events in one store 
 For example, maybe you want kind 1 events in `db1` and kind 30023 events in `db30023`:
 
 ```go
-	relay.StoreEvent = func (ctx context.Context, evt *nostr.Event) error {
+	relay.StoreEvent = func (ctx context.Context, evt nostr.Event) error {
 		switch evt.Kind {
 		case nostr.Kind(1):
 			return db1.SaveEvent(evt)

@@ -46,9 +46,9 @@ func startPollingGame(relay *khatru.Relay) {
 				relay.BroadcastEvent(evt)
 
 				// just calling BroadcastEvent won't cause this event to be be stored,
-				// if for any reason you want to store these events you must call the store functions manually
-				for _, store := range relay.StoreEvent {
-					store(context.TODO(), evt)
+				// if for any reason you want to store these events you must call the store function manually
+				if relay.StoreEvent != nil {
+					relay.StoreEvent(context.TODO(), evt)
 				}
 		}
 		if newStatus.TeamB > current.TeamB {
