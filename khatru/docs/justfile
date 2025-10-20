@@ -6,3 +6,6 @@ dev:
 build:
   vitepress build
   cp logo.png .vitepress/dist/
+
+deploy: build
+  netlify deploy .vitepress/dist --prod
