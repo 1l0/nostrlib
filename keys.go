@@ -17,10 +17,20 @@ var KeyOne = SecretKey{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 
 func Generate() SecretKey {
 	var sk SecretKey
-	if _, err := io.ReadFull(rand.Reader, sk[:]); err != nil {
-		panic(fmt.Errorf("failed to read random bytes when generating private key"))
+
+	for {
+		if _, err := io.ReadFull(rand.Reader, sk[:]); err != nil {
+			panic(fmt.Errorf("failed to read random bytes when generating private key"))
+		}
+
+		// there is a ridiculously small probabily of the secret key not yield a valid public key, so iterate here
+		pk := sk.Public()
+		if _, err := schnorr.ParsePubKey(pk[:]); err != nil {
+			continue
+		}
+
+		return sk
 	}
-	return sk
 }
 
 type SecretKey [32]byte
