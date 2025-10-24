@@ -3,6 +3,7 @@ package nostr
 import (
 	"crypto/rand"
 	"encoding/hex"
+	stdjson "encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -64,6 +65,11 @@ func GetPublicKey(sk [32]byte) PubKey {
 var ZeroPK = PubKey{}
 
 type PubKey [32]byte
+
+var (
+	_ stdjson.Marshaler   = PubKey{}
+	_ stdjson.Unmarshaler = (*PubKey)(nil)
+)
 
 func (pk PubKey) String() string { return "pk::" + pk.Hex() }
 func (pk PubKey) Hex() string    { return hex.EncodeToString(pk[:]) }

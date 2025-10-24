@@ -2,6 +2,7 @@ package nostr
 
 import (
 	"encoding/hex"
+	stdjson "encoding/json"
 	"fmt"
 	"unsafe"
 )
@@ -16,6 +17,11 @@ var ZeroID = ID{}
 
 // ID represents an event id
 type ID [32]byte
+
+var (
+	_ stdjson.Marshaler   = ID{}
+	_ stdjson.Unmarshaler = (*ID)(nil)
+)
 
 func (id ID) String() string { return "id::" + id.Hex() }
 func (id ID) Hex() string    { return hex.EncodeToString(id[:]) }
