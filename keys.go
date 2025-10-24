@@ -89,7 +89,13 @@ func GetPublicKey(sk [32]byte) PubKey {
 	return [32]byte(pk.SerializeCompressed()[1:])
 }
 
-var ZeroPK = PubKey{}
+var (
+	ZeroPK = PubKey{}
+
+	// this special public key doesn't have a secret key known to anyone,
+	// it corresponds to the hash of the block #3 of bitcoin (the first 3 block hashes are not valid public keys)
+	NUMS = MustPubKeyFromHex("0000000082b5015589a3fdf2d4baff403e6f0be035a5d9742c1cae6295464449")
+)
 
 type PubKey [32]byte
 
