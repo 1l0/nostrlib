@@ -38,6 +38,23 @@ type SecretKey [32]byte
 func (sk SecretKey) String() string { return "sk::" + sk.Hex() }
 func (sk SecretKey) Hex() string    { return hex.EncodeToString(sk[:]) }
 func (sk SecretKey) Public() PubKey { return GetPublicKey(sk) }
+func (pk SecretKey) MarshalJSON() ([]byte, error) {
+	res := make([]byte, 66)
+	hex.Encode(res[1:], pk[:])
+	res[0] = '"'
+	res[65] = '"'
+	return res, nil
+}
+
+func (pk *SecretKey) UnmarshalJSON(buf []byte) error {
+	if len(buf) != 66 {
+		return fmt.Errorf("must be a hex string of 64 characters")
+	}
+	if _, err := hex.Decode(pk[:], buf[1:65]); err != nil {
+		return err
+	}
+	return nil
+}
 
 func SecretKeyFromHex(skh string) (SecretKey, error) {
 	sk := SecretKey{}
@@ -79,6 +96,8 @@ type PubKey [32]byte
 var (
 	_ stdjson.Marshaler   = PubKey{}
 	_ stdjson.Unmarshaler = (*PubKey)(nil)
+	_ stdjson.Marshaler   = SecretKey{}
+	_ stdjson.Unmarshaler = (*SecretKey)(nil)
 )
 
 func (pk PubKey) String() string { return "pk::" + pk.Hex() }
