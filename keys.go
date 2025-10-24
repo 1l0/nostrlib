@@ -50,7 +50,9 @@ func SecretKeyFromHex(skh string) (SecretKey, error) {
 
 func MustSecretKeyFromHex(idh string) SecretKey {
 	id := SecretKey{}
-	hex.Decode(id[:], unsafe.Slice(unsafe.StringData(idh), 64))
+	if _, err := hex.Decode(id[:], unsafe.Slice(unsafe.StringData(idh), 64)); err != nil {
+		panic(err)
+	}
 	return id
 }
 
@@ -77,11 +79,13 @@ func (pk *PubKey) UnmarshalJSON(buf []byte) error {
 	if len(buf) != 66 {
 		return fmt.Errorf("must be a hex string of 64 characters")
 	}
-	_, err := hex.Decode(pk[:], buf[1:65])
+	if _, err := hex.Decode(pk[:], buf[1:65]); err != nil {
+		return err
+	}
 	if _, err := schnorr.ParsePubKey(pk[:]); err != nil {
 		return fmt.Errorf("pubkey is not valid %w", err)
 	}
-	return err
+	return nil
 }
 
 func PubKeyFromHex(pkh string) (PubKey, error) {

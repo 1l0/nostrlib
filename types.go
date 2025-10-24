@@ -51,7 +51,9 @@ func IDFromHex(idh string) (ID, error) {
 
 func MustIDFromHex(idh string) ID {
 	id := ID{}
-	hex.Decode(id[:], unsafe.Slice(unsafe.StringData(idh), 64))
+	if _, err := hex.Decode(id[:], unsafe.Slice(unsafe.StringData(idh), 64)); err != nil {
+		panic(err)
+	}
 	return id
 }
 
