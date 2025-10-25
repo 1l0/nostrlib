@@ -40,6 +40,7 @@ type System struct {
 	RelaySetsCache        cache.Cache32[GenericSets[string, RelayURL]]
 	FollowSetsCache       cache.Cache32[GenericSets[nostr.PubKey, ProfileRef]]
 	TopicSetsCache        cache.Cache32[GenericSets[string, Topic]]
+	ZapProviderCache      cache.Cache32[nostr.PubKey]
 	Hints                 hints.HintsDB
 	Pool                  *nostr.Pool
 	RelayListRelays       *RelayStream
@@ -130,6 +131,9 @@ func NewSystem() *System {
 	}
 	if sys.RelayListCache == nil {
 		sys.RelayListCache = cache_memory.New[GenericList[string, Relay]](8000)
+	}
+	if sys.ZapProviderCache == nil {
+		sys.ZapProviderCache = cache_memory.New[nostr.PubKey](8000)
 	}
 
 	if sys.Store == nil {
