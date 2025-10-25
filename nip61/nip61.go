@@ -12,6 +12,7 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip60"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/elnosh/gonuts/cashu"
 )
 
 var NutzapsNotAccepted = errors.New("user doesn't accept nutzaps")
@@ -160,4 +161,18 @@ func getEligibleTokensWeHave(
 			}
 		}
 	}
+}
+
+func GetAmountFromNutzap(evt nostr.Event) uint64 {
+	var total uint64
+	for _, tag := range evt.Tags {
+		if len(tag) >= 2 && tag[0] == "proof" {
+			var proof cashu.Proof
+			if err := json.Unmarshal([]byte(tag[1]), &proof); err != nil {
+				continue
+			}
+			total += proof.Amount
+		}
+	}
+	return total
 }
