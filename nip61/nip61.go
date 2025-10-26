@@ -163,6 +163,9 @@ func getEligibleTokensWeHave(
 	}
 }
 
+// GetAmountFromNutzap parses and sums all the proofs in a nutzap, returns the amount.
+//
+// The amount will be in the unit corresponding to the mint keys, which is often "sat" but can be something else.
 func GetAmountFromNutzap(evt nostr.Event) uint64 {
 	var total uint64
 	for _, tag := range evt.Tags {
