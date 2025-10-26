@@ -49,7 +49,7 @@ func NewRelay() *Relay {
 		PingPeriod:     30 * time.Second,
 		MaxMessageSize: 512000,
 
-		MaxAuthenticatedClients: 32,
+		MaxAuthenticatedClients: 8,
 	}
 
 	return rl
