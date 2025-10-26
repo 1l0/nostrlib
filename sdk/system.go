@@ -14,6 +14,7 @@ import (
 	"fiatjaf.com/nostr/sdk/hints/memoryh"
 	"fiatjaf.com/nostr/sdk/kvstore"
 	kvstore_memory "fiatjaf.com/nostr/sdk/kvstore/memory"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 // System represents the core functionality of the SDK, providing access to
@@ -41,6 +42,7 @@ type System struct {
 	FollowSetsCache       cache.Cache32[GenericSets[nostr.PubKey, ProfileRef]]
 	TopicSetsCache        cache.Cache32[GenericSets[string, Topic]]
 	ZapProviderCache      cache.Cache32[nostr.PubKey]
+	MintKeysCache         cache.Cache32[map[uint64]*btcec.PublicKey]
 	Hints                 hints.HintsDB
 	Pool                  *nostr.Pool
 	RelayListRelays       *RelayStream
@@ -134,6 +136,9 @@ func NewSystem() *System {
 	}
 	if sys.ZapProviderCache == nil {
 		sys.ZapProviderCache = cache_memory.New[nostr.PubKey](8000)
+	}
+	if sys.MintKeysCache == nil {
+		sys.MintKeysCache = cache_memory.New[map[uint64]*btcec.PublicKey](8000)
 	}
 
 	if sys.Store == nil {

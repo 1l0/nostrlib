@@ -2,12 +2,16 @@ package sdk
 
 import (
 	"context"
+	"crypto/sha256"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip60"
+	"fiatjaf.com/nostr/nip60/client"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/tidwall/gjson"
 )
 
@@ -46,4 +50,26 @@ func (sys *System) FetchZapProvider(ctx context.Context, pk nostr.PubKey) nostr.
 
 	sys.ZapProviderCache.SetWithTTL(pk, nostr.ZeroPK, time.Hour*2)
 	return nostr.ZeroPK
+}
+
+// FetchMintKeys fetches the active keyset from the given mint URL and parses the keys.
+// It uses a cache to avoid repeated fetches.
+func (sys *System) FetchMintKeys(ctx context.Context, mintURL string) (map[uint64]*btcec.PublicKey, error) {
+	hash := sha256.Sum256([]byte(mintURL))
+	if v, ok := sys.MintKeysCache.Get(hash); ok {
+		return v, nil
+	}
+
+	keyset, err := client.GetActiveKeyset(ctx, mintURL)
+	if err != nil {
+		return nil, err
+	}
+
+	ksKeys, err := nip60.ParseKeysetKeys(keyset.Keys)
+	if err != nil {
+		return nil, err
+	}
+
+	sys.MintKeysCache.SetWithTTL(hash, ksKeys, time.Hour*6)
+	return ksKeys, nil
 }
