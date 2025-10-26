@@ -43,6 +43,7 @@ type System struct {
 	TopicSetsCache        cache.Cache32[GenericSets[string, Topic]]
 	ZapProviderCache      cache.Cache32[nostr.PubKey]
 	MintKeysCache         cache.Cache32[map[uint64]*btcec.PublicKey]
+	NutZapInfoCache       cache.Cache32[NutZapInfo]
 	Hints                 hints.HintsDB
 	Pool                  *nostr.Pool
 	RelayListRelays       *RelayStream
@@ -139,6 +140,9 @@ func NewSystem() *System {
 	}
 	if sys.MintKeysCache == nil {
 		sys.MintKeysCache = cache_memory.New[map[uint64]*btcec.PublicKey](8000)
+	}
+	if sys.NutZapInfoCache == nil {
+		sys.NutZapInfoCache = cache_memory.New[NutZapInfo](8000)
 	}
 
 	if sys.Store == nil {
