@@ -2,6 +2,7 @@ package nip61
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"fiatjaf.com/nostr"
@@ -20,7 +21,12 @@ func (zi *Info) ToEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) e
 
 	evt.Tags = make(nostr.Tags, 0, len(zi.Mints)+len(zi.Relays)+1)
 	for _, mint := range zi.Mints {
-		evt.Tags = append(evt.Tags, nostr.Tag{"mint", mint})
+		url, err := nostr.NormalizeHTTPURL(mint)
+		if err != nil {
+			return fmt.Errorf("invalid URL '%s': %w", mint, err)
+		}
+
+		evt.Tags = append(evt.Tags, nostr.Tag{"mint", url})
 	}
 	for _, url := range zi.Relays {
 		evt.Tags = append(evt.Tags, nostr.Tag{"relay", url})
@@ -46,8 +52,9 @@ func (zi *Info) ParseEvent(evt nostr.Event) error {
 		switch tag[0] {
 		case "mint":
 			if len(tag) == 2 || slices.Contains(tag[2:], cashu.Sat.String()) {
-				url, _ := nostr.NormalizeHTTPURL(tag[1])
-				zi.Mints = append(zi.Mints, url)
+				if url, err := nostr.NormalizeHTTPURL(tag[1]); err == nil {
+					zi.Mints = append(zi.Mints, url)
+				}
 			}
 		case "relay":
 			zi.Relays = append(zi.Relays, tag[1])
