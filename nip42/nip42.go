@@ -1,6 +1,7 @@
 package nip42
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -43,45 +44,50 @@ func parseURL(input string) (*url.URL, error) {
 
 // ValidateAuthEvent checks whether event is a valid NIP-42 event for given challenge and relayURL.
 // The result of the validation is encoded in the ok bool.
-func ValidateAuthEvent(event nostr.Event, challenge string, relayURL string) (nostr.PubKey, bool) {
+func ValidateAuthEvent(event nostr.Event, challenge string, relayURL string) (nostr.PubKey, error) {
 	if event.Kind != nostr.KindClientAuthentication {
-		return nostr.ZeroPK, false
+		return nostr.ZeroPK, fmt.Errorf("wanted kind %d, got %d", nostr.KindClientAuthentication, event.Kind)
 	}
 
 	if event.Tags.FindWithValue("challenge", challenge) == nil {
-		return nostr.ZeroPK, false
+		if ctag := event.Tags.Find("challenge"); ctag == nil {
+			return nostr.ZeroPK, fmt.Errorf("missing challenge")
+		} else {
+			return nostr.ZeroPK, fmt.Errorf("expected challenge '%s', got '%s'", challenge, ctag[1])
+		}
 	}
 
 	expected, err := parseURL(relayURL)
 	if err != nil {
-		return nostr.ZeroPK, false
+		return nostr.ZeroPK, fmt.Errorf("server has misconfigured relay url")
 	}
 
 	if tag := event.Tags.Find("relay"); tag == nil {
-		return nostr.ZeroPK, false
+		return nostr.ZeroPK, fmt.Errorf("missing 'relay' tag")
 	} else {
 		found, err := parseURL(tag[1])
 		if err != nil {
-			return nostr.ZeroPK, false
+			return nostr.ZeroPK, fmt.Errorf("invalid 'relay' tag '%s'", tag[1])
 		}
 
 		if expected.Scheme != found.Scheme ||
 			expected.Host != found.Host ||
 			expected.Path != found.Path {
-			return nostr.ZeroPK, false
+			return nostr.ZeroPK, fmt.Errorf("expected relay URL '%s', got '%s'", expected, found)
 		}
 	}
 
 	now := time.Now()
-	if event.CreatedAt.Time().After(now.Add(10*time.Minute)) ||
-		event.CreatedAt.Time().Before(now.Add(-10*time.Minute)) {
-		return nostr.ZeroPK, false
+	if event.CreatedAt.Time().After(now.Add(10 * time.Minute)) {
+		return nostr.ZeroPK, fmt.Errorf("auth event too much in the future")
+	} else if event.CreatedAt.Time().Before(now.Add(-10 * time.Minute)) {
+		return nostr.ZeroPK, fmt.Errorf("auth event too much in the past")
 	}
 
 	// save for last, as it is most expensive operation
 	if !event.VerifySignature() {
-		return nostr.ZeroPK, false
+		return nostr.ZeroPK, fmt.Errorf("invalid signature")
 	}
 
-	return event.PubKey, true
+	return event.PubKey, nil
 }
