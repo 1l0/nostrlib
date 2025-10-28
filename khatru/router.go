@@ -23,7 +23,7 @@ func NewRouter() *Router {
 	rr.routes = make([]Route, 0, 3)
 	rr.getSubRelayFromFilter = func(f nostr.Filter) *Relay {
 		for _, route := range rr.routes {
-			if route.filterMatcher(f) {
+			if route.filterMatcher == nil || route.filterMatcher(f) {
 				return route.relay
 			}
 		}
@@ -31,7 +31,7 @@ func NewRouter() *Router {
 	}
 	rr.getSubRelayFromEvent = func(e *nostr.Event) *Relay {
 		for _, route := range rr.routes {
-			if route.eventMatcher(e) {
+			if route.eventMatcher == nil || route.eventMatcher(e) {
 				return route.relay
 			}
 		}
@@ -53,8 +53,18 @@ func (rb routeBuilder) Req(fn func(nostr.Filter) bool) routeBuilder {
 	return rb
 }
 
+func (rb routeBuilder) AnyReq() routeBuilder {
+	rb.filterMatcher = nil
+	return rb
+}
+
 func (rb routeBuilder) Event(fn func(*nostr.Event) bool) routeBuilder {
 	rb.eventMatcher = fn
+	return rb
+}
+
+func (rb routeBuilder) AnyEvent() routeBuilder {
+	rb.eventMatcher = nil
 	return rb
 }
 
