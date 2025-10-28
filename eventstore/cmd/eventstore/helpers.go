@@ -104,6 +104,7 @@ func writeStdinLinesOrNothing(ch chan string) (hasStdinLines bool) {
 		// piped
 		go func() {
 			scanner := bufio.NewScanner(os.Stdin)
+			scanner.Buffer(make([]byte, 16*1024*1024), 256*1024*1024)
 			for scanner.Scan() {
 				ch <- strings.TrimSpace(scanner.Text())
 			}
@@ -114,4 +115,27 @@ func writeStdinLinesOrNothing(ch chan string) (hasStdinLines bool) {
 		// not piped
 		return false
 	}
+}
+
+func getFileLines(filename string) chan string {
+	ch := make(chan string)
+	go func() {
+		f, err := os.Open(filename)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to open file '%s': %s\n", filename, err)
+			close(ch)
+			return
+		}
+		defer f.Close()
+		scanner := bufio.NewScanner(f)
+		scanner.Buffer(make([]byte, 16*1024*1024), 256*1024*1024)
+		for scanner.Scan() {
+			ch <- strings.TrimSpace(scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "error reading file '%s': %s\n", filename, err)
+		}
+		close(ch)
+	}()
+	return ch
 }
