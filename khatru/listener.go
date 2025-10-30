@@ -139,7 +139,7 @@ listenersloop:
 	for _, listener := range rl.listeners {
 		if listener.filter.Matches(event) {
 			if nil != rl.PreventBroadcast {
-				if rl.PreventBroadcast(listener.ws, event) {
+				if rl.PreventBroadcast(listener.ws, listener.filter, event) {
 					continue listenersloop
 				}
 			}

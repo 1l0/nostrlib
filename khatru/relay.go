@@ -78,7 +78,7 @@ type Relay struct {
 	OnConnect                 func(ctx context.Context)
 	OnDisconnect              func(ctx context.Context)
 	OverwriteRelayInformation func(ctx context.Context, r *http.Request, info nip11.RelayInformationDocument) nip11.RelayInformationDocument
-	PreventBroadcast          func(ws *WebSocket, event nostr.Event) bool
+	PreventBroadcast          func(ws *WebSocket, filter nostr.Filter, event nostr.Event) bool
 
 	// this can be ignored unless you know what you're doing
 	ChallengePrefix string
