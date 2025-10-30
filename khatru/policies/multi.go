@@ -33,7 +33,7 @@ func SeqStore(funcs ...func(ctx context.Context, evt nostr.Event) error) func(co
 }
 
 func SeqRequest(
-	funcs ...func(ctx context.Context, evt nostr.Filter) (bool, string),
+	funcs ...func(ctx context.Context, filter nostr.Filter) (bool, string),
 ) func(context.Context, nostr.Filter) (reject bool, reason string) {
 	return func(ctx context.Context, evt nostr.Filter) (reject bool, reason string) {
 		for _, fn := range funcs {
