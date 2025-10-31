@@ -223,7 +223,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					if writeErr == nil {
 						ok = true
 						if !skipBroadcast {
-							n := srl.notifyListeners(env.Event)
+							n := srl.notifyListeners(env.Event, false)
 
 							// the number of notified listeners matters in ephemeral events
 							if env.Event.Kind.IsEphemeral() {
