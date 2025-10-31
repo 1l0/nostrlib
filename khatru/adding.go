@@ -7,6 +7,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
+	"fiatjaf.com/nostr/nip40"
 )
 
 // AddEvent sends an event through then normal add pipeline, as if it was received from a websocket.
@@ -62,7 +63,7 @@ func (rl *Relay) handleNormal(ctx context.Context, evt nostr.Event) (skipBroadca
 
 	// track event expiration if applicable
 	if rl.expirationManager != nil {
-		rl.expirationManager.trackEvent(evt)
+		rl.expirationManager.trackEvent(evt.ID, nip40.GetExpiration(evt.Tags))
 	}
 
 	return false, nil

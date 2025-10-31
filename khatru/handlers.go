@@ -208,9 +208,13 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					var writeErr error
 					var skipBroadcast bool
 
-					if env.Event.Kind == 5 {
-						// this always returns "blocked: " whenever it returns an error
-						writeErr = srl.handleDeleteRequest(ctx, env.Event)
+					if env.Event.Kind == nostr.KindDeletion {
+						// store the delete event first
+						skipBroadcast, writeErr = srl.handleNormal(ctx, env.Event)
+						if writeErr == nil {
+							// this always returns "blocked: " whenever it returns an error
+							writeErr = srl.handleDeleteRequest(ctx, env.Event)
+						}
 					} else if env.Event.Kind.IsEphemeral() {
 						// this will also always return a prefixed reason
 						writeErr = srl.handleEphemeral(ctx, env.Event)

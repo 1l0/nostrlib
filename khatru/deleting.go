@@ -2,6 +2,7 @@ package khatru
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,8 +10,19 @@ import (
 	"fiatjaf.com/nostr"
 )
 
+var (
+	ErrNothingToDelete = errors.New("blocked: nothing to delete")
+	ErrNotAuthor       = errors.New("blocked: you are not the author of this event")
+)
+
+// event deletion -- nip09
 func (rl *Relay) handleDeleteRequest(ctx context.Context, evt nostr.Event) error {
-	// event deletion -- nip09
+	if nil == rl.QueryStored || nil == rl.DeleteEvent {
+		// if we don't have a way to query or to delete that means we won't delete anything
+		return ErrNothingToDelete
+	}
+
+	haveDeletedSomething := false
 	for _, tag := range evt.Tags {
 		if len(tag) >= 2 {
 			var f nostr.Filter
@@ -49,31 +61,23 @@ func (rl *Relay) handleDeleteRequest(ctx context.Context, evt nostr.Event) error
 
 			ctx := context.WithValue(ctx, internalCallKey, struct{}{})
 
-			if nil != rl.QueryStored {
-				for target := range rl.QueryStored(ctx, f) {
-					// got the event, now check if the user can delete it
-					acceptDeletion := target.PubKey == evt.PubKey
-					var msg string
-					if !acceptDeletion {
-						msg = "you are not the author of this event"
+			for target := range rl.QueryStored(ctx, f) {
+				// got the event, now check if the user can delete it
+				if target.PubKey == evt.PubKey {
+					// delete it
+					if err := rl.DeleteEvent(ctx, target.ID); err != nil {
+						return err
 					}
 
-					if acceptDeletion {
-						// delete it
-						if nil != rl.DeleteEvent {
-							if err := rl.DeleteEvent(ctx, target.ID); err != nil {
-								return err
-							}
-						}
-
-						// if it was tracked to be expired that is not needed anymore
-						if rl.expirationManager != nil {
-							rl.expirationManager.removeEvent(target.ID)
-						}
-					} else {
-						// fail and stop here
-						return fmt.Errorf("blocked: %s", msg)
+					// if it was tracked to be expired that is not needed anymore
+					if rl.expirationManager != nil {
+						rl.expirationManager.removeEvent(target.ID)
 					}
+
+					haveDeletedSomething = true
+				} else {
+					// fail and stop here
+					return ErrNotAuthor
 				}
 
 				// don't try to query this same event again
@@ -82,5 +86,9 @@ func (rl *Relay) handleDeleteRequest(ctx context.Context, evt nostr.Event) error
 		}
 	}
 
-	return nil
+	if haveDeletedSomething {
+		return nil
+	}
+
+	return ErrNothingToDelete
 }

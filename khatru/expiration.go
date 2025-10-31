@@ -113,15 +113,17 @@ func (em *expirationManager) checkExpiredEvents(ctx context.Context) {
 	}
 }
 
-func (em *expirationManager) trackEvent(evt nostr.Event) {
-	if expiresAt := nip40.GetExpiration(evt.Tags); expiresAt != -1 {
-		em.mu.Lock()
-		heap.Push(&em.events, expiringEvent{
-			id:        evt.ID,
-			expiresAt: expiresAt,
-		})
-		em.mu.Unlock()
+func (em *expirationManager) trackEvent(id nostr.ID, expiration nostr.Timestamp) {
+	if expiration <= 0 {
+		return
 	}
+
+	em.mu.Lock()
+	heap.Push(&em.events, expiringEvent{
+		id:        id,
+		expiresAt: expiration,
+	})
+	em.mu.Unlock()
 }
 
 func (em *expirationManager) removeEvent(id nostr.ID) {

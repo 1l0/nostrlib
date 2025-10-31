@@ -160,9 +160,36 @@ func TestBasicRelayFunctionality(t *testing.T) {
 				if gotEvent {
 					t.Error("should not have received deleted event")
 				}
-				return
+				goto checkDeleteStored
 			case <-ctx.Done():
 				t.Fatal("timeout waiting for EOSE")
+			}
+		}
+
+	checkDeleteStored:
+		// verify that the delete event itself is stored
+		subDelete, err := client2.Subscribe(ctx, nostr.Filter{
+			IDs: []nostr.ID{delEvent.ID},
+		}, nostr.SubscriptionOptions{})
+		if err != nil {
+			t.Fatalf("failed to subscribe to delete event: %v", err)
+		}
+		defer subDelete.Unsub()
+
+		gotDeleteEvent := false
+		for {
+			select {
+			case evt := <-subDelete.Events:
+				if evt.ID == delEvent.ID {
+					gotDeleteEvent = true
+				}
+			case <-subDelete.EndOfStoredEvents:
+				if !gotDeleteEvent {
+					t.Error("should have received the delete event")
+				}
+				return
+			case <-ctx.Done():
+				t.Fatal("timeout waiting for EOSE on delete event")
 			}
 		}
 	})
