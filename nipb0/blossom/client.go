@@ -30,16 +30,13 @@ func NewClient(mediaserver string, signer nostr.Signer) *Client {
 
 // createHTTPClient creates a properly configured HTTP client
 func createHTTPClient() *fasthttp.Client {
-	readTimeout, _ := time.ParseDuration("10s")
-	writeTimeout, _ := time.ParseDuration("10s")
-	maxIdleConnDuration, _ := time.ParseDuration("1h")
 	return &fasthttp.Client{
-		ReadTimeout:                   readTimeout,
-		WriteTimeout:                  writeTimeout,
-		MaxIdleConnDuration:           maxIdleConnDuration,
-		NoDefaultUserAgentHeader:      true, // Don't send: User-Agent: fasthttp
-		DisableHeaderNamesNormalizing: true, // If you set the case on your headers correctly you can enable this
+		MaxIdleConnDuration:           time.Hour,
+		DisableHeaderNamesNormalizing: true, // because our headers are properly constructed
 		DisablePathNormalizing:        true,
+
+		Name: "nl-b", // user-agent
+
 		// increase DNS cache time to an hour instead of default minute
 		Dial: (&fasthttp.TCPDialer{
 			Concurrency:      4096,

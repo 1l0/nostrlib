@@ -46,7 +46,13 @@ func (c *Client) httpCall(
 		req.SetBodyStream(body, int(contentSize))
 	}
 
-	err := c.httpClient.Do(req, resp)
+	var err error
+	if deadline, ok := ctx.Deadline(); ok {
+		err = c.httpClient.DoDeadline(req, resp, deadline)
+	} else {
+		err = c.httpClient.Do(req, resp)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to call %s: %w\n", url, err)
 	}
