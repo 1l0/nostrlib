@@ -53,6 +53,10 @@ func NewValidator(schemaData string) Validator {
 	return Validator{Schema: schema}
 }
 
+func NewDefaultValidator() Validator {
+	return NewValidator(string(schemaFile))
+}
+
 var (
 	ErrUnknownContent     = fmt.Errorf("unknown content")
 	ErrUnknownKind        = fmt.Errorf("unknown kind")
