@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
@@ -30,6 +31,10 @@ func (b *LMDBBackend) SaveEvent(evt nostr.Event) error {
 		if operr, ok := err.(*lmdb.OpError); ok && operr.Errno == lmdb.NotFound {
 			// we will only proceed if we get a NotFound
 			return b.save(txn, evt)
+		}
+
+		if err == nil {
+			return eventstore.ErrDupEvent
 		}
 
 		return err

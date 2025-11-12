@@ -33,12 +33,11 @@ func (w StorePublisher) Publish(ctx context.Context, evt nostr.Event) error {
 		// regular events are just saved directly
 		if err := w.SaveEvent(evt); err != nil && err != eventstore.ErrDupEvent {
 			return fmt.Errorf("failed to save: %w", err)
+		} else {
+			return err
 		}
-		return nil
 	}
 
 	// others are replaced
-	w.Store.ReplaceEvent(evt)
-
-	return nil
+	return w.Store.ReplaceEvent(evt)
 }

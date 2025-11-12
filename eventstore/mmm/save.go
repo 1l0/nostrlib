@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
@@ -80,7 +81,7 @@ func (b *MultiMmapManager) storeOn(
 			ilid := binary.BigEndian.Uint16(val[s : s+2])
 			if il.id == ilid {
 				// already on the specified layer, we can end here
-				return false, nil
+				return false, eventstore.ErrDupEvent
 			}
 		}
 	} else if !lmdb.IsNotFound(err) {
