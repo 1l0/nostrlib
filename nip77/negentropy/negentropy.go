@@ -210,7 +210,7 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {
 				endBound := currBound
 
 				for index, item := range n.storage.Range(lower, upper) {
-					if n.frameSizeLimit-200 < fullOutput.Len()/2+len(responseIds)/2 {
+					if n.frameSizeLimit-200 < fullOutput.Len()+len(responseIds) {
 						endBound = Bound{item.Timestamp, item.ID[:]}
 						upper = index
 						break
@@ -232,7 +232,7 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {
 			return nil, fmt.Errorf("unexpected mode %d", mode)
 		}
 
-		if n.frameSizeLimit-200 < fullOutput.Len()/2+partialOutput.Len()/2 {
+		if n.frameSizeLimit-200 < fullOutput.Len()+partialOutput.Len() {
 			// frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
 			remainingFingerprint := n.storage.Fingerprint(upper, n.storage.Size())
 			n.writeBound(fullOutput, InfiniteBound)
