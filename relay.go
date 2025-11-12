@@ -56,6 +56,8 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 		okCallbacks:                   make(map[ID]okcallback, 20),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
 		requestHeader:                 opts.RequestHeader,
+		customHandler:                 opts.CustomHandler,
+		noticeHandler:                 opts.NoticeHandler,
 	}
 
 	return r
