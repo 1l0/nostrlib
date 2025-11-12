@@ -31,19 +31,26 @@ type Negentropy struct {
 	HaveNots chan nostr.ID
 }
 
-func New(storage Storage, frameSizeLimit int) *Negentropy {
+func New(storage Storage, frameSizeLimit int, up, down bool) *Negentropy {
 	if frameSizeLimit == 0 {
 		frameSizeLimit = math.MaxInt
 	} else if frameSizeLimit < 4096 {
 		panic(fmt.Errorf("frameSizeLimit can't be smaller than 4096, was %d", frameSizeLimit))
 	}
 
-	return &Negentropy{
+	n := &Negentropy{
 		storage:        storage,
 		frameSizeLimit: frameSizeLimit,
-		Haves:          make(chan nostr.ID, buckets*4),
-		HaveNots:       make(chan nostr.ID, buckets*4),
 	}
+
+	if up {
+		n.Haves = make(chan nostr.ID, buckets*4)
+	}
+	if down {
+		n.HaveNots = make(chan nostr.ID, buckets*4)
+	}
+
+	return n
 }
 
 func (n *Negentropy) String() string {
@@ -83,8 +90,12 @@ func (n *Negentropy) Reconcile(msg string) (string, error) {
 	}
 
 	if len(output) == 1 && n.isClient {
-		close(n.Haves)
-		close(n.HaveNots)
+		if n.Haves != nil {
+			close(n.Haves)
+		}
+		if n.HaveNots != nil {
+			close(n.HaveNots)
+		}
 		return "", nil
 	}
 
@@ -178,22 +189,22 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {
 
 			// what we have
 			for _, item := range n.storage.Range(lower, upper) {
-				id := item.ID
-
-				if _, theyHave := theirItems[id]; theyHave {
+				if _, theyHave := theirItems[item.ID]; theyHave {
 					// if we have and they have, ignore
-					delete(theirItems, id)
-				} else {
+					delete(theirItems, item.ID)
+				} else if n.Haves != nil {
 					// if we have and they don't, notify client
 					if n.isClient {
-						n.Haves <- id
+						n.Haves <- item.ID
 					}
 				}
 			}
 
-			if n.isClient {
+			if n.isClient && n.HaveNots != nil {
 				// notify client of what they have and we don't
 				for id := range theirItems {
+					fmt.Println("      their:", id)
+
 					// skip empty strings here because those were marked to be excluded as such in the previous step
 					n.HaveNots <- id
 				}
