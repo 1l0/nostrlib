@@ -203,8 +203,6 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {
 			if n.isClient && n.HaveNots != nil {
 				// notify client of what they have and we don't
 				for id := range theirItems {
-					fmt.Println("      their:", id)
-
 					// skip empty strings here because those were marked to be excluded as such in the previous step
 					n.HaveNots <- id
 				}

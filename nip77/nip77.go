@@ -10,17 +10,17 @@ import (
 	"fiatjaf.com/nostr/nip77/negentropy/storage/vector"
 )
 
-type direction struct {
-	label string // for debugging only
-	from  nostr.Querier
-	to    nostr.Publisher
-	items chan nostr.ID
+type Direction struct {
+	From  nostr.Querier
+	To    nostr.Publisher
+	Items chan nostr.ID
 }
 
 func NegentropySync(
 	ctx context.Context,
-	filter nostr.Filter,
+
 	relayUrl string,
+	filter nostr.Filter,
 
 	// where our local events will be read from.
 	// if it is nil the sync will be unidirectional: download-only.
@@ -31,6 +31,10 @@ func NegentropySync(
 	// it can also be a nostr.QuerierPublisher in case source isn't provided
 	// and you need a download-only sync that respects local data.
 	target nostr.Publisher,
+
+	// handle ids received on each direction, usually called with Sync() so the corresponding events are
+	// fetched from the source and published to the target
+	handle func(ctx context.Context, wg *sync.WaitGroup, directions []Direction),
 ) error {
 	id := "nl-tmp" // for now we can't have more than one subscription in the same connection
 
@@ -73,19 +77,19 @@ func NegentropySync(
 	}
 
 	// setup sync flows: up, down or both
-	directions := make([]direction, 0, 2)
+	directions := make([]Direction, 0, 2)
 	if source != nil {
-		directions = append(directions, direction{
-			from:  source,
-			to:    relay,
-			items: neg.Haves,
+		directions = append(directions, Direction{
+			From:  source,
+			To:    relay,
+			Items: neg.Haves,
 		})
 	}
 	if target != nil {
-		directions = append(directions, direction{
-			from:  relay,
-			to:    target,
-			items: neg.HaveNots,
+		directions = append(directions, Direction{
+			From:  relay,
+			To:    target,
+			Items: neg.HaveNots,
 		})
 	}
 
@@ -120,54 +124,9 @@ func NegentropySync(
 	}()
 
 	wg := sync.WaitGroup{}
-	pool := sync.Pool{
-		New: func() any { return make([]nostr.ID, 0, 50) },
-	}
 
-	for _, dir := range directions {
-		wg.Add(1)
-		go func(dir direction) {
-			fmt.Println("> dir", dir.label)
-
-			defer wg.Done()
-
-			seen := make(map[nostr.ID]struct{})
-
-			doSync := func(ids []nostr.ID) {
-				defer wg.Done()
-				defer pool.Put(ids)
-
-				if len(ids) == 0 {
-					return
-				}
-				for evt := range dir.from.QueryEvents(nostr.Filter{IDs: ids}) {
-					dir.to.Publish(ctx, evt)
-				}
-			}
-
-			ids := pool.Get().([]nostr.ID)
-			for item := range dir.items {
-				fmt.Println(">>>", item)
-				if _, ok := seen[item]; ok {
-					continue
-				}
-				seen[item] = struct{}{}
-
-				fmt.Println(">>>>>", 0)
-				ids = append(ids, item)
-				if len(ids) == 50 {
-					wg.Add(1)
-					go doSync(ids)
-					fmt.Println(">>>>>", 1)
-					ids = pool.Get().([]nostr.ID)
-				}
-				fmt.Println(">>>>>", 2)
-			}
-			fmt.Println("> ?")
-			wg.Add(1)
-			doSync(ids)
-		}(dir)
-	}
+	// handle emitted events
+	wg.Go(func() { handle(ctx, &wg, directions) })
 
 	go func() {
 		wg.Wait()
@@ -180,4 +139,43 @@ func NegentropySync(
 	}
 
 	return nil
+}
+
+func SyncEventsFromIDs(ctx context.Context, wg *sync.WaitGroup, directions []Direction) {
+	pool := sync.Pool{
+		New: func() any { return make([]nostr.ID, 0, 50) },
+	}
+
+	for _, dir := range directions {
+		wg.Go(func() {
+			seen := make(map[nostr.ID]struct{})
+
+			doSync := func(ids []nostr.ID) {
+				defer pool.Put(ids)
+
+				if len(ids) == 0 {
+					return
+				}
+				for evt := range dir.From.QueryEvents(nostr.Filter{IDs: ids}) {
+					dir.To.Publish(ctx, evt)
+				}
+			}
+
+			ids := pool.Get().([]nostr.ID)
+			for item := range dir.Items {
+				if _, ok := seen[item]; ok {
+					continue
+				}
+				seen[item] = struct{}{}
+
+				ids = append(ids, item)
+				if len(ids) == 50 {
+					wg.Add(1)
+					wg.Go(func() { doSync(ids) })
+					ids = pool.Get().([]nostr.ID)
+				}
+			}
+			wg.Go(func() { doSync(ids) })
+		})
+	}
 }

@@ -365,7 +365,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 					// reconcile to get the next message and return it
-					neg := negentropy.New(vec, 1024*1024)
+					neg := negentropy.New(vec, 1024*1024, false, false)
 					out, err := neg.Reconcile(env.Message)
 					if err != nil {
 						ws.WriteJSON(nip77.ErrorEnvelope{SubscriptionID: env.SubscriptionID, Reason: err.Error()})
