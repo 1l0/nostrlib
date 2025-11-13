@@ -123,7 +123,8 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {
 
 	var prevBound Bound
 	prevIndex := 0
-	skipping := false // this means we are currently coalescing ranges into skip
+	skipping := false                    // this means we are currently coalescing ranges into skip
+	var theirItems map[nostr.ID]struct{} // used to track stuff in IdListMode
 
 	partialOutput := bytes.NewBuffer(make([]byte, 0, 100))
 	for reader.Len() > 0 {
@@ -176,8 +177,13 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {
 				return nil, fmt.Errorf("failed to decode number of ids: %w", err)
 			}
 
+			if theirItems == nil {
+				theirItems = make(map[nostr.ID]struct{}, numIds)
+			} else {
+				clear(theirItems) // reusing this from the last run
+			}
+
 			// what they have
-			theirItems := make(map[nostr.ID]struct{}, numIds)
 			for i := 0; i < numIds; i++ {
 				var id [32]byte
 				if _, err := reader.Read(id[:]); err != nil {
