@@ -39,7 +39,7 @@ func NegentropySync(
 	id := "nl-tmp" // for now we can't have more than one subscription in the same connection
 
 	vec := vector.New()
-	neg := negentropy.New(vec, 1024*1024, source != nil, target != nil)
+	neg := negentropy.New(vec, 60_000, source != nil, target != nil)
 
 	// connect to relay
 	var err error
