@@ -157,7 +157,7 @@ func (r *Relay) handleMessage(message string) {
 	envelope, err := ParseMessage(message)
 	if envelope == nil {
 		if r.customHandler != nil && err == UnknownLabel {
-			r.customHandler(message)
+			go r.customHandler(message)
 		}
 		return
 	}
@@ -230,6 +230,7 @@ func (r *Relay) Write(msg []byte) {
 		return
 	default:
 	}
+
 	select {
 	case <-r.connectionContext.Done():
 	case r.writeQueue <- writeRequest{msg: msg, answer: nil}:

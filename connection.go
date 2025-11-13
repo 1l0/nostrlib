@@ -41,11 +41,10 @@ func (r *Relay) newConnection(ctx context.Context, tlsConfig *tls.Config) error 
 	ticker := time.NewTicker(29 * time.Second)
 
 	// main websocket loop
-	writeQueue := make(chan writeRequest)
 	readQueue := make(chan string)
 
 	r.conn = c
-	r.writeQueue = writeQueue
+	r.writeQueue = make(chan writeRequest)
 	r.closed = &atomic.Bool{}
 	r.closedNotify = make(chan struct{})
 
@@ -67,7 +66,7 @@ func (r *Relay) newConnection(ctx context.Context, tlsConfig *tls.Config) error 
 					r.closeConnection(ws.StatusAbnormalClosure, "ping took too long")
 					return
 				}
-			case wr := <-writeQueue:
+			case wr := <-r.writeQueue:
 				debugLogf("{%s} sending '%v'\n", r.URL, string(wr.msg))
 				ctx, cancel := context.WithTimeoutCause(ctx, time.Second*10, errors.New("write took too long"))
 				err := c.Write(ctx, ws.MessageText, wr.msg)

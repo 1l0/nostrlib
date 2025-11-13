@@ -34,7 +34,7 @@ func NegentropySync(
 
 	// handle ids received on each direction, usually called with Sync() so the corresponding events are
 	// fetched from the source and published to the target
-	handle func(ctx context.Context, wg *sync.WaitGroup, directions []Direction),
+	handle func(ctx context.Context, directions Direction),
 ) error {
 	id := "nl-tmp" // for now we can't have more than one subscription in the same connection
 
@@ -76,23 +76,6 @@ func NegentropySync(
 		return err
 	}
 
-	// setup sync flows: up, down or both
-	directions := make([]Direction, 0, 2)
-	if source != nil {
-		directions = append(directions, Direction{
-			From:  source,
-			To:    relay,
-			Items: neg.Haves,
-		})
-	}
-	if target != nil {
-		directions = append(directions, Direction{
-			From:  relay,
-			To:    target,
-			Items: neg.HaveNots,
-		})
-	}
-
 	// fill our local vector
 	var usedSource nostr.Querier
 	if source != nil {
@@ -125,8 +108,25 @@ func NegentropySync(
 
 	wg := sync.WaitGroup{}
 
-	// handle emitted events
-	wg.Go(func() { handle(ctx, &wg, directions) })
+	// handle emitted events from either direction
+	if source != nil {
+		wg.Go(func() {
+			handle(ctx, Direction{
+				From:  source,
+				To:    relay,
+				Items: neg.Haves,
+			})
+		})
+	}
+	if target != nil {
+		wg.Go(func() {
+			handle(ctx, Direction{
+				From:  relay,
+				To:    target,
+				Items: neg.HaveNots,
+			})
+		})
+	}
 
 	go func() {
 		wg.Wait()
@@ -141,41 +141,27 @@ func NegentropySync(
 	return nil
 }
 
-func SyncEventsFromIDs(ctx context.Context, wg *sync.WaitGroup, directions []Direction) {
-	pool := sync.Pool{
-		New: func() any { return make([]nostr.ID, 0, 50) },
+func SyncEventsFromIDs(ctx context.Context, dir Direction) {
+	// this is only necessary because relays are too ratelimiting
+	batch := make([]nostr.ID, 0, 50)
+
+	seen := make(map[nostr.ID]struct{})
+	for item := range dir.Items {
+		if _, ok := seen[item]; ok {
+			continue
+		}
+		seen[item] = struct{}{}
+
+		batch = append(batch, item)
+		if len(batch) == 50 {
+			for evt := range dir.From.QueryEvents(nostr.Filter{IDs: batch}) {
+				dir.To.Publish(ctx, evt)
+			}
+			batch = batch[:0]
+		}
 	}
 
-	for _, dir := range directions {
-		wg.Go(func() {
-			seen := make(map[nostr.ID]struct{})
-
-			doSync := func(ids []nostr.ID) {
-				defer pool.Put(ids)
-
-				if len(ids) == 0 {
-					return
-				}
-				for evt := range dir.From.QueryEvents(nostr.Filter{IDs: ids}) {
-					dir.To.Publish(ctx, evt)
-				}
-			}
-
-			ids := pool.Get().([]nostr.ID)
-			for item := range dir.Items {
-				if _, ok := seen[item]; ok {
-					continue
-				}
-				seen[item] = struct{}{}
-
-				ids = append(ids, item)
-				if len(ids) == 50 {
-					wg.Add(1)
-					wg.Go(func() { doSync(ids) })
-					ids = pool.Get().([]nostr.ID)
-				}
-			}
-			wg.Go(func() { doSync(ids) })
-		})
+	for evt := range dir.From.QueryEvents(nostr.Filter{IDs: batch}) {
+		dir.To.Publish(ctx, evt)
 	}
 }

@@ -192,10 +192,12 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {
 				if _, theyHave := theirItems[item.ID]; theyHave {
 					// if we have and they have, ignore
 					delete(theirItems, item.ID)
-				} else if n.Haves != nil {
-					// if we have and they don't, notify client
-					if n.isClient {
-						n.Haves <- item.ID
+				} else {
+					if n.Haves != nil {
+						// if we have and they don't, notify client
+						if n.isClient {
+							n.Haves <- item.ID
+						}
 					}
 				}
 			}
