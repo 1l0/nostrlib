@@ -49,6 +49,8 @@ func (r *Relay) newConnection(ctx context.Context, tlsConfig *tls.Config) error 
 	r.closedNotify = make(chan struct{})
 
 	go func() {
+		pingAttempt := 0
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -58,14 +60,29 @@ func (r *Relay) newConnection(ctx context.Context, tlsConfig *tls.Config) error 
 			case <-r.closedNotify:
 				return
 			case <-ticker.C:
+				debugLogf("{%s} pinging\n", r.URL)
 				ctx, cancel := context.WithTimeoutCause(ctx, time.Millisecond*800, errors.New("ping took too long"))
 				err := c.Ping(ctx)
 				cancel()
+
 				if err != nil {
-					debugLogf("{%s} closing!, ping failed: '%s'\n", r.URL, err)
-					r.closeConnection(ws.StatusAbnormalClosure, "ping took too long")
-					return
+					pingAttempt++
+					debugLogf("{%s} error writing ping (attempt %d): %v", r.URL, pingAttempt, err)
+
+					if pingAttempt >= 3 {
+						debugLogf("{%s} error writing ping after multiple attempts; closing websocket", r.URL)
+						err = r.Close() // this should trigger a context cancelation
+						if err != nil {
+							debugLogf("{%s} failed to close relay: %v", r.URL, err)
+						}
+					}
+
+					continue
 				}
+
+				// ping was OK
+				debugLogf("{%s} ping OK", r.URL)
+				pingAttempt = 0
 			case wr := <-r.writeQueue:
 				debugLogf("{%s} sending '%v'\n", r.URL, string(wr.msg))
 				ctx, cancel := context.WithTimeoutCause(ctx, time.Second*10, errors.New("write took too long"))
