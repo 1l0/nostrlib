@@ -49,7 +49,7 @@ func ParseRepository(event nostr.Event) Repository {
 	return repo
 }
 
-func (r Repository) ToEvent() *nostr.Event {
+func (r Repository) ToEvent() nostr.Event {
 	tags := make(nostr.Tags, 0, 10)
 
 	tags = append(tags, nostr.Tag{"d", r.ID})
@@ -88,7 +88,7 @@ func (r Repository) ToEvent() *nostr.Event {
 		tags = append(tags, tag)
 	}
 
-	return &nostr.Event{
+	return nostr.Event{
 		Kind:      nostr.KindRepositoryAnnouncement,
 		Tags:      tags,
 		CreatedAt: nostr.Now(),

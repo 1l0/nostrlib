@@ -45,7 +45,7 @@ func ParseRepositoryState(event nostr.Event) RepositoryState {
 	return st
 }
 
-func (rs RepositoryState) ToEvent() *nostr.Event {
+func (rs RepositoryState) ToEvent() nostr.Event {
 	tags := make(nostr.Tags, 1, 2+len(rs.Branches)+len(rs.Tags))
 
 	tags[0] = nostr.Tag{"d", rs.ID}
@@ -59,7 +59,7 @@ func (rs RepositoryState) ToEvent() *nostr.Event {
 		tags = append(tags, nostr.Tag{"HEAD", "ref: refs/heads/" + rs.HEAD})
 	}
 
-	return &nostr.Event{
+	return nostr.Event{
 		Kind:      30618,
 		Tags:      tags,
 		CreatedAt: nostr.Now(),
