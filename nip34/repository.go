@@ -14,7 +14,7 @@ type Repository struct {
 	Clone                  []string
 	Relays                 []string
 	EarliestUniqueCommitID string
-	Maintainers            []string
+	Maintainers            []nostr.PubKey
 }
 
 func ParseRepository(event nostr.Event) Repository {
@@ -42,7 +42,11 @@ func ParseRepository(event nostr.Event) Repository {
 		case "r":
 			repo.EarliestUniqueCommitID = tag[1]
 		case "maintainers":
-			repo.Maintainers = append(repo.Maintainers, tag[1:]...)
+			for _, pkh := range tag[1:] {
+				if pk, err := nostr.PubKeyFromHex(pkh); err == nil {
+					repo.Maintainers = append(repo.Maintainers, pk)
+				}
+			}
 		}
 	}
 
@@ -66,7 +70,9 @@ func (r Repository) ToEvent() nostr.Event {
 	if len(r.Maintainers) > 0 {
 		tag := make(nostr.Tag, 1, 1+len(r.Maintainers))
 		tag[0] = "maintainers"
-		tag = append(tag, r.Maintainers...)
+		for _, pk := range r.Maintainers {
+			tag = append(tag, pk.Hex())
+		}
 		tags = append(tags, tag)
 	}
 	if len(r.Web) > 0 {
