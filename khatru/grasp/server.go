@@ -34,6 +34,9 @@ type GraspServer struct {
 	RepositoryDir string
 
 	Relay *khatru.Relay
+
+	OnWrite func(context.Context, nostr.PubKey, string) (reject bool, reason string)
+	OnRead  func(context.Context, nostr.PubKey, string) (reject bool, reason string)
 }
 
 // New creates a new GraspServer and registers its handlers on the relay's router
@@ -187,6 +190,14 @@ func (gs *GraspServer) handleGitUploadPack(
 		return
 	}
 
+	if gs.OnRead != nil {
+		reject, msg := gs.OnRead(r.Context(), pubkey, repoName)
+		if reject {
+			gs.gitError(w, msg, http.StatusForbidden)
+			return
+		}
+	}
+
 	const expectedContentType = "application/x-git-upload-pack-request"
 	contentType := r.Header.Get("Content-Type")
 	if contentType != expectedContentType {
@@ -232,6 +243,14 @@ func (gs *GraspServer) handleGitReceivePack(
 	if !gs.validatePush(r.Context(), pubkey, repoName, body.Bytes()) {
 		gs.gitError(w, "unauthorized push", http.StatusForbidden)
 		return
+	}
+
+	if gs.OnWrite != nil {
+		reject, msg := gs.OnWrite(r.Context(), pubkey, repoName)
+		if reject {
+			gs.gitError(w, msg, http.StatusForbidden)
+			return
+		}
 	}
 
 	repoPath := filepath.Join(gs.RepositoryDir, repoName)
