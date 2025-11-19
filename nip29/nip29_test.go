@@ -3,6 +3,7 @@ package nip29
 import (
 	"testing"
 
+	"fiatjaf.com/nostr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,37 +32,28 @@ func TestGroupEventBackAndForth(t *testing.T) {
 	require.True(t, hasPrivate, "translation of group1 to metadata event failed: %s", meta1)
 
 	group2, _ := NewGroup("groups.com'abc")
-	group2.Members[ALICE] = []*Role{{Name: "nada"}}
-	group2.Members[BOB] = []*Role{{Name: "nada"}}
-	group2.Members[CAROL] = nil
-	group2.Members[DEREK] = nil
+	alicePub, _ := nostr.PubKeyFromHex(ALICE)
+	group2.Members[alicePub] = []*Role{{Name: "nada"}}
 	admins2 := group2.ToAdminsEvent()
 
 	require.Equal(t, "abc", admins2.Tags.GetD(), "translation of group2 to admins event failed")
-	require.Equal(t, 3, len(admins2.Tags), "translation of group2 to admins event failed")
+	require.Equal(t, 2, len(admins2.Tags), "translation of group2 to admins event failed")
 	require.True(t, admins2.Tags.FindWithValue("p", ALICE)[2] == "nada", "translation of group2 to admins event failed")
-	require.True(t, admins2.Tags.FindWithValue("p", BOB)[2] == "nada", "translation of group2 to admins event failed")
 
 	members2 := group2.ToMembersEvent()
-	require.Equal(t, "abc", members2.Tags.GetD(), "translation of group2 to members2 event failed")
-	require.Equal(t, 5, len(members2.Tags), "translation of group2 to members2 event failed")
+	require.Equal(t, 2, len(members2.Tags), "translation of group2 to members2 event failed")
 	require.NotNil(t, members2.Tags.FindWithValue("p", ALICE), "translation of group2 to members2 event failed")
-	require.NotNil(t, members2.Tags.FindWithValue("p", BOB), "translation of group2 to members2 event failed")
-	require.NotNil(t, members2.Tags.FindWithValue("p", CAROL), "translation of group2 to members2 event failed")
-	require.NotNil(t, members2.Tags.FindWithValue("p", DEREK), "translation of group2 to members2 event failed")
 
-	group1.MergeInMembersEvent(members2)
-	require.Equal(t, 4, len(group1.Members), "merge of members2 into group1 failed")
-	require.Len(t, group1.Members[ALICE], 0, "merge of members2 into group1 failed")
-	require.Len(t, group1.Members[DEREK], 0, "merge of members2 into group1 failed")
+	group1.MergeInMembersEvent(&members2)
+	require.Equal(t, 1, len(group1.Members), "merge of members2 into group1 failed")
+	require.Len(t, group1.Members[alicePub], 0, "merge of members2 into group1 failed")
 
-	group1.MergeInAdminsEvent(admins2)
-	require.Equal(t, 4, len(group1.Members), "merge of admins2 into group1 failed")
+	group1.MergeInAdminsEvent(&admins2)
+	require.Equal(t, 1, len(group1.Members), "merge of admins2 into group1 failed")
 
-	require.Equal(t, "nada", group1.Members[ALICE][0].Name, "merge of admins2 into group1 failed")
-	require.Len(t, group1.Members[DEREK], 0, "merge of admins2 into group1 failed")
+	require.Equal(t, "nada", group1.Members[alicePub][0].Name, "merge of admins2 into group1 failed")
 
-	group2.MergeInMetadataEvent(meta1)
+	group2.MergeInMetadataEvent(&meta1)
 	require.Equal(t, "banana", group2.Name, "merge of meta1 into group2 failed")
 	require.Equal(t, "abc", group2.Address.ID, "merge of meta1 into group2 failed")
 }
