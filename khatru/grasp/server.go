@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,10 +19,9 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr/nip19"
 	"fiatjaf.com/nostr/nip34"
-
-	"fiatjaf.com/nostr/khatru"
 	"github.com/go-git/go-git/v5/plumbing/format/pktline"
 )
 
@@ -147,7 +147,9 @@ func (gs *GraspServer) handleInfoRefs(
 	switch serviceName {
 	case "git-upload-pack":
 		if !gs.repoExists(pubkey, repoName) {
-			gs.gitError(w, "repository not found", http.StatusNotFound)
+			w.Header().Set("content-type", "text/plain; charset=UTF-8")
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "repository not found\n")
 			return
 		}
 		w.Header().Set("Content-Type", "application/x-git-upload-pack-advertisement")
@@ -157,7 +159,6 @@ func (gs *GraspServer) handleInfoRefs(
 
 		repoPath := filepath.Join(gs.RepositoryDir, repoName)
 		if err := gs.runInfoRefs(w, r, repoPath); err != nil {
-			fmt.Printf("runInfoRefs error: %s\n", err)
 			return
 		}
 	case "git-receive-pack":
@@ -172,7 +173,9 @@ func (gs *GraspServer) handleInfoRefs(
 		v, _ := base64.StdEncoding.DecodeString("MDAxZiMgc2VydmljZT1naXQtcmVjZWl2ZS1wYWNrCjAwMDAwMGIxMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCBjYXBhYmlsaXRpZXNee30AcmVwb3J0LXN0YXR1cyByZXBvcnQtc3RhdHVzLXYyIGRlbGV0ZS1yZWZzIHNpZGUtYmFuZC02NGsgcXVpZXQgYXRvbWljIG9mcy1kZWx0YSBvYmplY3QtZm9ybWF0PXNoYTEgYWdlbnQ9Z2l0LzIuNDMuMAowMDAw")
 		w.Write(v)
 	default:
-		gs.gitError(w, fmt.Sprintf("service unsupported: '%s'", serviceName), http.StatusForbidden)
+		w.Header().Set("content-type", "text/plain; charset=UTF-8")
+		w.WriteHeader(403)
+		fmt.Fprintf(w, "service unsupported: '%s'\n", serviceName)
 	}
 }
 
@@ -186,14 +189,18 @@ func (gs *GraspServer) handleGitUploadPack(
 
 	// for upload-pack (pull), check if repository exists
 	if !gs.repoExists(pubkey, repoName) {
-		gs.gitError(w, "repository not found", http.StatusNotFound)
+		w.Header().Set("content-type", "text/plain; charset=UTF-8")
+		w.WriteHeader(404)
+		fmt.Fprintf(w, "repository not found\n")
 		return
 	}
 
 	if gs.OnRead != nil {
 		reject, msg := gs.OnRead(r.Context(), pubkey, repoName)
 		if reject {
-			gs.gitError(w, msg, http.StatusForbidden)
+			w.Header().Set("content-type", "text/plain; charset=UTF-8")
+			w.WriteHeader(403)
+			fmt.Fprintf(w, "%s\n", msg)
 			return
 		}
 	}
@@ -201,7 +208,9 @@ func (gs *GraspServer) handleGitUploadPack(
 	const expectedContentType = "application/x-git-upload-pack-request"
 	contentType := r.Header.Get("Content-Type")
 	if contentType != expectedContentType {
-		gs.gitError(w, fmt.Sprintf("expected Content-Type: '%s', but received '%s'", expectedContentType, contentType), http.StatusUnsupportedMediaType)
+		w.Header().Set("content-type", "text/plain; charset=UTF-8")
+		w.WriteHeader(415)
+		fmt.Fprintf(w, "expected Content-Type: '%s', but received '%s'\n", expectedContentType, contentType)
 		return
 	}
 
@@ -209,8 +218,9 @@ func (gs *GraspServer) handleGitUploadPack(
 	if r.Header.Get("Content-Encoding") == "gzip" {
 		gzipReader, err := gzip.NewReader(r.Body)
 		if err != nil {
-			gs.gitError(w, err.Error(), http.StatusInternalServerError)
-			fmt.Printf("git: failed to create gzip reader, handler: UploadPack, error: %v\n", err)
+			w.Header().Set("content-type", "text/plain; charset=UTF-8")
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "failed to create gzip reader, handler: UploadPack, error: %v\n", err)
 			return
 		}
 		defer gzipReader.Close()
@@ -222,10 +232,10 @@ func (gs *GraspServer) handleGitUploadPack(
 	w.Header().Set("Cache-Control", "no-cache, max-age=0, must-revalidate")
 	w.WriteHeader(http.StatusOK)
 
-	fmt.Printf("git: executing git-upload-pack, handler: UploadPack, repo: %s\n", repoPath)
-
 	if err := gs.runUploadPack(w, r, repoPath, bodyReader); err != nil {
-		fmt.Printf("git: failed to execute git-upload-pack, handler: UploadPack, error: %v\n", err)
+		w.Header().Set("content-type", "text/plain; charset=UTF-8")
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprintf(w, "failed to execute git-upload-pack, handler: UploadPack, error: %v\n", err)
 		return
 	}
 }
@@ -240,15 +250,19 @@ func (gs *GraspServer) handleGitReceivePack(
 	body := &bytes.Buffer{}
 	io.Copy(body, r.Body)
 
-	if !gs.validatePush(r.Context(), pubkey, repoName, body.Bytes()) {
-		gs.gitError(w, "unauthorized push", http.StatusForbidden)
+	if err := gs.validatePush(r.Context(), pubkey, repoName, body.Bytes()); err != nil {
+		w.Header().Set("content-type", "text/plain; charset=UTF-8")
+		w.WriteHeader(403)
+		fmt.Fprintf(w, "unauthorized push: %v\n", err)
 		return
 	}
 
 	if gs.OnWrite != nil {
 		reject, msg := gs.OnWrite(r.Context(), pubkey, repoName)
 		if reject {
-			gs.gitError(w, msg, http.StatusForbidden)
+			w.Header().Set("content-type", "text/plain; charset=UTF-8")
+			w.WriteHeader(403)
+			fmt.Fprintf(w, "%s\n", msg)
 			return
 		}
 	}
@@ -257,7 +271,9 @@ func (gs *GraspServer) handleGitReceivePack(
 
 	// ensure repository directory exists
 	if err := os.MkdirAll(repoPath, 0755); err != nil {
-		gs.gitError(w, fmt.Sprintf("failed to create repository: %s", err), http.StatusInternalServerError)
+		w.Header().Set("content-type", "text/plain; charset=UTF-8")
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "failed to create repository: %s\n", err)
 		return
 	}
 
@@ -266,10 +282,11 @@ func (gs *GraspServer) handleGitReceivePack(
 		cmd := exec.Command("git", "init", "--bare")
 		cmd.Dir = repoPath
 		if output, err := cmd.CombinedOutput(); err != nil {
-			gs.gitError(w, fmt.Sprintf("failed to initialize repository: %s, output: %s", err, string(output)), http.StatusInternalServerError)
+			w.Header().Set("content-type", "text/plain; charset=UTF-8")
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "failed to initialize repository: %s, output: %s\n", err, string(output))
 			return
 		}
-		fmt.Printf("initialized new git repository at %s\n", repoPath)
 	}
 
 	w.Header().Set("Content-Type", "application/x-git-receive-pack-result")
@@ -278,14 +295,18 @@ func (gs *GraspServer) handleGitReceivePack(
 	w.WriteHeader(http.StatusOK)
 
 	if err := gs.runReceivePack(w, r, repoPath, io.NopCloser(bytes.NewReader(body.Bytes()))); err != nil {
-		fmt.Printf("runReceivePack error: %s\n", err)
+		w.Header().Set("content-type", "text/plain; charset=UTF-8")
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprintf(w, "runReceivePack: %v\n", err)
 		return
 	}
 
 	// update HEAD per state announcement
 	if err := gs.updateHEAD(r.Context(), pubkey, repoName, repoPath); err != nil {
-		fmt.Printf("failed to update HEAD: %s\n", err)
-		// don't fail the push, just log
+		w.Header().Set("content-type", "text/plain; charset=UTF-8")
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprintf(w, "failed to update HEAD: %v\n", err)
+		return
 	}
 
 	// cleanup merged patches
@@ -298,11 +319,10 @@ func (gs *GraspServer) validatePush(
 	pubkey nostr.PubKey,
 	repoName string,
 	bodyBytes []byte,
-) bool {
+) error {
 	// query for repository state events (kind 30618)
 	if gs.Relay.QueryStored == nil {
-		fmt.Printf("relay has no QueryStored function\n")
-		return false
+		return errors.New("relay has no QueryStored function")
 	}
 
 	// check state
@@ -316,7 +336,7 @@ func (gs *GraspServer) validatePush(
 		state = nip34.ParseRepositoryState(evt)
 	}
 	if state.Event.ID == nostr.ZeroID {
-		return false
+		return fmt.Errorf("no state found for repository '%s'", repoName)
 	}
 
 	// get repository announcement to check maintainers
@@ -330,20 +350,19 @@ func (gs *GraspServer) validatePush(
 		announcement = nip34.ParseRepository(evt)
 	}
 	if announcement.Event.ID == nostr.ZeroID {
-		return false
+		return fmt.Errorf("no announcement found for repository '%s'", repoName)
 	}
 
 	// ensure pusher is authorized (owner or maintainer)
 	if pubkey != announcement.PubKey && !slices.Contains(announcement.Maintainers, pubkey) {
-		return false
+		return fmt.Errorf("pusher '%s' is not authorized for repository '%s'", pubkey, repoName)
 	}
 
 	// parse pktline to extract and validate all push refs
 	pkt := pktline.NewScanner(bytes.NewReader(bodyBytes))
 	for pkt.Scan() {
 		if err := pkt.Err(); err != nil {
-			fmt.Printf("invalid pkt: %v\n", err)
-			return false
+			return fmt.Errorf("invalid pkt: %v", err)
 		}
 		line := string(pkt.Bytes())
 		if len(line) < 40 {
@@ -361,8 +380,7 @@ func (gs *GraspServer) validatePush(
 			eventId := ref[11:]
 			id, err := nostr.IDFromHex(eventId)
 			if err != nil {
-				fmt.Printf("push rejected: invalid event id %s\n", eventId)
-				return false
+				return fmt.Errorf("push rejected: invalid event id %s", eventId)
 			}
 			var foundEvent bool
 			for evt := range gs.Relay.QueryStored(ctx, nostr.Filter{
@@ -377,15 +395,13 @@ func (gs *GraspServer) validatePush(
 					}
 				}
 				if !hasMatchingCommit {
-					fmt.Printf("push rejected: event %s has different tip (expected %s)\n", eventId, to)
-					return false
+					return fmt.Errorf("push rejected: event %s has different tip (expected %s)", eventId, to)
 				}
 				foundEvent = true
 				break
 			}
 			if !foundEvent {
-				fmt.Printf("push rejected: event %s not found\n", eventId)
-				return false
+				return fmt.Errorf("push rejected: event %s not found", eventId)
 			}
 			continue
 		}
@@ -395,16 +411,13 @@ func (gs *GraspServer) validatePush(
 			branchName := ref[11:]
 			// pushing a branch
 			if commitId, exists := state.Branches[branchName]; exists && to == commitId {
-				fmt.Printf("push accepted: %s %s->%s\n", ref, from, to)
 				continue
 			}
 			// deleting a branch
 			if _, exists := state.Branches[branchName]; to == zeroRef && !exists {
-				fmt.Printf("delete accepted: %s\n", ref)
 				continue
 			}
-			fmt.Printf("push unauthorized: ref %s %s->%s does not match state\n", ref, from, to)
-			return false
+			return fmt.Errorf("push unauthorized: ref %s %s->%s does not match state", ref, from, to)
 		}
 
 		// validate tag pushes
@@ -412,20 +425,17 @@ func (gs *GraspServer) validatePush(
 			tagName := ref[10:]
 			// pushing a tag
 			if commitId, exists := state.Tags[tagName]; exists && to == commitId {
-				fmt.Printf("push accepted: %s %s->%s\n", ref, from, to)
 				continue
 			}
 			// deleting a tag
 			if _, exists := state.Tags[tagName]; to == zeroRef && !exists {
-				fmt.Printf("delete accepted: %s\n", ref)
 				continue
 			}
-			fmt.Printf("push unauthorized: ref %s %s->%s does not match state\n", ref, from, to)
-			return false
+			return fmt.Errorf("push unauthorized: ref %s %s->%s does not match state", ref, from, to)
 		}
 	}
 
-	return true
+	return nil
 }
 
 // repoExists checks if a repository has an announcement event (kind 30617)
@@ -603,8 +613,6 @@ func (gs *GraspServer) updateHEAD(ctx context.Context, pubkey nostr.PubKey, repo
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to update HEAD: %w, output: %s", err, string(output))
 	}
-
-	fmt.Printf("updated HEAD to %s for repo %s\n", latestState.HEAD, repoName)
 	return nil
 }
 
@@ -678,9 +686,9 @@ func (gs *GraspServer) cleanupMergedPatches(ctx context.Context, pubkey nostr.Pu
 			cmd := exec.Command("git", "update-ref", "-d", ref)
 			cmd.Dir = repoPath
 			if err := cmd.Run(); err != nil {
-				fmt.Printf("failed to delete ref %s: %s\n", ref, err)
+				fmt.Fprintf(os.Stderr, "failed to delete ref %s: %s\n", ref, err)
 			} else {
-				fmt.Printf("deleted ref %s (no corresponding event)\n", ref)
+				fmt.Fprintf(os.Stderr, "deleted ref %s (no corresponding event)\n", ref)
 			}
 			continue
 		}
@@ -703,9 +711,9 @@ func (gs *GraspServer) cleanupMergedPatches(ctx context.Context, pubkey nostr.Pu
 				cmd := exec.Command("git", "update-ref", "-d", ref)
 				cmd.Dir = repoPath
 				if err := cmd.Run(); err != nil {
-					fmt.Printf("failed to delete ref %s: %s\n", ref, err)
+					fmt.Fprintf(os.Stderr, "failed to delete ref %s: %s\n", ref, err)
 				} else {
-					fmt.Printf("deleted ref %s (merged into %s)\n", ref, branchName)
+					fmt.Fprintf(os.Stderr, "deleted ref %s (merged into %s)\n", ref, branchName)
 				}
 				break
 			}
@@ -741,13 +749,6 @@ func (gs *GraspServer) serveRepoPage(w http.ResponseWriter, r *http.Request, npu
 </body>
 </html>`, npub, repoName, npub, repoName, r.Host, npub, repoName)
 	fmt.Fprint(w, html)
-}
-
-// gitError writes a git error response
-func (gs *GraspServer) gitError(w http.ResponseWriter, msg string, status int) {
-	w.Header().Set("content-type", "text/plain; charset=UTF-8")
-	w.WriteHeader(status)
-	fmt.Fprintf(w, "%s\n", msg)
 }
 
 // packLine writes a pktline formatted line
