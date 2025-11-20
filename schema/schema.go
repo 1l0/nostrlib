@@ -58,29 +58,56 @@ func NewDefaultValidator() Validator {
 }
 
 var (
-	ErrUnknownContent     = fmt.Errorf("unknown content")
-	ErrUnknownKind        = fmt.Errorf("unknown kind")
-	ErrInvalidContentJson = fmt.Errorf("invalid content json")
-	ErrEmptyTag           = fmt.Errorf("empty tag")
-	ErrUnknownTagType     = fmt.Errorf("unknown tag type")
+	ErrUnknownContent = fmt.Errorf("unknown content")
+	ErrUnknownKind    = fmt.Errorf("unknown kind")
+	ErrInvalidJson    = fmt.Errorf("invalid json")
+	ErrEmptyValue     = fmt.Errorf("can't be empty")
+	ErrEmptyTag       = fmt.Errorf("empty tag")
+	ErrUnknownTagType = fmt.Errorf("unknown tag type")
+	ErrDanglingSpace  = fmt.Errorf("value has dangling space")
 )
 
+type ContentError struct {
+	Err error
+}
+
+func (ce ContentError) Error() string {
+	return fmt.Sprintf("content: %s", ce.Err)
+}
+
+type TagError struct {
+	Tag  int
+	Item int
+	Err  error
+}
+
+func (te TagError) Error() string {
+	return fmt.Sprintf("tag[%d][%d]: %s", te.Tag, te.Item, te.Err)
+}
+
 func (v *Validator) ValidateEvent(evt nostr.Event) error {
+	if !isTrimmed(evt.Content) {
+		return ContentError{ErrDanglingSpace}
+	}
+
 	if sch, ok := v.Schema[strconv.FormatUint(uint64(evt.Kind), 10)]; ok {
 		switch sch.Content {
 		case "json":
 			if !json.Valid(unsafe.Slice(unsafe.StringData(evt.Content), len(evt.Content))) {
-				return ErrInvalidContentJson
+				return ContentError{ErrInvalidJson}
 			}
 		case "free":
+			if evt.Content == "" {
+				return ContentError{ErrEmptyValue}
+			}
 		default:
 			if v.FailOnUnknown {
-				return ErrInvalidContentJson
+				return ContentError{ErrUnknownContent}
 			}
 		}
 
 	tags:
-		for _, tag := range evt.Tags {
+		for ti, tag := range evt.Tags {
 			if len(tag) == 0 {
 				return ErrEmptyTag
 			}
@@ -90,8 +117,8 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 			for _, tagspec := range sch.Tags {
 				if tagspec.Name == tag[0] || (tagspec.Prefix != "" && strings.HasPrefix(tag[0], tagspec.Prefix)) {
 					if tagspec.Next != nil {
-						if err := v.validateNext(tag, 1, tagspec.Next); err != nil {
-							lastErr = err
+						if ii, err := v.validateNext(tag, 1, tagspec.Next); err != nil {
+							lastErr = TagError{ti, ii, err}
 							continue specs // see if there is another tagspec that matches this
 						} else {
 							continue tags
@@ -118,49 +145,54 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 
 var gitcommitdummydecoder = make([]byte, 20)
 
-func (v *Validator) validateNext(tag nostr.Tag, index int, this *nextSpec) error {
+func (v *Validator) validateNext(tag nostr.Tag, index int, this *nextSpec) (failedIndex int, err error) {
 	if len(tag) <= index {
 		if this.Required {
-			return fmt.Errorf("invalid tag '%s', missing index %d", tag[0], index)
+			return index, fmt.Errorf("invalid tag '%s', missing index %d", tag[0], index)
 		}
-		return nil
+		return -1, nil
 	}
+
+	if !isTrimmed(tag[index]) {
+		return index, ErrDanglingSpace
+	}
+
 	switch this.Type {
 	case "id":
 		if _, err := nostr.IDFromHex(tag[index]); err != nil {
-			return fmt.Errorf("invalid id at tag '%s', index %d", tag[0], index)
+			return index, fmt.Errorf("invalid id at tag '%s', index %d", tag[0], index)
 		}
 	case "pubkey":
 		if _, err := nostr.PubKeyFromHex(tag[index]); err != nil {
-			return fmt.Errorf("invalid pubkey at tag '%s', index %d", tag[0], index)
+			return index, fmt.Errorf("invalid pubkey at tag '%s', index %d", tag[0], index)
 		}
 	case "addr":
 		if _, err := nostr.ParseAddrString(tag[index]); err != nil {
-			return fmt.Errorf("invalid addr at tag '%s', index %d", tag[0], index)
+			return index, fmt.Errorf("invalid addr at tag '%s', index %d", tag[0], index)
 		}
 	case "kind":
 		if _, err := strconv.ParseUint(tag[index], 10, 16); err != nil {
-			return fmt.Errorf("invalid kind at tag '%s', index %d", tag[0], index)
+			return index, fmt.Errorf("invalid kind at tag '%s', index %d", tag[0], index)
 		}
 	case "relay":
 		if url, err := url.Parse(tag[index]); err != nil || (url.Scheme != "ws" && url.Scheme != "wss") {
-			return fmt.Errorf("invalid relay at tag '%s', index %d", tag[0], index)
+			return index, fmt.Errorf("invalid relay at tag '%s', index %d", tag[0], index)
 		}
 	case "constrained":
 		if !slices.Contains(this.Either, tag[index]) {
-			return fmt.Errorf("invalid constrained at tag '%s', index %d", tag[0], index)
+			return index, fmt.Errorf("invalid constrained at tag '%s', index %d", tag[0], index)
 		}
 	case "gitcommit":
 		if len(tag[index]) != 40 {
-			return fmt.Errorf("invalid gitcommit at tag '%s', index %d", tag[0], index)
+			return index, fmt.Errorf("invalid gitcommit at tag '%s', index %d", tag[0], index)
 		}
 		if _, err := hex.Decode(gitcommitdummydecoder, unsafe.Slice(unsafe.StringData(tag[index]), 40)); err != nil {
-			return fmt.Errorf("invalid gitcommit at tag '%s', index %d", tag[0], index)
+			return index, fmt.Errorf("invalid gitcommit at tag '%s', index %d", tag[0], index)
 		}
 	case "free":
 	default:
 		if v.FailOnUnknown {
-			return ErrUnknownTagType
+			return index, ErrUnknownTagType
 		}
 	}
 
@@ -175,5 +207,5 @@ func (v *Validator) validateNext(tag nostr.Tag, index int, this *nextSpec) error
 		return v.validateNext(tag, index+1, this.Next)
 	}
 
-	return nil
+	return -1, nil
 }
