@@ -86,7 +86,7 @@ func NegentropySync(
 	}
 	if target != nil {
 		if targetSource, ok := target.(nostr.Querier); ok && targetSource != usedSource {
-			for evt := range source.QueryEvents(filter) {
+			for evt := range targetSource.QueryEvents(filter) {
 				vec.Insert(evt.CreatedAt, evt.ID)
 			}
 		}
