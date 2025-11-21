@@ -1,6 +1,7 @@
 package nip34
 
 import (
+	"fmt"
 	"strings"
 
 	"fiatjaf.com/nostr"
@@ -64,4 +65,8 @@ func (rs RepositoryState) ToEvent() nostr.Event {
 		Tags:      tags,
 		CreatedAt: nostr.Now(),
 	}
+}
+
+func (rs RepositoryState) String() string {
+	return fmt.Sprintf("RepositoryState{ID: %s, HEAD: %s, Tags: %v, Branches: %v}", rs.ID, rs.HEAD, rs.Tags, rs.Branches)
 }
