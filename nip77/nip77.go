@@ -161,7 +161,9 @@ func SyncEventsFromIDs(ctx context.Context, dir Direction) {
 		}
 	}
 
-	for evt := range dir.From.QueryEvents(nostr.Filter{IDs: batch}) {
-		dir.To.Publish(ctx, evt)
+	if len(batch) > 0 {
+		for evt := range dir.From.QueryEvents(nostr.Filter{IDs: batch}) {
+			dir.To.Publish(ctx, evt)
+		}
 	}
 }
