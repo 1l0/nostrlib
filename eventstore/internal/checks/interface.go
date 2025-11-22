@@ -2,7 +2,7 @@ package checks
 
 import (
 	"fiatjaf.com/nostr/eventstore"
-	"fiatjaf.com/nostr/eventstore/bluge"
+	"fiatjaf.com/nostr/eventstore/bleve"
 	"fiatjaf.com/nostr/eventstore/boltdb"
 	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/eventstore/mmm"
@@ -13,5 +13,5 @@ var (
 	_ eventstore.Store = (*lmdb.LMDBBackend)(nil)
 	_ eventstore.Store = (*mmm.IndexingLayer)(nil)
 	_ eventstore.Store = (*boltdb.BoltBackend)(nil)
-	_ eventstore.Store = (*bluge.BlugeBackend)(nil)
+	_ eventstore.Store = (*bleve.BleveBackend)(nil)
 )

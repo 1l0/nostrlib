@@ -12,7 +12,7 @@ go get fiatjaf.com/nostr
 
 ## Components
 
-- **eventstore**: Pluggable storage backends (Bluge, BoltDB, LMDB, in-memory, MMM)
+- **eventstore**: Pluggable storage backends (Bleve, BoltDB, LMDB, in-memory, MMM)
 - **khatru**: Flexible framework for building Nostr relays
 - **khatru/blossom**: Plugin for a Khatru server that adds flexible Blossom server support
 - **khatru/grasp**: Plugin for a Khatru server that adds Grasp server support
