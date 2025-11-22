@@ -1,6 +1,6 @@
 module fiatjaf.com/nostr
 
-go 1.24.1
+go 1.24
 
 require (
 	github.com/FastFilter/xorfilter v0.2.1
