@@ -1,9 +1,8 @@
 package bluge
 
 import (
-	"encoding/hex"
-
 	"fiatjaf.com/nostr"
+	"github.com/templexxx/xhex"
 )
 
 const (
@@ -23,6 +22,6 @@ func (id eventIdentifier) Field() string {
 
 func (id eventIdentifier) Term() []byte {
 	idhex := make([]byte, 64)
-	hex.Encode(idhex, id[:])
+	xhex.Encode(idhex, id[:])
 	return idhex
 }

@@ -2,7 +2,6 @@ package negentropy
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"math"
@@ -72,12 +71,12 @@ func (n *Negentropy) Start() string {
 	output.WriteByte(protocolVersion)
 	n.SplitRange(0, n.storage.Size(), InfiniteBound, output)
 
-	return hex.EncodeToString(output.Bytes())
+	return nostr.HexEncodeToString(output.Bytes())
 }
 
 func (n *Negentropy) Reconcile(msg string) (string, error) {
 	n.initialized = true
-	msgb, err := hex.DecodeString(msg)
+	msgb, err := nostr.HexDecodeString(msg)
 	if err != nil {
 		return "", err
 	}
@@ -99,7 +98,7 @@ func (n *Negentropy) Reconcile(msg string) (string, error) {
 		return "", nil
 	}
 
-	return hex.EncodeToString(output), nil
+	return nostr.HexEncodeToString(output), nil
 }
 
 func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {

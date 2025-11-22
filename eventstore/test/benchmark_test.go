@@ -2,7 +2,6 @@ package test
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"testing"
@@ -42,7 +41,7 @@ func runBenchmarkOn(b *testing.B, db eventstore.Store) {
 			Content:   fmt.Sprintf("hello %d", i),
 			Tags: nostr.Tags{
 				{"t", fmt.Sprintf("t%d", i)},
-				{"e", hex.EncodeToString(eTag)},
+				{"e", nostr.HexEncodeToString(eTag)},
 				{"p", ref.Hex()},
 			},
 			Kind: nostr.Kind(i % 10),
@@ -70,7 +69,7 @@ func runBenchmarkOn(b *testing.B, db eventstore.Store) {
 	for i := 0; i < 20; i++ {
 		eTag := make([]byte, 32)
 		binary.BigEndian.PutUint16(eTag, uint16(i))
-		eTags[i] = hex.EncodeToString(eTag)
+		eTags[i] = nostr.HexEncodeToString(eTag)
 	}
 	filters = append(filters, nostr.Filter{Kinds: []nostr.Kind{9}, Tags: nostr.TagMap{"e": eTags}})
 	filters = append(filters, nostr.Filter{Kinds: []nostr.Kind{5}, Tags: nostr.TagMap{"e": eTags, "t": []string{"t5"}}})

@@ -3,7 +3,6 @@ package mmm
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"iter"
 	"slices"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"github.com/PowerDNS/lmdb-go/lmdb"
+	"github.com/templexxx/xhex"
 )
 
 type iterator struct {
@@ -229,7 +229,7 @@ func (il *IndexingLayer) getIndexKeysForEvent(evt nostr.Event) iter.Seq[key] {
 			// now the p-tag+kind+date
 			if dbi == il.indexTag32 && tag[0] == "p" {
 				k := make([]byte, 8+2+4)
-				hex.Decode(k[0:8], []byte(tag[1][0:8*2]))
+				xhex.Decode(k[0:8], []byte(tag[1][0:8*2]))
 				binary.BigEndian.PutUint16(k[8:8+2], uint16(evt.Kind))
 				binary.BigEndian.PutUint32(k[8+2:8+2+4], uint32(evt.CreatedAt))
 				dbi := il.indexPTagKind
@@ -261,7 +261,7 @@ func (il *IndexingLayer) getTagIndexPrefix(tagName string, tagValue string) (lmd
 	if len(tagValue) == 64 {
 		// but we actually only use the first 8 bytes, with letter (tag name) prefix
 		k = make([]byte, 1+8+4)
-		if _, err := hex.Decode(k[1:1+8], []byte(tagValue[0:8*2])); err == nil {
+		if err := xhex.Decode(k[1:1+8], []byte(tagValue[0:8*2])); err == nil {
 			k[0] = letterPrefix
 			offset = 1 + 8
 			dbi = il.indexTag32
@@ -273,7 +273,7 @@ func (il *IndexingLayer) getTagIndexPrefix(tagName string, tagValue string) (lmd
 	spl := strings.Split(tagValue, ":")
 	if len(spl) == 3 && len(spl[1]) == 64 {
 		k = make([]byte, 1+2+8+30+4)
-		if _, err := hex.Decode(k[1+2:1+2+8], []byte(spl[1][0:8*2])); err == nil {
+		if err := xhex.Decode(k[1+2:1+2+8], []byte(spl[1][0:8*2])); err == nil {
 			if kind, err := strconv.ParseUint(spl[0], 10, 16); err == nil {
 				k[0] = letterPrefix
 				k[1] = byte(kind >> 8)

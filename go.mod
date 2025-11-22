@@ -43,6 +43,8 @@ require (
 require (
 	github.com/dgraph-io/ristretto/v2 v2.3.0
 	github.com/go-git/go-git/v5 v5.16.3
+	github.com/templexxx/cpu v0.0.1
+	github.com/templexxx/xhex v0.0.0-20200614015412-aed53437177b
 )
 
 require (

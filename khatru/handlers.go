@@ -3,7 +3,6 @@ package khatru
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"net/http"
 	"slices"
@@ -76,7 +75,7 @@ func (rl *Relay) HandleWebsocket(w http.ResponseWriter, r *http.Request) {
 	ws := &WebSocket{
 		conn:               conn,
 		Request:            r,
-		Challenge:          rl.ChallengePrefix + hex.EncodeToString(challenge),
+		Challenge:          rl.ChallengePrefix + nostr.HexEncodeToString(challenge),
 		AuthedPublicKeys:   make([]nostr.PubKey, 0),
 		negentropySessions: xsync.NewMapOf[string, *NegentropySession](),
 	}

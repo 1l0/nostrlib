@@ -2,7 +2,6 @@ package schema
 
 import (
 	_ "embed"
-	"encoding/hex"
 	"fmt"
 	"net/url"
 	"slices"
@@ -12,6 +11,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"github.com/segmentio/encoding/json"
+	"github.com/templexxx/xhex"
 	"gopkg.in/yaml.v3"
 )
 
@@ -186,7 +186,7 @@ func (v *Validator) validateNext(tag nostr.Tag, index int, this *nextSpec) (fail
 		if len(tag[index]) != 40 {
 			return index, fmt.Errorf("invalid gitcommit at tag '%s', index %d", tag[0], index)
 		}
-		if _, err := hex.Decode(gitcommitdummydecoder, unsafe.Slice(unsafe.StringData(tag[index]), 40)); err != nil {
+		if err := xhex.Decode(gitcommitdummydecoder, unsafe.Slice(unsafe.StringData(tag[index]), 40)); err != nil {
 			return index, fmt.Errorf("invalid gitcommit at tag '%s', index %d", tag[0], index)
 		}
 	case "free":

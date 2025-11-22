@@ -3,7 +3,6 @@ package lmdb
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"slices"
 
 	"fiatjaf.com/nostr"
@@ -11,6 +10,7 @@ import (
 	"fiatjaf.com/nostr/nip45"
 	"fiatjaf.com/nostr/nip45/hyperloglog"
 	"github.com/PowerDNS/lmdb-go/lmdb"
+	"github.com/templexxx/xhex"
 )
 
 func (b *LMDBBackend) CountEvents(filter nostr.Filter) (uint32, error) {
@@ -185,11 +185,11 @@ func (b *LMDBBackend) countEventsHLLCached(filter nostr.Filter) (uint32, *hyperl
 	binary.BigEndian.PutUint16(cacheKey[0:2], uint16(filter.Kinds[0]))
 	switch filter.Kinds[0] {
 	case 3:
-		hex.Decode(cacheKey[2:2+8], []byte(filter.Tags["p"][0][0:8*2]))
+		xhex.Decode(cacheKey[2:2+8], []byte(filter.Tags["p"][0][0:8*2]))
 	case 7:
-		hex.Decode(cacheKey[2:2+8], []byte(filter.Tags["e"][0][0:8*2]))
+		xhex.Decode(cacheKey[2:2+8], []byte(filter.Tags["e"][0][0:8*2]))
 	case 1111:
-		hex.Decode(cacheKey[2:2+8], []byte(filter.Tags["E"][0][0:8*2]))
+		xhex.Decode(cacheKey[2:2+8], []byte(filter.Tags["E"][0][0:8*2]))
 	}
 
 	var count uint32
@@ -217,7 +217,7 @@ func (b *LMDBBackend) updateHyperLogLogCachedValues(txn *lmdb.Txn, evt nostr.Eve
 
 	for ref, offset := range nip45.HyperLogLogEventPubkeyOffsetsAndReferencesForEvent(evt) {
 		// setup cache key (reusing buffer)
-		hex.Decode(cacheKey[2:2+8], []byte(ref[0:8*2]))
+		xhex.Decode(cacheKey[2:2+8], []byte(ref[0:8*2]))
 
 		// fetch hll value from cache db
 		hll := hyperloglog.New(offset)

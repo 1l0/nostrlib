@@ -2,12 +2,12 @@ package mmm
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore/internal"
 	"github.com/PowerDNS/lmdb-go/lmdb"
+	"github.com/templexxx/xhex"
 )
 
 type query struct {
@@ -77,7 +77,7 @@ func (il *IndexingLayer) prepareQueries(filter nostr.Filter) (
 
 					for _, kind := range filter.Kinds {
 						k := make([]byte, 8+2)
-						if _, err := hex.Decode(k[0:8], []byte(value[0:8*2])); err != nil {
+						if err := xhex.Decode(k[0:8], []byte(value[0:8*2])); err != nil {
 							return nil, nil, nil, "", nil, 0, fmt.Errorf("invalid 'p' tag '%s'", value)
 						}
 						binary.BigEndian.PutUint16(k[8:8+2], uint16(kind))
@@ -94,7 +94,7 @@ func (il *IndexingLayer) prepareQueries(filter nostr.Filter) (
 					}
 
 					k := make([]byte, 8)
-					if _, err := hex.Decode(k[0:8], []byte(value[0:8*2])); err != nil {
+					if err := xhex.Decode(k[0:8], []byte(value[0:8*2])); err != nil {
 						return nil, nil, nil, "", nil, 0, fmt.Errorf("invalid 'p' tag '%s'", value)
 					}
 					queries[i] = query{i: i, dbi: il.indexPTagKind, prefix: k[0:8], keySize: 8 + 2 + 4, timestampSize: 4}
