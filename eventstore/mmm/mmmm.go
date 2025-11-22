@@ -56,6 +56,12 @@ func (b *MultiMmapManager) Init() error {
 		b.Logger = &nopLogger
 	}
 
+	// create directory if it doesn't exist
+	dbpath := filepath.Join(b.Dir, "mmmm")
+	if err := os.MkdirAll(dbpath, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dbpath, err)
+	}
+
 	// create lockfile to prevent multiple instances
 	lockfilePath := filepath.Join(b.Dir, "mmmm.lock")
 	if _, err := os.OpenFile(lockfilePath, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0644); err != nil {
@@ -63,12 +69,6 @@ func (b *MultiMmapManager) Init() error {
 			return fmt.Errorf("database at %s is already in use by another instance", b.Dir)
 		}
 		return fmt.Errorf("failed to create lockfile %s: %w", lockfilePath, err)
-	}
-
-	// create directory if it doesn't exist
-	dbpath := filepath.Join(b.Dir, "mmmm")
-	if err := os.MkdirAll(dbpath, 0755); err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", dbpath, err)
 	}
 
 	// open a huge mmapped file
