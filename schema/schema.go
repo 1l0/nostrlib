@@ -73,7 +73,7 @@ type Validator struct {
 	Schema            Schema
 	FailOnUnknownKind bool
 	FailOnUnknownType bool
-	TypeValidators    map[string]func(string, *nextSpec) error
+	TypeValidators    map[string]func(value string, spec *nextSpec) error
 	UnknownTypes      []string
 }
 
@@ -92,7 +92,7 @@ func NewValidatorFromBytes(schemaData []byte) (Validator, error) {
 func NewValidatorFromSchema(sch Schema) Validator {
 	validator := Validator{
 		Schema: sch,
-		TypeValidators: map[string]func(string, *nextSpec) error{
+		TypeValidators: map[string]func(value string, spec *nextSpec) error{
 			"id": func(value string, spec *nextSpec) error {
 				if len(value) != 64 {
 					return fmt.Errorf("needed 64 hex chars")
@@ -159,6 +159,12 @@ func NewValidatorFromSchema(sch Schema) Validator {
 				}
 				return fmt.Errorf("not a space-separated keyval")
 			},
+			"empty": func(value string, spec *nextSpec) error {
+				if len(value) > 0 {
+					return fmt.Errorf("not empty")
+				}
+				return nil
+			},
 			"free": func(value string, spec *nextSpec) error {
 				return nil // accepts anything
 			},
@@ -187,13 +193,14 @@ func NewValidatorFromURL(schemaURL string) (Validator, error) {
 }
 
 var (
-	ErrUnknownContent = fmt.Errorf("unknown content")
-	ErrUnknownKind    = fmt.Errorf("unknown kind")
-	ErrInvalidJson    = fmt.Errorf("invalid json")
-	ErrEmptyValue     = fmt.Errorf("can't be empty")
-	ErrEmptyTag       = fmt.Errorf("empty tag")
-	ErrUnknownTagType = fmt.Errorf("unknown tag type")
-	ErrDanglingSpace  = fmt.Errorf("value has dangling space")
+	ErrUnknownContent       = fmt.Errorf("unknown content")
+	ErrUnknownKind          = fmt.Errorf("unknown kind")
+	ErrInvalidJson          = fmt.Errorf("invalid json")
+	ErrEmptyValue           = fmt.Errorf("can't be empty")
+	ErrEmptyTag             = fmt.Errorf("empty tag")
+	ErrDTagInNonAddressable = fmt.Errorf("non-addressable event can't have a 'd' tag")
+	ErrUnknownTagType       = fmt.Errorf("unknown tag type")
+	ErrDanglingSpace        = fmt.Errorf("value has dangling space")
 )
 
 type UnknownTypes struct {
@@ -251,10 +258,21 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 			requiredTags = append(requiredTags, sch.Required...)
 		}
 
+		needsD := evt.Kind.IsAddressable()
+
 	tags:
 		for ti, tag := range evt.Tags {
 			if len(tag) == 0 {
 				return ErrEmptyTag
+			}
+
+			// if this is a "d" tag in an addressable event, just handle it here
+			if tag[0] == "d" {
+				if evt.Kind.IsAddressable() {
+					needsD = false
+				} else {
+					return ErrDTagInNonAddressable
+				}
 			}
 
 			if requiredTags != nil {
@@ -301,6 +319,10 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 
 		if len(requiredTags) > 0 {
 			return RequiredTagError{requiredTags}
+		}
+
+		if needsD {
+			return RequiredTagError{Missing: []string{"d"}}
 		}
 	}
 
