@@ -3,7 +3,10 @@ package schema
 import (
 	_ "embed"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,8 +18,26 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed schema.yaml
-var schemaFile []byte
+const DefaultSchemaURL = "https://raw.githubusercontent.com/nostr-protocol/registry-of-kinds/refs/heads/master/schema.yaml"
+
+func fetchSchemaFromURL(schemaURL string) (string, error) {
+	resp, err := http.Get(schemaURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch schema from URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to fetch schema: HTTP %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read schema response: %w", err)
+	}
+
+	return string(body), nil
+}
 
 type Schema map[string]KindSchema
 
@@ -44,17 +65,32 @@ type Validator struct {
 	FailOnUnknown bool
 }
 
-func NewValidator(schemaData string) Validator {
+func NewValidatorFromBytes(schemaData []byte) (Validator, error) {
 	schema := make(Schema)
-	if err := yaml.Unmarshal([]byte(schemaData), &schema); err != nil {
-		panic(fmt.Errorf("failed to parse schema.yaml: %w", err))
+	if err := yaml.Unmarshal(schemaData, &schema); err != nil {
+		return Validator{}, fmt.Errorf("failed to parse schema: %w", err)
 	}
-
-	return Validator{Schema: schema}
+	return Validator{Schema: schema}, nil
 }
 
-func NewDefaultValidator() Validator {
-	return NewValidator(string(schemaFile))
+func NewValidatorFromSchema(sch Schema) Validator {
+	return Validator{Schema: sch}
+}
+
+func NewValidatorFromFile(filename string) (Validator, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return Validator{}, fmt.Errorf("failed to read schema file: %w", err)
+	}
+	return NewValidatorFromBytes(data)
+}
+
+func NewValidatorFromURL(schemaURL string) (Validator, error) {
+	schemaData, err := fetchSchemaFromURL(schemaURL)
+	if err != nil {
+		return Validator{}, err
+	}
+	return NewValidatorFromBytes([]byte(schemaData))
 }
 
 var (
