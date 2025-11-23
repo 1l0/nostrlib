@@ -3,6 +3,7 @@ package schema
 import (
 	_ "embed"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"unsafe"
 
 	"fiatjaf.com/nostr"
-	"github.com/segmentio/encoding/json"
 	"gopkg.in/yaml.v3"
 )
 
@@ -48,7 +48,7 @@ type Schema struct {
 }
 
 type KindSchema struct {
-	Content string    `yaml:"content"`
+	Content nextSpec  `yaml:"content"`
 	Tags    []tagSpec `yaml:"tags"`
 }
 
@@ -119,6 +119,12 @@ func NewValidatorFromSchema(sch Schema) Validator {
 				}
 				return nil
 			},
+			"json": func(value string, spec *nextSpec) error {
+				if !json.Valid(unsafe.Slice(unsafe.StringData(value), len(value))) {
+					return ContentError{ErrInvalidJson}
+				}
+				return nil
+			},
 			"constrained": func(value string, spec *nextSpec) error {
 				if !slices.Contains(spec.Either, value) {
 					return fmt.Errorf("not in allowed list")
@@ -141,11 +147,14 @@ func NewValidatorFromSchema(sch Schema) Validator {
 				}
 				return nil
 			},
+			"numeric": func(value string, spec *nextSpec) error {
+				_, err := strconv.ParseUint(value, 10, 64)
+				return err
+			},
 			"imeta": func(value string, spec *nextSpec) error {
 				if len(strings.SplitN(value, " ", 2)) == 2 {
 					return nil
 				}
-
 				return fmt.Errorf("not a space-separated keyval")
 			},
 			"free": func(value string, spec *nextSpec) error {
@@ -217,16 +226,11 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 	}
 
 	if sch, ok := v.Schema.Kinds[strconv.FormatUint(uint64(evt.Kind), 10)]; ok {
-		switch sch.Content {
-		case "json":
-			if !json.Valid(unsafe.Slice(unsafe.StringData(evt.Content), len(evt.Content))) {
-				return ContentError{ErrInvalidJson}
+		if validator, ok := v.TypeValidators[sch.Content.Type]; ok {
+			if err := validator(evt.Content, &sch.Content); err != nil {
+				return ContentError{err}
 			}
-		case "free":
-			if evt.Content == "" {
-				return ContentError{ErrEmptyValue}
-			}
-		default:
+		} else {
 			if v.FailOnUnknown {
 				return ContentError{ErrUnknownContent}
 			}
