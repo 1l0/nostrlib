@@ -42,7 +42,10 @@ func fetchSchemaFromURL(schemaURL string) (string, error) {
 	return string(body), nil
 }
 
-type Schema map[string]KindSchema
+type Schema struct {
+	GenericTags map[string]nextSpec   `yaml:"generic_tags"`
+	Kinds       map[string]KindSchema `yaml:"kinds"`
+}
 
 type KindSchema struct {
 	Content string    `yaml:"content"`
@@ -73,7 +76,10 @@ type Validator struct {
 }
 
 func NewValidatorFromBytes(schemaData []byte) (Validator, error) {
-	schema := make(Schema)
+	schema := Schema{
+		GenericTags: make(map[string]nextSpec),
+		Kinds:       make(map[string]KindSchema),
+	}
 	if err := yaml.Unmarshal(schemaData, &schema); err != nil {
 		return Validator{}, fmt.Errorf("failed to parse schema: %w", err)
 	}
@@ -210,7 +216,7 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 		return ContentError{ErrDanglingSpace}
 	}
 
-	if sch, ok := v.Schema[strconv.FormatUint(uint64(evt.Kind), 10)]; ok {
+	if sch, ok := v.Schema.Kinds[strconv.FormatUint(uint64(evt.Kind), 10)]; ok {
 		switch sch.Content {
 		case "json":
 			if !json.Valid(unsafe.Slice(unsafe.StringData(evt.Content), len(evt.Content))) {
@@ -233,10 +239,12 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 			}
 
 			var lastErr error
+			var tagWasValidated bool
 		specs:
 			for _, tagspec := range sch.Tags {
 				if tagspec.Name == tag[0] || (tagspec.Prefix != "" && strings.HasPrefix(tag[0], tagspec.Prefix)) {
 					if tagspec.Next != nil {
+						tagWasValidated = true
 						if ii, err := v.validateNext(tag, 1, tagspec.Next); err != nil {
 							lastErr = TagError{ti, ii, err}
 							continue specs // see if there is another tagspec that matches this
@@ -252,6 +260,15 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 			if lastErr != nil {
 				// there was at least one failure for this tag and no further successes
 				return lastErr
+			}
+
+			// when we don't find a specific tag validator for this kind, try a generic one
+			if !tagWasValidated {
+				if tagSpecNext, ok := v.Schema.GenericTags[tag[0]]; ok {
+					if ii, err := v.validateNext(tag, 1, &tagSpecNext); err != nil {
+						lastErr = TagError{ti, ii, err}
+					}
+				}
 			}
 		}
 	}
@@ -279,7 +296,7 @@ func (v *Validator) findUnknownTypes(schema Schema) []string {
 	var unknown []string
 
 	visitedTypes := make([]string, 0, 10)
-	for _, kindSchema := range schema {
+	for _, kindSchema := range schema.Kinds {
 		for _, tagSpec := range kindSchema.Tags {
 			collectTypes(tagSpec.Next, visitedTypes, func(typeName string) {
 				if _, ok := v.TypeValidators[typeName]; !ok {
@@ -287,6 +304,13 @@ func (v *Validator) findUnknownTypes(schema Schema) []string {
 				}
 			})
 		}
+	}
+	for _, tagSpec := range schema.GenericTags {
+		collectTypes(tagSpec.Next, visitedTypes, func(typeName string) {
+			if _, ok := v.TypeValidators[typeName]; !ok {
+				unknown = append(unknown, typeName)
+			}
+		})
 	}
 
 	return unknown
