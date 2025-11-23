@@ -24,7 +24,6 @@ require (
 	github.com/puzpuzpuz/xsync/v3 v3.5.1
 	github.com/rs/cors v1.11.1
 	github.com/rs/zerolog v1.33.0
-	github.com/segmentio/encoding v0.5.3
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/tyler-smith/go-bip32 v1.0.0
@@ -43,6 +42,7 @@ require (
 require (
 	github.com/dgraph-io/ristretto/v2 v2.3.0
 	github.com/go-git/go-git/v5 v5.16.3
+	github.com/sivukhin/godjot v1.0.6
 	github.com/templexxx/cpu v0.0.1
 	github.com/templexxx/xhex v0.0.0-20200614015412-aed53437177b
 )
@@ -93,7 +93,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/savsgio/gotils v0.0.0-20240704082632-aef3928b8a38 // indirect
-	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
