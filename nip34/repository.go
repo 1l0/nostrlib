@@ -106,3 +106,37 @@ func (r Repository) ToEvent() nostr.Event {
 func (r Repository) String() string {
 	return fmt.Sprintf("Repository{ID: %s, Name: %s, Description: %s, Web: %v, Clone: %v, Relays: %v, EarliestUniqueCommitID: %s, Maintainers: %v}", r.ID, r.Name, r.Description, r.Web, r.Clone, r.Relays, r.EarliestUniqueCommitID, r.Maintainers)
 }
+
+func (r Repository) Equals(other Repository) bool {
+	if r.ID != other.ID || r.Name != other.Name || r.Description != other.Description {
+		return false
+	}
+	if r.EarliestUniqueCommitID != other.EarliestUniqueCommitID {
+		return false
+	}
+	if len(r.Web) != len(other.Web) || len(r.Clone) != len(other.Clone) ||
+		len(r.Relays) != len(other.Relays) || len(r.Maintainers) != len(other.Maintainers) {
+		return false
+	}
+	for i := range r.Web {
+		if r.Web[i] != other.Web[i] {
+			return false
+		}
+	}
+	for i := range r.Clone {
+		if r.Clone[i] != other.Clone[i] {
+			return false
+		}
+	}
+	for i := range r.Relays {
+		if r.Relays[i] != other.Relays[i] {
+			return false
+		}
+	}
+	for i := range r.Maintainers {
+		if r.Maintainers[i] != other.Maintainers[i] {
+			return false
+		}
+	}
+	return true
+}
