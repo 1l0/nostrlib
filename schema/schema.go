@@ -48,8 +48,9 @@ type Schema struct {
 }
 
 type KindSchema struct {
-	Content nextSpec  `yaml:"content"`
-	Tags    []tagSpec `yaml:"tags"`
+	Content  nextSpec  `yaml:"content"`
+	Required []string  `yaml:"required"`
+	Tags     []tagSpec `yaml:"tags"`
 }
 
 type tagSpec struct {
@@ -69,10 +70,11 @@ type nextSpec struct {
 }
 
 type Validator struct {
-	Schema         Schema
-	FailOnUnknown  bool
-	TypeValidators map[string]func(string, *nextSpec) error
-	UnknownTypes   []string
+	Schema            Schema
+	FailOnUnknownKind bool
+	FailOnUnknownType bool
+	TypeValidators    map[string]func(string, *nextSpec) error
+	UnknownTypes      []string
 }
 
 func NewValidatorFromBytes(schemaData []byte) (Validator, error) {
@@ -220,6 +222,14 @@ func (te TagError) Error() string {
 	return fmt.Sprintf("tag[%d][%d]: %s", te.Tag, te.Item, te.Err)
 }
 
+type RequiredTagError struct {
+	Missing []string
+}
+
+func (rte RequiredTagError) Error() string {
+	return fmt.Sprintf("missing tags: %v", rte.Missing)
+}
+
 func (v *Validator) ValidateEvent(evt nostr.Event) error {
 	if !isTrimmed(evt.Content) {
 		return ContentError{ErrDanglingSpace}
@@ -231,15 +241,28 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 				return ContentError{err}
 			}
 		} else {
-			if v.FailOnUnknown {
+			if v.FailOnUnknownType {
 				return ContentError{ErrUnknownContent}
 			}
+		}
+
+		var requiredTags []string
+		if len(sch.Required) > 0 {
+			requiredTags = append(requiredTags, sch.Required...)
 		}
 
 	tags:
 		for ti, tag := range evt.Tags {
 			if len(tag) == 0 {
 				return ErrEmptyTag
+			}
+
+			if requiredTags != nil {
+				// swap-delete this from the list of requirements
+				if idx := slices.Index(requiredTags, tag[0]); idx != -1 {
+					requiredTags[idx] = requiredTags[len(requiredTags)-1]
+					requiredTags = requiredTags[0 : len(requiredTags)-1]
+				}
 			}
 
 			var lastErr error
@@ -275,9 +298,13 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 				}
 			}
 		}
+
+		if len(requiredTags) > 0 {
+			return RequiredTagError{requiredTags}
+		}
 	}
 
-	if v.FailOnUnknown {
+	if v.FailOnUnknownKind {
 		return ErrUnknownKind
 	}
 
@@ -338,7 +365,7 @@ func (v *Validator) validateNext(tag nostr.Tag, index int, this *nextSpec) (fail
 				this.Type, tag[index], tag[0], index, err)
 		}
 	} else {
-		if v.FailOnUnknown {
+		if v.FailOnUnknownType {
 			return index, ErrUnknownTagType
 		}
 	}
