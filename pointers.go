@@ -166,7 +166,7 @@ func (ep EntityPointer) MatchesEvent(evt Event) bool {
 }
 
 func (ep EntityPointer) AsTagReference() string {
-	return fmt.Sprintf("%d:%s:%s", ep.Kind, ep.PublicKey, ep.Identifier)
+	return fmt.Sprintf("%d:%s:%s", ep.Kind, ep.PublicKey.Hex(), ep.Identifier)
 }
 
 func (ep EntityPointer) AsFilter() Filter {
