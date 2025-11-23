@@ -2,6 +2,7 @@ package schema
 
 import (
 	_ "embed"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,11 +15,13 @@ import (
 
 	"fiatjaf.com/nostr"
 	"github.com/segmentio/encoding/json"
-	"github.com/templexxx/xhex"
 	"gopkg.in/yaml.v3"
 )
 
 const DefaultSchemaURL = "https://raw.githubusercontent.com/nostr-protocol/registry-of-kinds/refs/heads/master/schema.yaml"
+
+// this is used by hex.Decode in the "hex" validator -- we don't care about data races
+var hexdummydecoder = make([]byte, 128)
 
 func fetchSchemaFromURL(schemaURL string) (string, error) {
 	resp, err := http.Get(schemaURL)
@@ -55,14 +58,18 @@ type tagSpec struct {
 type nextSpec struct {
 	Type     string    `yaml:"type"`
 	Required bool      `yaml:"required"`
+	Min      int       `yaml:"min"`
+	Max      int       `yaml:"max"`
 	Either   []string  `yaml:"either"`
 	Next     *nextSpec `yaml:"next"`
 	Variadic bool      `yaml:"variadic"`
 }
 
 type Validator struct {
-	Schema        Schema
-	FailOnUnknown bool
+	Schema         Schema
+	FailOnUnknown  bool
+	TypeValidators map[string]func(string, *nextSpec) error
+	UnknownTypes   []string
 }
 
 func NewValidatorFromBytes(schemaData []byte) (Validator, error) {
@@ -70,11 +77,80 @@ func NewValidatorFromBytes(schemaData []byte) (Validator, error) {
 	if err := yaml.Unmarshal(schemaData, &schema); err != nil {
 		return Validator{}, fmt.Errorf("failed to parse schema: %w", err)
 	}
-	return Validator{Schema: schema}, nil
+
+	return NewValidatorFromSchema(schema), nil
 }
 
 func NewValidatorFromSchema(sch Schema) Validator {
-	return Validator{Schema: sch}
+	validator := Validator{
+		Schema: sch,
+		TypeValidators: map[string]func(string, *nextSpec) error{
+			"id": func(value string, spec *nextSpec) error {
+				if len(value) != 64 {
+					return fmt.Errorf("needed 64 hex chars")
+				}
+
+				_, err := hex.Decode(hexdummydecoder, unsafe.Slice(unsafe.StringData(value), len(value)))
+				return err
+			},
+			"pubkey": func(value string, spec *nextSpec) error {
+				_, err := nostr.PubKeyFromHex(value)
+				return err
+			},
+			"addr": func(value string, spec *nextSpec) error {
+				_, err := nostr.ParseAddrString(value)
+				return err
+			},
+			"kind": func(value string, spec *nextSpec) error {
+				if _, err := strconv.ParseUint(value, 10, 16); err != nil {
+					return fmt.Errorf("not an unsigned integer: %w", err)
+				}
+				return nil
+			},
+			"relay": func(value string, spec *nextSpec) error {
+				if url, err := url.Parse(value); err != nil || (url.Scheme != "ws" && url.Scheme != "wss") {
+					return fmt.Errorf("must be ws or wss URL")
+				}
+				return nil
+			},
+			"constrained": func(value string, spec *nextSpec) error {
+				if !slices.Contains(spec.Either, value) {
+					return fmt.Errorf("not in allowed list")
+				}
+				return nil
+			},
+			"hex": func(value string, spec *nextSpec) error {
+				if spec.Min > 0 && len(value) < spec.Min {
+					return fmt.Errorf("hex value too short: %d < %d", len(value), spec.Min)
+				}
+				if spec.Max > 0 && len(value) > spec.Max {
+					return fmt.Errorf("hex value too long: %d > %d", len(value), spec.Max)
+				}
+				_, err := hex.Decode(hexdummydecoder, unsafe.Slice(unsafe.StringData(value), len(value)))
+				return err
+			},
+			"lowercase": func(value string, spec *nextSpec) error {
+				if strings.ToLower(value) != value {
+					return fmt.Errorf("not lowercase")
+				}
+				return nil
+			},
+			"imeta": func(value string, spec *nextSpec) error {
+				if len(strings.SplitN(value, " ", 2)) == 2 {
+					return nil
+				}
+
+				return fmt.Errorf("not a space-separated keyval")
+			},
+			"free": func(value string, spec *nextSpec) error {
+				return nil // accepts anything
+			},
+		},
+	}
+
+	validator.UnknownTypes = validator.findUnknownTypes(sch)
+
+	return validator
 }
 
 func NewValidatorFromFile(filename string) (Validator, error) {
@@ -102,6 +178,14 @@ var (
 	ErrUnknownTagType = fmt.Errorf("unknown tag type")
 	ErrDanglingSpace  = fmt.Errorf("value has dangling space")
 )
+
+type UnknownTypes struct {
+	Types []string
+}
+
+func (ut UnknownTypes) Error() string {
+	return fmt.Sprintf("unknown types: %v", ut.Types)
+}
 
 type ContentError struct {
 	Err error
@@ -179,7 +263,34 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 	return nil
 }
 
-var gitcommitdummydecoder = make([]byte, 20)
+func collectTypes(spec *nextSpec, visitedTypes []string, cb func(string)) {
+	if spec == nil {
+		return
+	}
+	if !slices.Contains(visitedTypes, spec.Type) {
+		visitedTypes = append(visitedTypes, spec.Type)
+		cb(spec.Type)
+	}
+
+	collectTypes(spec.Next, visitedTypes, cb)
+}
+
+func (v *Validator) findUnknownTypes(schema Schema) []string {
+	var unknown []string
+
+	visitedTypes := make([]string, 0, 10)
+	for _, kindSchema := range schema {
+		for _, tagSpec := range kindSchema.Tags {
+			collectTypes(tagSpec.Next, visitedTypes, func(typeName string) {
+				if _, ok := v.TypeValidators[typeName]; !ok {
+					unknown = append(unknown, typeName)
+				}
+			})
+		}
+	}
+
+	return unknown
+}
 
 func (v *Validator) validateNext(tag nostr.Tag, index int, this *nextSpec) (failedIndex int, err error) {
 	if len(tag) <= index {
@@ -193,40 +304,12 @@ func (v *Validator) validateNext(tag nostr.Tag, index int, this *nextSpec) (fail
 		return index, ErrDanglingSpace
 	}
 
-	switch this.Type {
-	case "id":
-		if _, err := nostr.IDFromHex(tag[index]); err != nil {
-			return index, fmt.Errorf("invalid id at tag '%s', index %d", tag[0], index)
+	if validator, ok := v.TypeValidators[this.Type]; ok {
+		if err := validator(tag[index], this); err != nil {
+			return index, fmt.Errorf("invalid %s value '%s' at tag '%s', index %d: %w",
+				this.Type, tag[index], tag[0], index, err)
 		}
-	case "pubkey":
-		if _, err := nostr.PubKeyFromHex(tag[index]); err != nil {
-			return index, fmt.Errorf("invalid pubkey at tag '%s', index %d", tag[0], index)
-		}
-	case "addr":
-		if _, err := nostr.ParseAddrString(tag[index]); err != nil {
-			return index, fmt.Errorf("invalid addr at tag '%s', index %d", tag[0], index)
-		}
-	case "kind":
-		if _, err := strconv.ParseUint(tag[index], 10, 16); err != nil {
-			return index, fmt.Errorf("invalid kind at tag '%s', index %d", tag[0], index)
-		}
-	case "relay":
-		if url, err := url.Parse(tag[index]); err != nil || (url.Scheme != "ws" && url.Scheme != "wss") {
-			return index, fmt.Errorf("invalid relay at tag '%s', index %d", tag[0], index)
-		}
-	case "constrained":
-		if !slices.Contains(this.Either, tag[index]) {
-			return index, fmt.Errorf("invalid constrained at tag '%s', index %d", tag[0], index)
-		}
-	case "gitcommit":
-		if len(tag[index]) != 40 {
-			return index, fmt.Errorf("invalid gitcommit at tag '%s', index %d", tag[0], index)
-		}
-		if err := xhex.Decode(gitcommitdummydecoder, unsafe.Slice(unsafe.StringData(tag[index]), 40)); err != nil {
-			return index, fmt.Errorf("invalid gitcommit at tag '%s', index %d", tag[0], index)
-		}
-	case "free":
-	default:
+	} else {
 		if v.FailOnUnknown {
 			return index, ErrUnknownTagType
 		}
