@@ -12,20 +12,15 @@ func TestNewValidatorFromURL(t *testing.T) {
 	v, err := NewValidatorFromURL(DefaultSchemaURL)
 	require.NoError(t, err)
 	require.NotNil(t, v.Schema)
-	require.False(t, v.FailOnUnknown) // default value
+	require.False(t, v.FailOnUnknownKind) // default value
 
 	// test with some known kinds from schema.yaml
-	_, hasKind0 := v.Schema["0"] // profile metadata
+	_, hasKind0 := v.Schema.Kinds["0"] // profile metadata
 	require.True(t, hasKind0)
-	_, hasKind1 := v.Schema["1"] // text note
+	_, hasKind1 := v.Schema.Kinds["1"] // text note
 	require.True(t, hasKind1)
-	_, hasKind1111 := v.Schema["1111"] // comment
+	_, hasKind1111 := v.Schema.Kinds["1111"] // comment
 	require.True(t, hasKind1111)
-}
-
-func TestNewValidatorFromBytesWithInvalidYAML(t *testing.T) {
-	_, err := NewValidatorFromBytes([]byte("invalid yaml content: [[["))
-	require.Error(t, err)
 }
 
 func TestValidateEvent_BasicSuccess(t *testing.T) {
@@ -73,12 +68,12 @@ func TestValidateEvent_UnknownKind(t *testing.T) {
 		Content: "test",
 	}
 
-	// should not fail when FailOnUnknown is false (default)
+	// should not fail when FailOnUnknownKind is false (default)
 	err = v.ValidateEvent(evt)
 	require.NoError(t, err)
 
-	// should fail when FailOnUnknown is true
-	v.FailOnUnknown = true
+	// should fail when FailOnUnknownKind is true
+	v.FailOnUnknownKind = true
 	err = v.ValidateEvent(evt)
 	require.Error(t, err)
 	require.Equal(t, ErrUnknownKind, err)
@@ -347,7 +342,7 @@ func TestValidateNext_GitCommit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			next := &nextSpec{Type: "gitcommit", Required: true}
+			next := &nextSpec{Type: "hex", Min: 40, Max: 40, Required: true}
 			_, err := v.validateNext(tt.tag, 1, next)
 			if tt.valid {
 				require.NoError(t, err)
@@ -410,12 +405,12 @@ func TestValidateNext_UnknownType(t *testing.T) {
 	tag := nostr.Tag{"test", "value"}
 	next := &nextSpec{Type: "unknown-type", Required: true}
 
-	// should not fail when FailOnUnknown is false (default)
+	// should not fail when FailOnUnknownType is false (default)
 	_, err = v.validateNext(tag, 1, next)
 	require.NoError(t, err)
 
-	// should fail when FailOnUnknown is true
-	v.FailOnUnknown = true
+	// should fail when FailOnUnknownType is true
+	v.FailOnUnknownType = true
 	_, err = v.validateNext(tag, 1, next)
 	require.Error(t, err)
 	require.Equal(t, ErrUnknownTagType, err)
@@ -594,8 +589,8 @@ func TestSchema_ErrorMessages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expError == ErrUnknownKind {
-				v.FailOnUnknown = true
-				defer func() { v.FailOnUnknown = false }()
+				v.FailOnUnknownKind = true
+				defer func() { v.FailOnUnknownKind = false }()
 			}
 
 			err := v.ValidateEvent(tt.event)
@@ -603,4 +598,94 @@ func TestSchema_ErrorMessages(t *testing.T) {
 			assert.Equal(t, tt.expError, err)
 		})
 	}
+}
+
+func TestValidateEvent_RequiredTags(t *testing.T) {
+	v, err := NewValidatorFromURL(DefaultSchemaURL)
+	require.NoError(t, err)
+
+	// kind 17 (website reaction) requires "r" tag
+	evt := nostr.Event{
+		Kind:    17,
+		Content: "test reaction",
+		Tags:    nostr.Tags{}, // missing required "r" tag
+	}
+
+	// should fail due to missing required tag
+	err = v.ValidateEvent(evt)
+	require.Error(t, err)
+	require.IsType(t, RequiredTagError{}, err)
+	rte := err.(RequiredTagError)
+	require.Contains(t, rte.Missing, "r")
+
+	// add the required "r" tag
+	evt.Tags = nostr.Tags{
+		nostr.Tag{"r", "https://example.com"},
+	}
+
+	// should pass now
+	err = v.ValidateEvent(evt)
+	require.NoError(t, err)
+}
+
+func TestValidateEvent_GenericTags(t *testing.T) {
+	v, err := NewValidatorFromURL(DefaultSchemaURL)
+	require.NoError(t, err)
+
+	// kind 1 with invalid "t" tag (must be lowercase)
+	evt := nostr.Event{
+		Kind:    1,
+		Content: "test content",
+		Tags: nostr.Tags{
+			nostr.Tag{"t", "UPPERCASE"}, // invalid: not lowercase
+		},
+	}
+
+	// should fail due to invalid "t" tag
+	err = v.ValidateEvent(evt)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not lowercase")
+
+	// fix the "t" tag to be lowercase
+	evt.Tags = nostr.Tags{
+		nostr.Tag{"t", "lowercase"},
+	}
+
+	// should pass now
+	err = v.ValidateEvent(evt)
+	require.NoError(t, err)
+}
+
+func TestValidateEvent_DTagPresence(t *testing.T) {
+	v, err := NewValidatorFromURL(DefaultSchemaURL)
+	require.NoError(t, err)
+
+	// kind 30617 (repository announcement) is addressable and requires "d" tag
+	evt := nostr.Event{
+		Kind:    30617,
+		Content: "",
+		Tags: nostr.Tags{
+			nostr.Tag{"name", "My Repo"},
+			nostr.Tag{"description", "A test repo"},
+			nostr.Tag{"web", "https://github.com/user/repo"},
+			nostr.Tag{"clone", "https://github.com/user/repo.git"},
+			nostr.Tag{"r", "a1b2c3d4e5f6789012345678901234567890abcd", "euc"},
+			nostr.Tag{"maintainers", "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"},
+			// missing "d" tag
+		},
+	}
+
+	// should fail due to missing "d" tag
+	err = v.ValidateEvent(evt)
+	require.Error(t, err)
+	require.IsType(t, RequiredTagError{}, err)
+	rte := err.(RequiredTagError)
+	require.Contains(t, rte.Missing, "d")
+
+	// add the required "d" tag
+	evt.Tags = append(evt.Tags, nostr.Tag{"d", "my-repo"})
+
+	// should pass now
+	err = v.ValidateEvent(evt)
+	require.NoError(t, err)
 }

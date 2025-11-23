@@ -18,7 +18,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const DefaultSchemaURL = "https://raw.githubusercontent.com/nostr-protocol/registry-of-kinds/refs/heads/master/schema.yaml"
+const DefaultSchemaURL = "https://raw.githubusercontent.com/nostr-protocol/registry-of-kinds/daaa3a2a5573606aa0a4c4a98c25460ea9a1e388/schema.yaml"
 
 // this is used by hex.Decode in the "hex" validator -- we don't care about data races
 var hexdummydecoder = make([]byte, 128)
@@ -123,7 +123,7 @@ func NewValidatorFromSchema(sch Schema) Validator {
 			},
 			"json": func(value string, spec *nextSpec) error {
 				if !json.Valid(unsafe.Slice(unsafe.StringData(value), len(value))) {
-					return ContentError{ErrInvalidJson}
+					return ErrInvalidJson
 				}
 				return nil
 			},
@@ -311,7 +311,7 @@ func (v *Validator) ValidateEvent(evt nostr.Event) error {
 			if !tagWasValidated {
 				if tagSpecNext, ok := v.Schema.GenericTags[tag[0]]; ok {
 					if ii, err := v.validateNext(tag, 1, &tagSpecNext); err != nil {
-						lastErr = TagError{ti, ii, err}
+						return TagError{ti, ii, err}
 					}
 				}
 			}
