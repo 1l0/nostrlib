@@ -149,7 +149,7 @@ func NewValidatorFromSchema(sch Schema) Validator {
 				}
 				return nil
 			},
-			"numeric": func(value string, spec *nextSpec) error {
+			"timestamp": func(value string, spec *nextSpec) error {
 				_, err := strconv.ParseUint(value, 10, 64)
 				return err
 			},
