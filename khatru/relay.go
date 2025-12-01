@@ -133,7 +133,12 @@ type Relay struct {
 // too much, setting it to something like 500 or 1000 should be ok in most cases.
 func (rl *Relay) UseEventstore(store eventstore.Store, maxQueryLimit int) {
 	rl.QueryStored = func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
-		return store.QueryEvents(filter, maxQueryLimit)
+		maxLimit := maxQueryLimit
+		if IsNegentropySession(ctx) {
+			maxLimit = maxQueryLimit * 20
+		}
+
+		return store.QueryEvents(filter, maxLimit)
 	}
 	rl.Count = func(ctx context.Context, filter nostr.Filter) (uint32, error) {
 		return store.CountEvents(filter)
