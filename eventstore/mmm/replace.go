@@ -7,6 +7,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore/internal"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
 func (il *IndexingLayer) ReplaceEvent(evt nostr.Event) error {
@@ -46,6 +47,15 @@ func (il *IndexingLayer) ReplaceEvent(evt nostr.Event) error {
 		}
 	}()
 	iltxn.RawRead = true
+
+	// check if we already have this id
+	_, existsErr := mmmtxn.Get(il.mmmm.indexId, evt.ID[0:8])
+	if existsErr == nil {
+		return nil
+	}
+	if !lmdb.IsNotFound(existsErr) {
+		return fmt.Errorf("error checking existence: %w", existsErr)
+	}
 
 	// now we fetch the past events, whatever they are, delete them and then save the new
 	var results iter.Seq[nostr.Event] = func(yield func(nostr.Event) bool) {

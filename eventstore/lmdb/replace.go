@@ -11,6 +11,15 @@ import (
 
 func (b *LMDBBackend) ReplaceEvent(evt nostr.Event) error {
 	return b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
+		// check if we already have this id
+		_, existsErr := txn.Get(b.indexId, evt.ID[0:8])
+		if existsErr == nil {
+			return nil
+		}
+		if operr, ok := existsErr.(*lmdb.OpError); !ok || operr.Errno != lmdb.NotFound {
+			return existsErr
+		}
+
 		filter := nostr.Filter{Kinds: []nostr.Kind{evt.Kind}, Authors: []nostr.PubKey{evt.PubKey}}
 		if evt.Kind.IsAddressable() {
 			// when addressable, add the "d" tag to the filter
