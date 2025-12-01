@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -45,7 +44,7 @@ func (gs *GraspServer) handleGitReceivePack(
 		}
 	}
 
-	repoPath := filepath.Join(gs.RepositoryDir, repoName)
+	repoPath := gs.getRepositoryPath(pubkey, repoName)
 
 	// initialize git repo if it doesn't exist
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {

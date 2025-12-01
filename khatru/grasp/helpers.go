@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -140,6 +141,10 @@ func (gs *GraspServer) validatePush(
 	}
 
 	return nil
+}
+
+func (gs *GraspServer) getRepositoryPath(pubkey nostr.PubKey, repoName string) string {
+	return filepath.Join(gs.RepositoryDir, pubkey.Hex(), repoName)
 }
 
 // repoExists checks if a repository has an announcement event (kind 30617)

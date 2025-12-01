@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"syscall"
 
 	"fiatjaf.com/nostr"
@@ -20,7 +19,7 @@ func (gs *GraspServer) handleGitUploadPack(
 	pubkey nostr.PubKey,
 	repoName string,
 ) {
-	repoPath := filepath.Join(gs.RepositoryDir, repoName)
+	repoPath := gs.getRepositoryPath(pubkey, repoName)
 
 	// for upload-pack (pull), check if repository exists
 	if !gs.repoExists(pubkey, repoName) {

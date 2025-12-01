@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -28,7 +27,7 @@ func (gs *GraspServer) handleInfoRefs(
 		return
 	}
 
-	repoPath := filepath.Join(gs.RepositoryDir, repoName)
+	repoPath := gs.getRepositoryPath(pubkey, repoName)
 	serviceName := r.URL.Query().Get("service")
 
 	w.Header().Set("Connection", "Keep-Alive")
