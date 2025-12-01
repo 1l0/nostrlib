@@ -20,7 +20,7 @@ func TestRelayWrapper(t *testing.T) {
 	s.Init()
 	defer s.Close()
 
-	w := StorePublisher{Store: s}
+	w := StorePublisher{Store: s, MaxLimit: 500}
 
 	evt1 := nostr.Event{
 		Kind:      3,
@@ -40,7 +40,7 @@ func TestRelayWrapper(t *testing.T) {
 
 	for range 200 {
 		go w.Publish(ctx, evt1)
-		go w.Publish(ctx, evt1)
+		go w.Publish(ctx, evt2)
 	}
 	time.Sleep(time.Millisecond * 200)
 
