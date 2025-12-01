@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -147,7 +146,7 @@ func (gs *GraspServer) handleInfoRefs(
 	if !gs.repoExists(pubkey, repoName) {
 		w.Header().Set("content-type", "text/plain; charset=UTF-8")
 		w.WriteHeader(404)
-		fmt.Fprintf(w, "repository not found\n")
+		fmt.Fprintf(w, "repository announcement event not found during info-refs\n")
 		return
 	}
 
@@ -158,16 +157,26 @@ func (gs *GraspServer) handleInfoRefs(
 	w.Header().Set("Cache-Control", "no-cache, max-age=0, must-revalidate")
 	w.Header().Set("Content-Type", "application/x-"+serviceName+"-advertisement")
 
-	if serviceName == "git-receive-pack" {
-		if _, err := os.Stat(repoPath); os.IsNotExist(err) {
-			// for receive-pack on non-existent repos, send fake advertisement to allow initial push
-			v, _ := base64.StdEncoding.DecodeString("MDAxZiMgc2VydmljZT1naXQtcmVjZWl2ZS1wYWNrCjAwMDAwMGIxMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCBjYXBhYmlsaXRpZXNee30AcmVwb3J0LXN0YXR1cyByZXBvcnQtc3RhdHVzLXYyIGRlbGV0ZS1yZWZzIHNpZGUtYmFuZC02NGsgcXVpZXQgYXRvbWljIG9mcy1kZWx0YSBvYmplY3QtZm9ybWF0PXNoYTEgYWdlbnQ9Z2l0LzIuNDMuMAowMDAw")
-			w.Write(v)
-			return
-		}
+	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
+		// if the repo doesn't exist that's because it wasn't pushed yet, so return an empty response
+
+		// service advertisement header: packet-line with "# service=<service-name>\n"
+		serviceLine := fmt.Sprintf("# service=%s\n", serviceName)
+		// write packet line
+		length := len(serviceLine) + 4
+		fmt.Fprintf(w, "%04x%s", length, serviceLine)
+
+		// flush
+		w.Write([]byte("0000"))
+
+		// another flush packet to indicate end of refs
+		w.Write([]byte("0000"))
+
+		return
 	}
 
 	if err := gs.runInfoRefs(w, r, serviceName, repoPath); err != nil {
+		gs.Log("error on info-refs rpc: %s\n", err)
 		return
 	}
 }
@@ -184,7 +193,7 @@ func (gs *GraspServer) handleGitUploadPack(
 	if !gs.repoExists(pubkey, repoName) {
 		w.Header().Set("content-type", "text/plain; charset=UTF-8")
 		w.WriteHeader(404)
-		fmt.Fprintf(w, "repository not found\n")
+		fmt.Fprintf(w, "repository announcement event not found during upload-pack\n")
 		return
 	}
 
@@ -492,7 +501,7 @@ func (gs *GraspServer) runInfoRefs(w http.ResponseWriter, r *http.Request, servi
 	}
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start %s: %w", serviceName, err)
+		return fmt.Errorf("failed to start %s: %w, %s", serviceName, err, stderr.String())
 	}
 
 	io.Copy(gs.newWriteFlusher(w), stdoutPipe)
