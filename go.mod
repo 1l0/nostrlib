@@ -99,4 +99,5 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
+	marwan.io/wasm-fetch v0.1.0 // indirect
 )
