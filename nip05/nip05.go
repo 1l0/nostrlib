@@ -57,6 +57,12 @@ func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointe
 	}, nil
 }
 
+var httpClient = &http.Client{
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
 func Fetch(ctx context.Context, fullname string) (resp WellKnownResponse, name string, err error) {
 	name, domain, err := ParseIdentifier(fullname)
 	if err != nil {
