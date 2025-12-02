@@ -1,4 +1,4 @@
-//go:build !tinygo
+//go:build tinygo
 
 package keyer
 
@@ -7,7 +7,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip44"
-	"github.com/puzpuzpuz/xsync/v3"
 )
 
 var _ nostr.Keyer = (*KeySigner)(nil)
@@ -17,13 +16,13 @@ type KeySigner struct {
 	sk [32]byte
 	pk nostr.PubKey
 
-	conversationKeys *xsync.MapOf[nostr.PubKey, [32]byte]
+	conversationKeys *nostr.MapOf[nostr.PubKey, [32]byte]
 }
 
 // NewPlainKeySigner creates a new KeySigner from a private key.
 // Returns an error if the private key is invalid.
 func NewPlainKeySigner(sec [32]byte) KeySigner {
-	return KeySigner{sec, nostr.GetPublicKey(sec), xsync.NewMapOf[nostr.PubKey, [32]byte]()}
+	return KeySigner{sec, nostr.GetPublicKey(sec), nostr.NewMapOf[nostr.PubKey, [32]byte]()}
 }
 
 // SignEvent signs the provided event with the signer's private key.
