@@ -16,15 +16,6 @@ func makeKeyPair(t *testing.T) (priv, pub [32]byte) {
 	return privkey, pubkey
 }
 
-func mustRelayConnect(t *testing.T, url string) *Relay {
-	t.Helper()
-
-	rl, err := RelayConnect(t.Context(), url, RelayOptions{})
-	require.NoError(t, err)
-
-	return rl
-}
-
 func parseEventMessage(t *testing.T, raw []stdjson.RawMessage) Event {
 	t.Helper()
 
