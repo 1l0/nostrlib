@@ -3,8 +3,6 @@ package nostr
 import (
 	"math"
 	"slices"
-
-	"github.com/mailru/easyjson"
 )
 
 type Filter struct {
@@ -22,11 +20,6 @@ type Filter struct {
 }
 
 type TagMap map[string][]string
-
-func (ef Filter) String() string {
-	j, _ := easyjson.Marshal(ef)
-	return string(j)
-}
 
 func (ef Filter) Matches(event Event) bool {
 	if !ef.MatchesIgnoringTimestampConstraints(event) {

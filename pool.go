@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr/nip45/hyperloglog"
-	"github.com/puzpuzpuz/xsync/v3"
 )
 
 const (
@@ -21,7 +20,7 @@ const (
 
 // Pool manages connections to multiple relays, ensures they are reopened when necessary and not duplicated.
 type Pool struct {
-	Relays  *xsync.MapOf[string, *Relay]
+	Relays  *MapOf[string, *Relay]
 	Context context.Context
 
 	authHandler func(context.Context, *Event) error
@@ -50,7 +49,7 @@ func NewPool(opts PoolOptions) *Pool {
 	ctx, cancel := context.WithCancelCause(context.Background())
 
 	pool := &Pool{
-		Relays: xsync.NewMapOf[string, *Relay](),
+		Relays: NewMapOf[string, *Relay](),
 
 		Context: ctx,
 		cancel:  cancel,
@@ -245,7 +244,7 @@ func (pool *Pool) FetchMany(
 	filter Filter,
 	opts SubscriptionOptions,
 ) chan RelayEvent {
-	seenAlready := xsync.NewMapOf[ID, struct{}]()
+	seenAlready := NewMapOf[ID, struct{}]()
 
 	if opts.CheckDuplicate == nil {
 		opts.CheckDuplicate = func(id ID, relay string) bool {
@@ -284,15 +283,15 @@ func (pool *Pool) FetchManyReplaceable(
 	urls []string,
 	filter Filter,
 	opts SubscriptionOptions,
-) *xsync.MapOf[ReplaceableKey, Event] {
+) *MapOf[ReplaceableKey, Event] {
 	ctx, cancel := context.WithCancelCause(ctx)
 
-	results := xsync.NewMapOf[ReplaceableKey, Event]()
+	results := NewMapOf[ReplaceableKey, Event]()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(urls))
 
-	seenAlreadyLatest := xsync.NewMapOf[ReplaceableKey, Timestamp]()
+	seenAlreadyLatest := NewMapOf[ReplaceableKey, Timestamp]()
 	opts.CheckDuplicateReplaceable = func(rk ReplaceableKey, ts Timestamp) bool {
 		discard := true
 		seenAlreadyLatest.Compute(rk, func(latest Timestamp, _ bool) (newValue Timestamp, delete bool) {
@@ -387,7 +386,7 @@ func (pool *Pool) subMany(
 	ctx, cancel := context.WithCancelCause(ctx)
 	_ = cancel // do this so `go vet` will stop complaining
 	events := make(chan RelayEvent)
-	seenAlready := xsync.NewMapOf[ID, Timestamp]()
+	seenAlready := NewMapOf[ID, Timestamp]()
 	ticker := time.NewTicker(seenAlreadyDropTick)
 
 	eoseWg := sync.WaitGroup{}
@@ -409,7 +408,7 @@ func (pool *Pool) subMany(
 		}
 	}
 
-	pending := xsync.NewCounter()
+	pending := NewCounter()
 	pending.Add(int64(len(urls)))
 	for i, url := range urls {
 		url = NormalizeURL(url)
@@ -691,7 +690,7 @@ func (pool *Pool) BatchedQueryMany(
 	res := make(chan RelayEvent)
 	wg := sync.WaitGroup{}
 	wg.Add(len(dfs))
-	seenAlready := xsync.NewMapOf[ID, struct{}]()
+	seenAlready := NewMapOf[ID, struct{}]()
 
 	opts.CheckDuplicate = func(id ID, relay string) bool {
 		_, exists := seenAlready.LoadOrStore(id, struct{}{})
@@ -736,7 +735,7 @@ func (pool *Pool) BatchedSubscribeMany(
 	res := make(chan RelayEvent)
 	wg := sync.WaitGroup{}
 	wg.Add(len(dfs))
-	seenAlready := xsync.NewMapOf[ID, struct{}]()
+	seenAlready := NewMapOf[ID, struct{}]()
 
 	opts.CheckDuplicate = func(id ID, relay string) bool {
 		_, exists := seenAlready.LoadOrStore(id, struct{}{})

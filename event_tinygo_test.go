@@ -1,15 +1,10 @@
-//go:build !tinygo
+//go:build tinygo
 
 package nostr
 
 import (
-	"fmt"
-	"math/rand/v2"
+	"encoding/hex"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/templexxx/xhex"
 )
 
 func TestEventParsingAndVerifying(t *testing.T) {
@@ -23,22 +18,33 @@ func TestEventParsingAndVerifying(t *testing.T) {
 	for _, raw := range rawEvents {
 		var ev Event
 		err := json.Unmarshal([]byte(raw), &ev)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Errorf("failed to unmarshal event: %v", err)
+		}
 
-		assert.Equal(t, ev.ID, ev.GetID())
+		if ev.ID != ev.GetID() {
+			t.Errorf("ID mismatch: expected %s, got %s", ev.ID, ev.GetID())
+		}
 
 		ok := ev.VerifySignature()
-		assert.True(t, ok, "signature verification failed when it should have succeeded")
+		if !ok {
+			t.Errorf("signature verification failed when it should have succeeded")
+		}
 
 		asJSON, err := json.Marshal(ev)
-		assert.NoError(t, err)
-		assert.Equal(t, raw, string(asJSON))
+		if err != nil {
+			t.Errorf("failed to marshal event: %v", err)
+		}
+		if string(asJSON) != raw {
+			t.Errorf("marshaled JSON differs from original: expected %s, got %s", raw, string(asJSON))
+		}
 	}
 }
 
 func TestEventSerialization(t *testing.T) {
-	sig := [64]byte{}
-	xhex.Decode(sig[:], []byte("ed08d2dd5b0f7b6a3cdc74643d4adee3158ddede9cc848e8cd97630c097001acc2d052d2d3ec2b7ac4708b2314b797106d1b3c107322e61b5e5cc2116e099b79"))
+	sigBytes, _ := hex.DecodeString("ed08d2dd5b0f7b6a3cdc74643d4adee3158ddede9cc848e8cd97630c097001acc2d052d2d3ec2b7ac4708b2314b797106d1b3c107322e61b5e5cc2116e099b79")
+	var sig [64]byte
+	copy(sig[:], sigBytes)
 
 	events := []Event{
 		{
@@ -54,73 +60,32 @@ func TestEventSerialization(t *testing.T) {
 
 	for _, evt := range events {
 		b, err := json.Marshal(evt)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Errorf("failed to marshal event: %v", err)
+		}
 
 		var re Event
 		err = json.Unmarshal(b, &re)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Errorf("failed to unmarshal event: %v", err)
+		}
 
-		assert.Condition(t, func() (success bool) {
-			if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
-				evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
-				len(evt.Tags) != len(re.Tags) {
-				return false
-			}
-			return true
-		}, "re-parsed event differs from original")
+		if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
+			evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
+			len(evt.Tags) != len(re.Tags) {
+			t.Errorf("re-parsed event differs from original")
+		}
 
 		for i := range evt.Tags {
-			assert.Equal(t, len(evt.Tags[i]), len(re.Tags[i]), "re-parsed tags %d length differ from original", i)
+			if len(evt.Tags[i]) != len(re.Tags[i]) {
+				t.Errorf("re-parsed tags %d length differ from original", i)
+			}
 
 			for j := range evt.Tags[i] {
-				assert.Equal(t, re.Tags[i][j], evt.Tags[i][j], "re-parsed tag content %d %d length differ from original", i, j)
+				if re.Tags[i][j] != evt.Tags[i][j] {
+					t.Errorf("re-parsed tag content %d %d length differ from original", i, j)
+				}
 			}
 		}
 	}
-}
-
-func mustSignEvent(t *testing.T, privkey [32]byte, event *Event) {
-	t.Helper()
-	if err := event.Sign(privkey); err != nil {
-		t.Fatalf("event.Sign: %v", err)
-	}
-}
-
-func TestIDCheck(t *testing.T) {
-	for i := 0; i < 1000; i++ {
-		evt := Event{
-			CreatedAt: Timestamp(rand.Int64N(9999999)),
-			Content:   fmt.Sprintf("hello %d", i),
-			Tags:      Tags{},
-		}
-
-		require.False(t, evt.CheckID())
-
-		evt.Sign(Generate())
-		require.True(t, evt.CheckID())
-
-		evt.Content += "!"
-		require.False(t, evt.CheckID())
-	}
-}
-
-func BenchmarkIDCheck(b *testing.B) {
-	evt := Event{
-		CreatedAt: Timestamp(rand.Int64N(9999999)),
-		Content:   fmt.Sprintf("hello"),
-		Tags:      Tags{},
-	}
-	evt.Sign(Generate())
-
-	b.Run("naïve", func(b *testing.B) {
-		for b.Loop() {
-			_ = evt.GetID() == evt.ID
-		}
-	})
-
-	b.Run("big brain", func(b *testing.B) {
-		for b.Loop() {
-			_ = evt.CheckID()
-		}
-	})
 }

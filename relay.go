@@ -15,7 +15,6 @@ import (
 	"time"
 
 	ws "github.com/coder/websocket"
-	"github.com/puzpuzpuz/xsync/v3"
 )
 
 var subscriptionIDCounter atomic.Int64
@@ -33,7 +32,7 @@ type Relay struct {
 	closed       *atomic.Bool
 	closedNotify chan struct{}
 
-	Subscriptions *xsync.MapOf[int64, *Subscription]
+	Subscriptions *MapOf[int64, *Subscription]
 
 	ConnectionError         error
 	connectionContext       context.Context // will be canceled when the connection closes
@@ -58,7 +57,7 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 		URL:                           NormalizeURL(url),
 		connectionContext:             ctx,
 		connectionContextCancel:       cancel,
-		Subscriptions:                 xsync.NewMapOf[int64, *Subscription](),
+		Subscriptions:                 NewMapOf[int64, *Subscription](),
 		okCallbacks:                   make(map[ID]okcallback, 20),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
 		requestHeader:                 opts.RequestHeader,

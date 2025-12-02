@@ -1,13 +1,11 @@
-//go:build !tinygo
+//go:build tinygo
 
 package nostr
 
 import (
+	"encoding/hex"
 	stdjson "encoding/json"
 	"fmt"
-	"unsafe"
-
-	"github.com/templexxx/xhex"
 )
 
 // RelayEvent represents an event received from a specific relay.
@@ -27,22 +25,26 @@ var (
 )
 
 func (id ID) String() string { return "id::" + id.Hex() }
-func (id ID) Hex() string    { return HexEncodeToString(id[:]) }
+func (id ID) Hex() string    { return hex.EncodeToString(id[:]) }
 
 func (id ID) MarshalJSON() ([]byte, error) {
-	res := make([]byte, 66)
-	xhex.Encode(res[1:], id[:])
-	res[0] = '"'
-	res[65] = '"'
-	return res, nil
+	return stdjson.Marshal(id.Hex())
 }
 
 func (id *ID) UnmarshalJSON(buf []byte) error {
-	if len(buf) != 66 {
-		return fmt.Errorf("must be a quoted hex string of 64 characters")
+	var s string
+	if err := stdjson.Unmarshal(buf, &s); err != nil {
+		return err
 	}
-	err := xhex.Decode(id[:], buf[1:65])
-	return err
+	if len(s) != 64 {
+		return fmt.Errorf("must be a hex string of 64 characters")
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	copy(id[:], b)
+	return nil
 }
 
 func IDFromHex(idh string) (ID, error) {
@@ -51,16 +53,18 @@ func IDFromHex(idh string) (ID, error) {
 	if len(idh) != 64 {
 		return id, fmt.Errorf("pubkey should be 64-char hex, got '%s'", idh)
 	}
-	if err := xhex.Decode(id[:], unsafe.Slice(unsafe.StringData(idh), 64)); err != nil {
+	b, err := hex.DecodeString(idh)
+	if err != nil {
 		return id, fmt.Errorf("'%s' is not valid hex: %w", idh, err)
 	}
+	copy(id[:], b)
 
 	return id, nil
 }
 
 func MustIDFromHex(idh string) ID {
-	id := ID{}
-	if err := xhex.Decode(id[:], unsafe.Slice(unsafe.StringData(idh), 64)); err != nil {
+	id, err := IDFromHex(idh)
+	if err != nil {
 		panic(err)
 	}
 	return id

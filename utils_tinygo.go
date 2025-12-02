@@ -1,15 +1,13 @@
-//go:build !tinygo
+//go:build tinygo
 
 package nostr
 
 import (
 	"bytes"
 	"cmp"
+	"encoding/hex"
 	"net/url"
 	"slices"
-	"unsafe"
-
-	"github.com/templexxx/xhex"
 )
 
 // IsValidRelayURL checks if a URL is a valid relay URL (ws:// or wss://).
@@ -26,23 +24,12 @@ func IsValidRelayURL(u string) bool {
 
 // HexEncodeToString encodes src into a hex string.
 func HexEncodeToString(src []byte) string {
-	dst := make([]byte, len(src)*2)
-	xhex.Encode(dst, src)
-	return unsafe.String(unsafe.SliceData(dst), len(dst))
+	return hex.EncodeToString(src)
 }
 
 // HexDecodeString decodes a hex string into bytes.
 func HexDecodeString(s string) ([]byte, error) {
-	src := unsafe.Slice(unsafe.StringData(s), len(s))
-	if len(src)%2 != 0 {
-		return nil, xhex.ErrLength
-	}
-	dst := make([]byte, len(src)/2)
-	err := xhex.Decode(dst, src)
-	if err != nil {
-		return nil, err
-	}
-	return dst, nil
+	return hex.DecodeString(s)
 }
 
 // IsValid32ByteHex checks if a string is a valid 32-byte hex string.

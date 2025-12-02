@@ -1,18 +1,17 @@
-//go:build !tinygo
+//go:build tinygo
 
 package nostr
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	stdjson "encoding/json"
 	"fmt"
 	"io"
 	"strings"
-	"unsafe"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"github.com/templexxx/xhex"
 )
 
 var KeyOne = SecretKey{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
@@ -38,23 +37,25 @@ func Generate() SecretKey {
 type SecretKey [32]byte
 
 func (sk SecretKey) String() string { return "sk::" + sk.Hex() }
-func (sk SecretKey) Hex() string    { return HexEncodeToString(sk[:]) }
+func (sk SecretKey) Hex() string    { return hex.EncodeToString(sk[:]) }
 func (sk SecretKey) Public() PubKey { return GetPublicKey(sk) }
 func (pk SecretKey) MarshalJSON() ([]byte, error) {
-	res := make([]byte, 66)
-	xhex.Encode(res[1:], pk[:])
-	res[0] = '"'
-	res[65] = '"'
-	return res, nil
+	return stdjson.Marshal(pk.Hex())
 }
 
 func (pk *SecretKey) UnmarshalJSON(buf []byte) error {
-	if len(buf) != 66 {
-		return fmt.Errorf("must be a hex string of 64 characters")
-	}
-	if err := xhex.Decode(pk[:], buf[1:65]); err != nil {
+	var s string
+	if err := stdjson.Unmarshal(buf, &s); err != nil {
 		return err
 	}
+	if len(s) != 64 {
+		return fmt.Errorf("must be a hex string of 64 characters")
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	copy(pk[:], b)
 	return nil
 }
 
@@ -67,9 +68,11 @@ func SecretKeyFromHex(skh string) (SecretKey, error) {
 		return sk, fmt.Errorf("secret key should be at most 64-char hex, got '%s'", skh)
 	}
 
-	if err := xhex.Decode(sk[:], unsafe.Slice(unsafe.StringData(skh), 64)); err != nil {
+	b, err := hex.DecodeString(skh)
+	if err != nil {
 		return sk, fmt.Errorf("'%s' is not valid hex: %w", skh, err)
 	}
+	copy(sk[:], b)
 
 	if sk.Public() != ZeroPK {
 		return sk, nil
@@ -79,11 +82,11 @@ func SecretKeyFromHex(skh string) (SecretKey, error) {
 }
 
 func MustSecretKeyFromHex(idh string) SecretKey {
-	id := SecretKey{}
-	if err := xhex.Decode(id[:], unsafe.Slice(unsafe.StringData(idh), 64)); err != nil {
+	sk, err := SecretKeyFromHex(idh)
+	if err != nil {
 		panic(err)
 	}
-	return id
+	return sk
 }
 
 func GetPublicKey(sk [32]byte) PubKey {
@@ -109,22 +112,25 @@ var (
 )
 
 func (pk PubKey) String() string { return "pk::" + pk.Hex() }
-func (pk PubKey) Hex() string    { return HexEncodeToString(pk[:]) }
+func (pk PubKey) Hex() string    { return hex.EncodeToString(pk[:]) }
 func (pk PubKey) MarshalJSON() ([]byte, error) {
-	res := make([]byte, 66)
-	xhex.Encode(res[1:], pk[:])
-	res[0] = '"'
-	res[65] = '"'
-	return res, nil
+	return stdjson.Marshal(pk.Hex())
 }
 
 func (pk *PubKey) UnmarshalJSON(buf []byte) error {
-	if len(buf) != 66 {
-		return fmt.Errorf("must be a hex string of 64 characters")
-	}
-	if err := xhex.Decode(pk[:], buf[1:65]); err != nil {
+	var s string
+	if err := stdjson.Unmarshal(buf, &s); err != nil {
 		return err
 	}
+	if len(s) != 64 {
+		return fmt.Errorf("must be a hex string of 64 characters")
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	copy(pk[:], b)
+
 	if _, err := schnorr.ParsePubKey(pk[:]); err != nil {
 		return fmt.Errorf("pubkey is not valid %w", err)
 	}
@@ -136,9 +142,12 @@ func PubKeyFromHex(pkh string) (PubKey, error) {
 	if len(pkh) != 64 {
 		return pk, fmt.Errorf("pubkey should be 64-char hex, got '%s'", pkh)
 	}
-	if err := xhex.Decode(pk[:], unsafe.Slice(unsafe.StringData(pkh), 64)); err != nil {
+	b, err := hex.DecodeString(pkh)
+	if err != nil {
 		return pk, fmt.Errorf("'%s' is not valid hex: %w", pkh, err)
 	}
+	copy(pk[:], b)
+
 	if _, err := schnorr.ParsePubKey(pk[:]); err != nil {
 		return pk, fmt.Errorf("'%s' is not a valid pubkey", pkh)
 	}
@@ -150,16 +159,18 @@ func PubKeyFromHexCheap(pkh string) (PubKey, error) {
 	if len(pkh) != 64 {
 		return pk, fmt.Errorf("pubkey should be 64-char hex, got '%s'", pkh)
 	}
-	if err := xhex.Decode(pk[:], unsafe.Slice(unsafe.StringData(pkh), 64)); err != nil {
+	b, err := hex.DecodeString(pkh)
+	if err != nil {
 		return pk, fmt.Errorf("'%s' is not valid hex: %w", pkh, err)
 	}
+	copy(pk[:], b)
 
 	return pk, nil
 }
 
 func MustPubKeyFromHex(pkh string) PubKey {
-	pk := PubKey{}
-	if err := xhex.Decode(pk[:], unsafe.Slice(unsafe.StringData(pkh), 64)); err != nil {
+	pk, err := PubKeyFromHexCheap(pkh)
+	if err != nil {
 		panic(err)
 	}
 	return pk
