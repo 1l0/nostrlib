@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"fiatjaf.com/nostr"
-	jsoniter "github.com/json-iterator/go"
 )
 
 var NIP05_REGEX = regexp.MustCompile(`^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$`)
@@ -57,12 +56,6 @@ func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointe
 	}, nil
 }
 
-var httpClient = &http.Client{
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	},
-}
-
 func Fetch(ctx context.Context, fullname string) (resp WellKnownResponse, name string, err error) {
 	name, domain, err := ParseIdentifier(fullname)
 	if err != nil {
@@ -82,7 +75,7 @@ func Fetch(ctx context.Context, fullname string) (resp WellKnownResponse, name s
 	defer res.Body.Close()
 
 	var result WellKnownResponse
-	if err := jsoniter.NewDecoder(res.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return resp, name, fmt.Errorf("failed to decode json response: %w", err)
 	}
 
