@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 
 	"fiatjaf.com/nostr"
 )
@@ -61,7 +60,6 @@ func (gs *GraspServer) handleInfoRefs(
 // runInfoRefs executes git-upload-pack with --http-backend-info-refs
 func (gs *GraspServer) runInfoRefs(w http.ResponseWriter, r *http.Request, serviceName, repoPath string) error {
 	cmd := exec.Command(serviceName, "--stateless-rpc", "--http-backend-info-refs", ".")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Dir = repoPath
 	cmd.Env = append(os.Environ(), fmt.Sprintf("GIT_PROTOCOL=%s", r.Header.Get("Git-Protocol")))
 

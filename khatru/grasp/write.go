@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"fiatjaf.com/nostr"
@@ -112,7 +111,6 @@ func (gs *GraspServer) handleGitReceivePack(
 // runReceivePack executes git-receive-pack for push operations
 func (gs *GraspServer) runReceivePack(w http.ResponseWriter, r *http.Request, repoPath string, bodyReader io.ReadCloser) error {
 	cmd := exec.Command("git", "receive-pack", "--stateless-rpc", ".")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Dir = repoPath
 	cmd.Env = append(os.Environ(), fmt.Sprintf("GIT_PROTOCOL=%s", r.Header.Get("Git-Protocol")))
 

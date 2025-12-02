@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"syscall"
 
 	"fiatjaf.com/nostr"
 )
@@ -77,7 +76,6 @@ func (gs *GraspServer) handleGitUploadPack(
 // runUploadPack executes git-upload-pack for pull operations
 func (gs *GraspServer) runUploadPack(w http.ResponseWriter, r *http.Request, repoPath string, bodyReader io.ReadCloser) error {
 	cmd := exec.Command("git", "upload-pack", "--stateless-rpc", ".")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Dir = repoPath
 	cmd.Env = append(os.Environ(), fmt.Sprintf("GIT_PROTOCOL=%s", r.Header.Get("Git-Protocol")))
 
