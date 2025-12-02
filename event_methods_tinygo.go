@@ -14,20 +14,20 @@ func (evt Event) String() string {
 
 func (evt Event) MarshalJSON() ([]byte, error) {
 	type EventJSON struct {
+		Kind      Kind      `json:"kind"`
 		ID        ID        `json:"id"`
 		PubKey    PubKey    `json:"pubkey"`
 		CreatedAt Timestamp `json:"created_at"`
-		Kind      Kind      `json:"kind"`
 		Tags      Tags      `json:"tags"`
 		Content   string    `json:"content"`
 		Sig       string    `json:"sig"`
 	}
 
 	ej := EventJSON{
+		Kind:      evt.Kind,
 		ID:        evt.ID,
 		PubKey:    evt.PubKey,
 		CreatedAt: evt.CreatedAt,
-		Kind:      evt.Kind,
 		Tags:      evt.Tags,
 		Content:   evt.Content,
 		Sig:       hex.EncodeToString(evt.Sig[:]),
@@ -38,10 +38,10 @@ func (evt Event) MarshalJSON() ([]byte, error) {
 
 func (evt *Event) UnmarshalJSON(data []byte) error {
 	type EventJSON struct {
+		Kind      Kind      `json:"kind"`
 		ID        ID        `json:"id"`
 		PubKey    PubKey    `json:"pubkey"`
 		CreatedAt Timestamp `json:"created_at"`
-		Kind      Kind      `json:"kind"`
 		Tags      Tags      `json:"tags"`
 		Content   string    `json:"content"`
 		Sig       string    `json:"sig"`
@@ -52,10 +52,10 @@ func (evt *Event) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	evt.Kind = ej.Kind
 	evt.ID = ej.ID
 	evt.PubKey = ej.PubKey
 	evt.CreatedAt = ej.CreatedAt
-	evt.Kind = ej.Kind
 	evt.Tags = ej.Tags
 	evt.Content = ej.Content
 
