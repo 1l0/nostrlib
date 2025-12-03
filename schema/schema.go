@@ -23,23 +23,25 @@ const DefaultSchemaURL = "https://raw.githubusercontent.com/nostr-protocol/regis
 // this is used by hex.Decode in the "hex" validator -- we don't care about data races
 var hexdummydecoder = make([]byte, 128)
 
-func fetchSchemaFromURL(schemaURL string) (string, error) {
+func fetchSchemaFromURL(schemaURL string) (Schema, error) {
 	resp, err := http.Get(schemaURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch schema from URL: %w", err)
+		return Schema{}, fmt.Errorf("failed to fetch schema from URL: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch schema: HTTP %d", resp.StatusCode)
+		return Schema{}, fmt.Errorf("failed to fetch schema: HTTP %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read schema response: %w", err)
+		return Schema{}, fmt.Errorf("failed to read schema response: %w", err)
 	}
 
-	return string(body), nil
+	var schema Schema
+	err = json.Unmarshal(body, &schema)
+	return schema, err
 }
 
 type Schema struct {
@@ -185,11 +187,11 @@ func NewValidatorFromFile(filename string) (Validator, error) {
 }
 
 func NewValidatorFromURL(schemaURL string) (Validator, error) {
-	schemaData, err := fetchSchemaFromURL(schemaURL)
+	schema, err := fetchSchemaFromURL(schemaURL)
 	if err != nil {
 		return Validator{}, err
 	}
-	return NewValidatorFromBytes([]byte(schemaData))
+	return NewValidatorFromSchema(schema), nil
 }
 
 var (
