@@ -7,8 +7,6 @@ import (
 	"unsafe"
 
 	"fiatjaf.com/nostr"
-	"github.com/mailru/easyjson"
-	jwriter "github.com/mailru/easyjson/jwriter"
 	"github.com/tidwall/gjson"
 )
 
@@ -67,7 +65,7 @@ func (v *OpenEnvelope) FromJSON(data string) error {
 
 	v.SubscriptionID = arr[1].Str
 	v.Message = arr[3].Str
-	return easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw)), &v.Filter)
+	return unmarshalFilter(unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw)), &v.Filter)
 }
 
 func (v OpenEnvelope) MarshalJSON() ([]byte, error) {
@@ -77,9 +75,9 @@ func (v OpenEnvelope) MarshalJSON() ([]byte, error) {
 	res.WriteString(v.SubscriptionID)
 	res.WriteString(`",`)
 
-	w := jwriter.Writer{NoEscapeHTML: true}
-	v.Filter.MarshalEasyJSON(&w)
-	w.Buffer.DumpTo(res)
+	if err := writeFilterToBuffer(res, v.Filter); err != nil {
+		return nil, err
+	}
 
 	res.WriteString(`,"`)
 	res.WriteString(v.Message)

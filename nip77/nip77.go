@@ -110,22 +110,26 @@ func NegentropySync(
 
 	// handle emitted events from either direction
 	if source != nil {
-		wg.Go(func() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			handle(ctx, Direction{
 				From:  source,
 				To:    relay,
 				Items: neg.Haves,
 			})
-		})
+		}()
 	}
 	if target != nil {
-		wg.Go(func() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			handle(ctx, Direction{
 				From:  relay,
 				To:    target,
 				Items: neg.HaveNots,
 			})
-		})
+		}()
 	}
 
 	go func() {
