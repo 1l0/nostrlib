@@ -18,7 +18,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const DefaultSchemaURL = "https://raw.githubusercontent.com/nostr-protocol/registry-of-kinds/fa6e1bedc2d499eb01e716183089214e26a52877/schema.yaml"
+const DefaultSchemaURL = "https://raw.githubusercontent.com/nostr-protocol/registry-of-kinds/952c36fcd7129aa85be22d00c2b381ae47ee9c18/schema.yaml"
 
 // this is used by hex.Decode in the "hex" validator -- we don't care about data races
 var hexdummydecoder = make([]byte, 128)
@@ -40,8 +40,11 @@ func FetchSchemaFromURL(schemaURL string) (Schema, error) {
 	}
 
 	var schema Schema
-	err = json.Unmarshal(body, &schema)
-	return schema, err
+	if err := yaml.Unmarshal(body, &schema); err != nil {
+		return Schema{}, fmt.Errorf("failed to parse schema: %w", err)
+	}
+
+	return schema, nil
 }
 
 type Schema struct {
