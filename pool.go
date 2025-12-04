@@ -234,7 +234,7 @@ func (pool *Pool) SubscribeMany(
 	filter Filter,
 	opts SubscriptionOptions,
 ) chan RelayEvent {
-	return pool.subMany(ctx, urls, filter, nil, opts)
+	return pool.subMany(ctx, urls, filter, nil, nil, opts)
 }
 
 // FetchMany opens a subscription, much like SubscribeMany, but it ends as soon as all Relays
@@ -260,16 +260,33 @@ func (pool *Pool) FetchMany(
 	return pool.subManyEose(ctx, urls, filter, opts)
 }
 
-// SubscribeManyNotifyEOSE is like SubscribeMany, but takes a channel that is closed when
-// all subscriptions have received an EOSE
+// SubscribeManyNotifyEOSE is like SubscribeMany, but also returns a channel that is closed when all subscriptions have received an EOSE
 func (pool *Pool) SubscribeManyNotifyEOSE(
 	ctx context.Context,
 	urls []string,
 	filter Filter,
-	eoseChan chan struct{},
 	opts SubscriptionOptions,
-) chan RelayEvent {
-	return pool.subMany(ctx, urls, filter, eoseChan, opts)
+) (chan RelayEvent, chan struct{}) {
+	eoseChan := make(chan struct{})
+	events := pool.subMany(ctx, urls, filter, eoseChan, nil, opts)
+	return events, eoseChan
+}
+
+type RelayClosed struct {
+	Reason string
+	Relay  *Relay
+}
+
+// SubscribeManyNotifyClosed is like SubscribeMany, but also returns a channel that emits every time a subscription receives a CLOSED message
+func (pool *Pool) SubscribeManyNotifyClosed(
+	ctx context.Context,
+	urls []string,
+	filter Filter,
+	opts SubscriptionOptions,
+) (chan RelayEvent, chan RelayClosed) {
+	closedChan := make(chan RelayClosed)
+	events := pool.subMany(ctx, urls, filter, nil, closedChan, opts)
+	return events, closedChan
 }
 
 type ReplaceableKey struct {
@@ -382,6 +399,7 @@ func (pool *Pool) subMany(
 	urls []string,
 	filter Filter,
 	eoseChan chan struct{},
+	closedChan chan RelayClosed,
 	opts SubscriptionOptions,
 ) chan RelayEvent {
 	ctx, cancel := context.WithCancelCause(ctx)
@@ -524,6 +542,15 @@ func (pool *Pool) subMany(
 							}
 						} else {
 							debugLogf("CLOSED from %s: '%s'\n", nm, reason)
+							if closedChan != nil {
+								select {
+								case closedChan <- RelayClosed{
+									Reason: reason,
+									Relay:  relay,
+								}:
+								default:
+								}
+							}
 						}
 
 						return
@@ -751,6 +778,7 @@ func (pool *Pool) BatchedSubscribeMany(
 			for ie := range pool.subMany(ctx,
 				[]string{df.Relay},
 				df.Filter,
+				nil,
 				nil,
 				opts,
 			) {
