@@ -19,7 +19,7 @@ func (gs *GraspServer) handleInfoRefs(
 	pubkey nostr.PubKey,
 	repoName string,
 ) {
-	if !gs.repoExists(pubkey, repoName) {
+	if !gs.repoExists(r.Context(), pubkey, repoName) {
 		w.Header().Set("content-type", "text/plain; charset=UTF-8")
 		w.WriteHeader(404)
 		fmt.Fprintf(w, "repository announcement event not found during info-refs\n")
