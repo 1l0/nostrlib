@@ -21,7 +21,7 @@ func (gs *GraspServer) handleGitUploadPack(
 	repoPath := gs.getRepositoryPath(pubkey, repoName)
 
 	// for upload-pack (pull), check if repository exists
-	if !gs.repoExists(pubkey, repoName) {
+	if !gs.repoExists(r.Context(), pubkey, repoName) {
 		w.Header().Set("content-type", "text/plain; charset=UTF-8")
 		w.WriteHeader(404)
 		fmt.Fprintf(w, "repository announcement event not found during upload-pack\n")

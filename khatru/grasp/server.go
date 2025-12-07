@@ -53,7 +53,7 @@ func New(rl *khatru.Relay, repositoryDir string) *GraspServer {
 	mux.HandleFunc("GET /{npub}/{repo}", func(w http.ResponseWriter, r *http.Request) {
 		gs.handleGitRequest(w, r, base, func(w http.ResponseWriter, r *http.Request, pubkey nostr.PubKey, repoName string) {
 			if r.URL.RawQuery == "" {
-				if gs.repoExists(pubkey, repoName) {
+				if gs.repoExists(r.Context(), pubkey, repoName) {
 					gs.serveRepoPage(w, r, r.PathValue("npub"), repoName)
 				} else {
 					http.NotFound(w, r)
