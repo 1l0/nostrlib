@@ -148,8 +148,8 @@ func (gs *GraspServer) getRepositoryPath(pubkey nostr.PubKey, repoName string) s
 }
 
 // repoExists checks if a repository has an announcement event (kind 30617)
-func (gs *GraspServer) repoExists(pubkey nostr.PubKey, repoName string) bool {
-	for range gs.Relay.QueryStored(context.Background(), nostr.Filter{
+func (gs *GraspServer) repoExists(ctx context.Context, pubkey nostr.PubKey, repoName string) bool {
+	for range gs.Relay.QueryStored(ctx, nostr.Filter{
 		Kinds:   []nostr.Kind{nostr.KindRepositoryAnnouncement},
 		Authors: []nostr.PubKey{pubkey},
 		Tags:    nostr.TagMap{"d": []string{repoName}},
