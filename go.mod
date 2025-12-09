@@ -14,7 +14,6 @@ require (
 	github.com/coder/websocket v1.8.13
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/elnosh/gonuts v0.4.2
-	github.com/fasthttp/websocket v1.5.12
 	github.com/gomarkdown/markdown v0.0.0-20241205020045-f7e15b2f3e62
 	github.com/json-iterator/go v1.1.12
 	github.com/kr/pretty v0.3.1
@@ -29,29 +28,31 @@ require (
 	github.com/tyler-smith/go-bip32 v1.0.0
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/urfave/cli/v3 v3.0.0-beta1
-	github.com/valyala/fasthttp v1.59.0
 	go.etcd.io/bbolt v1.4.2
-	golang.org/x/crypto v0.39.0
+	golang.org/x/crypto v0.43.0
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
-	golang.org/x/net v0.41.0
-	golang.org/x/sync v0.15.0
-	golang.org/x/text v0.26.0
+	golang.org/x/net v0.46.0
+	golang.org/x/sync v0.17.0
+	golang.org/x/text v0.30.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
 	github.com/dgraph-io/ristretto/v2 v2.3.0
+	github.com/fasthttp/websocket v1.5.12
 	github.com/go-git/go-git/v5 v5.16.3
 	github.com/sivukhin/godjot v1.0.6
 	github.com/templexxx/cpu v0.0.1
 	github.com/templexxx/xhex v0.0.0-20200614015412-aed53437177b
+	github.com/valyala/fasthttp v1.68.0
+	marwan.io/wasm-fetch v0.1.0
 )
 
 require (
 	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/RoaringBitmap/roaring v1.9.4 // indirect
-	github.com/andybalholm/brotli v1.1.1 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.17.0 // indirect
 	github.com/blevesearch/bleve_index_api v1.1.12 // indirect
@@ -83,7 +84,7 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -97,6 +98,6 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 )

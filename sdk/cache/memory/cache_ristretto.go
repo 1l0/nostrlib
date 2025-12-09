@@ -1,3 +1,5 @@
+//go:build !tinygo
+
 package cache_memory
 
 import (

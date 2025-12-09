@@ -6,7 +6,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip44"
-	"github.com/mailru/easyjson"
 )
 
 // GiftWrap takes a 'rumor', encrypts it with our own key, making a 'seal', then encrypts that with a nonce key and
@@ -74,7 +73,7 @@ func GiftUnwrap(
 	}
 
 	var seal nostr.Event
-	err = easyjson.Unmarshal([]byte(jseal), &seal)
+	err = unmarshalEvent([]byte(jseal), &seal)
 	if err != nil {
 		return rumor, fmt.Errorf("seal is invalid json: %w", err)
 	}
@@ -88,7 +87,7 @@ func GiftUnwrap(
 		return rumor, fmt.Errorf("failed to decrypt rumor: %w", err)
 	}
 
-	err = easyjson.Unmarshal([]byte(jrumor), &rumor)
+	err = unmarshalEvent([]byte(jrumor), &rumor)
 	if err != nil {
 		return rumor, fmt.Errorf("rumor is invalid json: %w", err)
 	}

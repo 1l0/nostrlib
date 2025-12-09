@@ -1,15 +1,16 @@
-//go:build !tinygo
+//go:build tinygo
 
 package nostr
 
 import (
+	"encoding/hex"
+	stdjson "encoding/json"
+	"hash/fnv"
+	"io"
 	"strconv"
 	"strings"
 	"sync"
-	"unsafe"
 
-	jsoniter "github.com/json-iterator/go"
-	"github.com/templexxx/xhex"
 	"golang.org/x/exp/constraints"
 )
 
@@ -17,16 +18,31 @@ const MAX_LOCKS = 50
 
 var (
 	namedMutexPool = make([]sync.Mutex, MAX_LOCKS)
-	json           = jsoniter.ConfigFastest
+	json           = stdJsonWrapper{}
 )
 
-//go:noescape
-//go:linkname memhash runtime.memhash
-func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+type stdJsonWrapper struct{}
+
+func (stdJsonWrapper) Marshal(v any) ([]byte, error) {
+	return stdjson.Marshal(v)
+}
+
+func (stdJsonWrapper) Unmarshal(data []byte, v any) error {
+	return stdjson.Unmarshal(data, v)
+}
+
+func (stdJsonWrapper) NewEncoder(w io.Writer) *stdjson.Encoder {
+	return stdjson.NewEncoder(w)
+}
+
+func (stdJsonWrapper) NewDecoder(r io.Reader) *stdjson.Decoder {
+	return stdjson.NewDecoder(r)
+}
 
 func namedLock(name string) (unlock func()) {
-	sptr := unsafe.StringData(name)
-	idx := uint64(memhash(unsafe.Pointer(sptr), 0, uintptr(len(name)))) % MAX_LOCKS
+	h := fnv.New32a()
+	h.Write([]byte(name))
+	idx := h.Sum32() % MAX_LOCKS
 	namedMutexPool[idx].Lock()
 	return namedMutexPool[idx].Unlock
 }
@@ -188,7 +204,8 @@ func extractEventID(jsonStr string) ID {
 
 	// get 64 characters of the id
 	var id [32]byte
-	xhex.Decode(id[:], unsafe.Slice(unsafe.StringData(jsonStr[start:start+64]), 64))
+	// xhex.Decode(id[:], unsafe.Slice(unsafe.StringData(jsonStr[start:start+64]), 64))
+	hex.Decode(id[:], []byte(jsonStr[start:start+64]))
 	return id
 }
 
@@ -205,7 +222,8 @@ func extractEventPubKey(jsonStr string) PubKey {
 
 	// get 64 characters of the pubkey
 	var pk [32]byte
-	xhex.Decode(pk[:], unsafe.Slice(unsafe.StringData(jsonStr[start:start+64]), 64))
+	// xhex.Decode(pk[:], unsafe.Slice(unsafe.StringData(jsonStr[start:start+64]), 64))
+	hex.Decode(pk[:], []byte(jsonStr[start:start+64]))
 	return pk
 }
 
