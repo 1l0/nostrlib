@@ -63,7 +63,6 @@ func (gs *GraspServer) handleGitUploadPack(
 	w.Header().Set("Content-Type", "application/x-git-upload-pack-result")
 	w.Header().Set("Connection", "Keep-Alive")
 	w.Header().Set("Cache-Control", "no-cache, max-age=0, must-revalidate")
-	w.WriteHeader(200)
 
 	if err := gs.runUploadPack(w, r, repoPath, bodyReader); err != nil {
 		w.Header().Set("content-type", "text/plain; charset=UTF-8")
