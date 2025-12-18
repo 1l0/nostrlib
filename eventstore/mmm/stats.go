@@ -29,8 +29,12 @@ type PubKeyStats struct {
 	PerKindPerWeek map[nostr.Kind][]uint
 }
 
-func (il *IndexingLayer) ComputeStats() (*EventStats, error) {
-	stats := &EventStats{
+type StatsOptions struct {
+	OnlyPubKey nostr.PubKey
+}
+
+func (il *IndexingLayer) ComputeStats(opts StatsOptions) (EventStats, error) {
+	stats := EventStats{
 		Total:     0,
 		PerWeek:   make([]uint, 0, 24),
 		PerPubKey: make(map[nostr.PubKey]PubKeyStats, 30),
@@ -47,22 +51,40 @@ func (il *IndexingLayer) ComputeStats() (*EventStats, error) {
 		var currentPubKeyPrefix []byte
 		var currentPubKey nostr.PubKey
 
-		for {
-			key, val, err := cursor.Get(nil, nil, lmdb.Next)
+		// position cursor based on options
+		var initialKey []byte
+		if opts.OnlyPubKey != nostr.ZeroPK {
+			// position cursor at the start of this author's data
+			initialKey = make([]byte, 8+4+4)
+			copy(initialKey[0:8], opts.OnlyPubKey[0:8])
+		}
+
+		var key []byte
+		var val []byte
+		if initialKey == nil {
+			key, val, err = cursor.Get(nil, nil, lmdb.Next)
 			if lmdb.IsNotFound(err) {
-				break
+				return nil
 			}
 			if err != nil {
 				return err
 			}
-
-			if len(key) < 14 {
-				continue
+		} else {
+			key, val, err = cursor.Get(initialKey, nil, lmdb.SetRange)
+			if err != nil {
+				return err
 			}
+		}
 
+		for {
 			// parse key: [8 bytes pubkey][2 bytes kind][4 bytes timestamp]
 			pubkeyPrefix := key[0:8]
 			if !bytes.Equal(pubkeyPrefix, currentPubKeyPrefix) {
+				if opts.OnlyPubKey != nostr.ZeroPK && len(currentPubKeyPrefix) > 0 {
+					// stop scanning now as we're filtering for a specific pubkey
+					break
+				}
+
 				// load pubkey from event (otherwise will use the same from before)
 				pos := positionFromBytes(val)
 				currentPubKey = betterbinary.GetPubKey(il.mmmm.mmapf[pos.start : pos.start+uint64(pos.size)])
@@ -114,6 +136,14 @@ func (il *IndexingLayer) ComputeStats() (*EventStats, error) {
 				stats.PerKind[kind] = KindStats{
 					Total: 1,
 				}
+			}
+
+			key, val, err = cursor.Get(nil, nil, lmdb.Next)
+			if lmdb.IsNotFound(err) {
+				break
+			}
+			if err != nil {
+				return err
 			}
 		}
 

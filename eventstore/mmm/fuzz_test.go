@@ -3,6 +3,7 @@ package mmm
 import (
 	"fmt"
 	"iter"
+	"maps"
 	"math/rand/v2"
 	"os"
 	"slices"
@@ -101,13 +102,15 @@ func FuzzTest(f *testing.F) {
 			require.Equal(t, count, len(storedByLayer[layer.name]), "layer %d ('%s')", i, layer.name)
 
 			// call ComputeStats
-			stats, err := layer.ComputeStats()
+			stats, err := layer.ComputeStats(StatsOptions{})
 			require.NoError(t, err, "ComputeStats failed for layer %d ('%s')", i, layer.name)
-			require.NotNil(t, stats, "ComputeStats returned nil for layer %d ('%s')", i, layer.name)
 			require.Equal(t, stats.Total, uint(count))
 			if count > 0 {
 				require.GreaterOrEqual(t, len(stats.PerWeek), 1)
-				require.Len(t, stats.PerPubKeyPrefix, 1)
+				require.Len(t, stats.PerPubKey, 1)
+				for pk := range maps.Keys(stats.PerPubKey) {
+					require.Equal(t, pk, sk.Public())
+				}
 			}
 		}
 
