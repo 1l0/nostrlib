@@ -1,18 +1,20 @@
 package mmm
 
 import (
+	"bytes"
 	"encoding/binary"
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/codec/betterbinary"
 	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
 type EventStats struct {
-	Total           uint
-	PerWeek         []uint
-	PerPubKeyPrefix map[string]PubKeyStats
-	PerKind         map[nostr.Kind]KindStats
+	Total     uint
+	PerWeek   []uint
+	PerPubKey map[nostr.PubKey]PubKeyStats
+	PerKind   map[nostr.Kind]KindStats
 }
 
 type KindStats struct {
@@ -29,10 +31,10 @@ type PubKeyStats struct {
 
 func (il *IndexingLayer) ComputeStats() (*EventStats, error) {
 	stats := &EventStats{
-		Total:           0,
-		PerWeek:         make([]uint, 0, 24),
-		PerPubKeyPrefix: make(map[string]PubKeyStats, 30),
-		PerKind:         make(map[nostr.Kind]KindStats, 20),
+		Total:     0,
+		PerWeek:   make([]uint, 0, 24),
+		PerPubKey: make(map[nostr.PubKey]PubKeyStats, 30),
+		PerKind:   make(map[nostr.Kind]KindStats, 20),
 	}
 
 	err := il.lmdbEnv.View(func(txn *lmdb.Txn) error {
@@ -42,8 +44,11 @@ func (il *IndexingLayer) ComputeStats() (*EventStats, error) {
 		}
 		defer cursor.Close()
 
+		var currentPubKeyPrefix []byte
+		var currentPubKey nostr.PubKey
+
 		for {
-			key, _, err := cursor.Get(nil, nil, lmdb.Next)
+			key, val, err := cursor.Get(nil, nil, lmdb.Next)
 			if lmdb.IsNotFound(err) {
 				break
 			}
@@ -56,7 +61,14 @@ func (il *IndexingLayer) ComputeStats() (*EventStats, error) {
 			}
 
 			// parse key: [8 bytes pubkey][2 bytes kind][4 bytes timestamp]
-			pubkeyPrefix := nostr.HexEncodeToString(key[0:8])
+			pubkeyPrefix := key[0:8]
+			if !bytes.Equal(pubkeyPrefix, currentPubKeyPrefix) {
+				// load pubkey from event (otherwise will use the same from before)
+				pos := positionFromBytes(val)
+				currentPubKey = betterbinary.GetPubKey(il.mmmm.mmapf[pos.start : pos.start+uint64(pos.size)])
+				currentPubKeyPrefix = pubkeyPrefix
+			}
+
 			kind := nostr.Kind(binary.BigEndian.Uint16(key[8:10]))
 			createdTime := time.Unix(int64(binary.BigEndian.Uint32(key[10:14])), 0)
 
@@ -71,7 +83,7 @@ func (il *IndexingLayer) ComputeStats() (*EventStats, error) {
 				}
 				stats.PerWeek[weekIndex]++
 			}
-			if this, exists := stats.PerPubKeyPrefix[pubkeyPrefix]; exists {
+			if this, exists := stats.PerPubKey[currentPubKey]; exists {
 				this.Total++
 				this.PerKind[kind]++
 				if weekIndex >= 0 {
@@ -80,9 +92,9 @@ func (il *IndexingLayer) ComputeStats() (*EventStats, error) {
 					}
 					this.PerWeek[weekIndex]++
 				}
-				stats.PerPubKeyPrefix[pubkeyPrefix] = this
+				stats.PerPubKey[currentPubKey] = this
 			} else {
-				stats.PerPubKeyPrefix[pubkeyPrefix] = PubKeyStats{
+				stats.PerPubKey[currentPubKey] = PubKeyStats{
 					Total: 1,
 					PerKind: map[nostr.Kind]uint{
 						kind: 1,
