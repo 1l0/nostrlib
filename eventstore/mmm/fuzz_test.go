@@ -99,6 +99,16 @@ func FuzzTest(f *testing.F) {
 				count++
 			}
 			require.Equal(t, count, len(storedByLayer[layer.name]), "layer %d ('%s')", i, layer.name)
+
+			// call ComputeStats
+			stats, err := layer.ComputeStats()
+			require.NoError(t, err, "ComputeStats failed for layer %d ('%s')", i, layer.name)
+			require.NotNil(t, stats, "ComputeStats returned nil for layer %d ('%s')", i, layer.name)
+			require.Equal(t, stats.Total, uint(count))
+			if count > 0 {
+				require.GreaterOrEqual(t, len(stats.PerWeek), 1)
+				require.Len(t, stats.PerPubKeyPrefix, 1)
+			}
 		}
 
 		// randomly select n events to delete from random layers

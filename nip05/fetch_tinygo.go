@@ -4,6 +4,7 @@ package nip05
 
 import (
 	"context"
+	json "encoding/json"
 	"fmt"
 
 	fetch "marwan.io/wasm-fetch"

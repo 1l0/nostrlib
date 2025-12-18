@@ -4,6 +4,7 @@ package nip05
 
 import (
 	"context"
+	json "encoding/json"
 	"fmt"
 	"net/http"
 )
