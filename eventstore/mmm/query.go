@@ -96,13 +96,10 @@ func (il *IndexingLayer) QueryEvents(filter nostr.Filter, maxLimit int) iter.Seq
 		}
 
 		// max number of events we'll return
-		if tlimit := filter.GetTheoreticalLimit(); tlimit == 0 || filter.LimitZero {
+		if tlimit := filter.GetTheoreticalLimit(); tlimit == 0 {
 			return
 		} else if tlimit < maxLimit {
 			maxLimit = tlimit
-		}
-		if filter.Limit > 0 && filter.Limit < maxLimit {
-			maxLimit = filter.Limit
 		}
 
 		il.lmdbEnv.View(func(txn *lmdb.Txn) error {
