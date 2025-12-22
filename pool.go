@@ -43,6 +43,10 @@ type DirectedFilter struct {
 	Relay string
 }
 
+func (df DirectedFilter) String() string {
+	return fmt.Sprintf("%s(%s)", df.Relay, df.Filter)
+}
+
 func (ie RelayEvent) String() string { return fmt.Sprintf("[%s] >> %s", ie.Relay.URL, ie.Event) }
 
 // NewPool creates a new Pool with the given context and options.
