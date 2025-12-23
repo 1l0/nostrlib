@@ -1,4 +1,4 @@
-//go:build !js
+//go:build js
 
 package nostr
 
@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/textproto"
 	"sync/atomic"
 	"time"
 
@@ -32,16 +31,7 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 		dialCtx, _ = context.WithTimeoutCause(ctx, 7*time.Second, errors.New("connection took too long"))
 	}
 
-	dialOpts := &ws.DialOptions{
-		HTTPHeader: http.Header{
-			textproto.CanonicalMIMEHeaderKey("User-Agent"): {"fiatjaf.com/nostr"},
-		},
-		CompressionMode: ws.CompressionContextTakeover,
-		HTTPClient:      httpClient,
-	}
-	for k, v := range r.requestHeader {
-		dialOpts.HTTPHeader[k] = v
-	}
+	dialOpts := &ws.DialOptions{}
 
 	c, _, err := ws.Dial(dialCtx, r.URL, dialOpts)
 	if err != nil {

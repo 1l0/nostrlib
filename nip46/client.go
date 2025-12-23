@@ -7,12 +7,9 @@ import (
 	"net/url"
 	"strconv"
 	"sync/atomic"
-	"unsafe"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip44"
-	"github.com/mailru/easyjson"
-	"github.com/puzpuzpuz/xsync/v3"
 )
 
 type BunkerClient struct {
@@ -22,7 +19,7 @@ type BunkerClient struct {
 	target          nostr.PubKey
 	relays          []string
 	conversationKey [32]byte // nip44
-	listeners       *xsync.MapOf[string, chan Response]
+	listeners       *listenersMap
 	idPrefix        string
 	onAuth          func(string)
 
@@ -123,7 +120,7 @@ func NewBunker(
 		target:          targetPublicKey,
 		relays:          relays,
 		conversationKey: conversationKey,
-		listeners:       xsync.NewMapOf[string, chan Response](),
+		listeners:       newListenersMap(),
 		onAuth:          onAuth,
 		idPrefix:        "nl-" + strconv.Itoa(rand.Intn(65536)),
 	}
@@ -202,7 +199,7 @@ func (bunker *BunkerClient) SignEvent(ctx context.Context, evt *nostr.Event) err
 		return err
 	}
 
-	err = easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(resp), len(resp)), evt)
+	err = unmarshalEvent(resp, evt)
 	if err != nil {
 		return err
 	}

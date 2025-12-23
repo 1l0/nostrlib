@@ -3,8 +3,6 @@ package sdk
 import (
 	"context"
 	"crypto/sha256"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -38,20 +36,12 @@ func (sys *System) FetchZapProvider(ctx context.Context, pk nostr.PubKey) nostr.
 		parts := strings.Split(pm.LUD16, "@")
 		if len(parts) == 2 {
 			url := "http://" + parts[1] + "/.well-known/lnurlp/" + parts[0]
-			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-			if err == nil {
-				client := &http.Client{Timeout: 10 * time.Second}
-				resp, err := client.Do(req)
-				if err == nil {
-					defer resp.Body.Close()
-					if body, err := io.ReadAll(resp.Body); err == nil {
-						gj := gjson.ParseBytes(body)
-						if gj.Get("allowsNostr").Type == gjson.True {
-							if pk, err := nostr.PubKeyFromHex(gj.Get("nostrPubkey").Str); err == nil {
-								sys.ZapProviderCache.SetWithTTL(pk, pk, time.Hour*6)
-								return pk
-							}
-						}
+			if body, err := fetch(ctx, url); err == nil {
+				gj := gjson.ParseBytes(body)
+				if gj.Get("allowsNostr").Type == gjson.True {
+					if pk, err := nostr.PubKeyFromHex(gj.Get("nostrPubkey").Str); err == nil {
+						sys.ZapProviderCache.SetWithTTL(pk, pk, time.Hour*6)
+						return pk
 					}
 				}
 			}

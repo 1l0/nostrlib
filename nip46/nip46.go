@@ -6,10 +6,7 @@ import (
 	"strings"
 
 	"fiatjaf.com/nostr"
-	jsoniter "github.com/json-iterator/go"
 )
-
-var json = jsoniter.ConfigFastest
 
 type Request struct {
 	ID     string   `json:"id"`

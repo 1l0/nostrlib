@@ -1,14 +1,14 @@
-//go:build !tinygo
+//go:build tinygo
 
 package nip11
 
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"fiatjaf.com/nostr"
+	fetch "marwan.io/wasm-fetch"
 )
 
 // Fetch fetches the NIP-11 metadata for a relay.
@@ -35,25 +35,22 @@ func Fetch(ctx context.Context, u string) (info RelayInformationDocument, err er
 	}
 
 	// make request
-	req, err := http.NewRequestWithContext(ctx, "GET", "http"+u[2:], nil)
+	headers := make(map[string]string, 2)
+	headers["Accept"] = "application/nostr+json"
+	headers["User-Agent"] = "nostrlib/go"
+	r, err := fetch.Fetch("http"+u[2:], &fetch.Opts{
+		Method:  fetch.MethodGet,
+		Signal:  ctx,
+		Headers: headers,
+	})
 	if err != nil {
-		return info, fmt.Errorf("invalid request")
+		return info, fmt.Errorf("fetch failed: %w", err)
 	}
-
-	// add the NIP-11 header
-	req.Header.Add("Accept", "application/nostr+json")
-	req.Header.Add("User-Agent", "nostrlib/go")
-
-	// send the request
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return info, fmt.Errorf("request failed: %w", err)
+	if r.Status != 200 && r.Status != 204 {
+		return info, fmt.Errorf("fetch status is not ok: %d", r.Status)
 	}
-	defer resp.Body.Close()
-
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return info, fmt.Errorf("invalid json: %w", err)
+	if err := json.Unmarshal(r.Body, &info); err != nil {
+		return info, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-
 	return info, nil
 }

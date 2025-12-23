@@ -1,4 +1,4 @@
-//go:build !tinygo
+//go:build tinygo
 
 package keyer
 
@@ -13,7 +13,6 @@ import (
 	"fiatjaf.com/nostr/nip19"
 	"fiatjaf.com/nostr/nip46"
 	"fiatjaf.com/nostr/nip49"
-	"github.com/puzpuzpuz/xsync/v3"
 )
 
 var (
@@ -71,7 +70,7 @@ func New(ctx context.Context, pool *nostr.Pool, input string, opts *SignerOption
 			return nil, fmt.Errorf("failed to decrypt with given password: %w", err)
 		}
 		pk := nostr.GetPublicKey(sec)
-		return KeySigner{sec, pk, xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
+		return KeySigner{sec, pk, nostr.NewMapOf[nostr.PubKey, [32]byte]()}, nil
 	} else if nip46.IsValidBunkerURL(input) || nip05.IsValidIdentifier(input) {
 		bcsk := nostr.Generate()
 		oa := func(url string) { println("auth_url received but not handled") }
@@ -91,10 +90,10 @@ func New(ctx context.Context, pool *nostr.Pool, input string, opts *SignerOption
 	} else if prefix, parsed, err := nip19.Decode(input); err == nil && prefix == "nsec" {
 		sec := parsed.(nostr.SecretKey)
 		pk := nostr.GetPublicKey(sec)
-		return KeySigner{sec, pk, xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
+		return KeySigner{sec, pk, nostr.NewMapOf[nostr.PubKey, [32]byte]()}, nil
 	} else if sk, err := nostr.SecretKeyFromHex(input); err == nil {
 		pk := nostr.GetPublicKey(sk)
-		return KeySigner{sk, pk, xsync.NewMapOf[nostr.PubKey, [32]byte]()}, nil
+		return KeySigner{sk, pk, nostr.NewMapOf[nostr.PubKey, [32]byte]()}, nil
 	}
 
 	return nil, fmt.Errorf("unsupported input '%s'", input)

@@ -7,7 +7,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip44"
-	"github.com/mailru/easyjson"
 )
 
 var _ Signer = (*DynamicSigner)(nil)
@@ -137,7 +136,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			break
 		}
 		evt := nostr.Event{}
-		err = easyjson.Unmarshal([]byte(req.Params[0]), &evt)
+		err = unmarshalEvent(req.Params[0], &evt)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to decode event/2: %w", err)
 			break
@@ -155,7 +154,7 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event nostr.Event) (
 			break
 		}
 
-		jrevt, _ := easyjson.Marshal(evt)
+		jrevt, _ := marshalEvent(&evt)
 		result = string(jrevt)
 	case "nip44_encrypt":
 		if len(req.Params) != 2 {
