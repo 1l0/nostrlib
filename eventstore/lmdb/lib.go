@@ -51,10 +51,25 @@ func (b *LMDBBackend) Close() {
 	b.lmdbEnv.Close()
 }
 
-func (b *LMDBBackend) Serial() []byte {
-	v := b.lastId.Add(1)
+func (b *LMDBBackend) serial(txn *lmdb.Txn) []byte {
+	cursor, err := txn.OpenCursor(b.rawEventStore)
+	if err != nil {
+		return nil
+	}
+	defer cursor.Close()
+	k, _, err := cursor.Get(nil, nil, lmdb.Last)
+	if lmdb.IsNotFound(err) {
+		vb := make([]byte, 4)
+		binary.BigEndian.PutUint32(vb[:], 1)
+		return vb
+	}
+	if err != nil {
+		return nil
+	}
+	lastId := binary.BigEndian.Uint32(k)
+	nextId := lastId + 1
 	vb := make([]byte, 4)
-	binary.BigEndian.PutUint32(vb[:], uint32(v))
+	binary.BigEndian.PutUint32(vb[:], nextId)
 	return vb
 }
 

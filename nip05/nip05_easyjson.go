@@ -54,11 +54,13 @@ func easyjsonDecode(in *jlexer.Lexer, out *WellKnownResponse) {
 							err = errors.New("names[]{pubkey} must be a string")
 						} else {
 							data = data[1 : len(data)-1]
-							pk, err = nostr.PubKeyFromHex(unsafe.String(unsafe.SliceData(data), len(data)))
+							pk, _ = nostr.PubKeyFromHex(unsafe.String(unsafe.SliceData(data), len(data)))
 						}
 						in.AddError(err)
 					}
-					out.Names[key] = pk
+					if pk != nostr.ZeroPK {
+						out.Names[key] = pk
+					}
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -81,7 +83,7 @@ func easyjsonDecode(in *jlexer.Lexer, out *WellKnownResponse) {
 							err = errors.New("relays[pubkey] must be a string")
 						} else {
 							data = data[1 : len(data)-1]
-							key, err = nostr.PubKeyFromHex(unsafe.String(unsafe.SliceData(data), len(data)))
+							key, _ = nostr.PubKeyFromHex(unsafe.String(unsafe.SliceData(data), len(data)))
 						}
 						in.AddError(err)
 					}
@@ -107,7 +109,9 @@ func easyjsonDecode(in *jlexer.Lexer, out *WellKnownResponse) {
 						}
 						in.Delim(']')
 					}
-					out.Relays[key] = relays
+					if key != nostr.ZeroPK {
+						out.Relays[key] = relays
+					}
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -130,7 +134,7 @@ func easyjsonDecode(in *jlexer.Lexer, out *WellKnownResponse) {
 							err = errors.New("nip46[pubkey] must be a string")
 						} else {
 							data = data[1 : len(data)-1]
-							key, err = nostr.PubKeyFromHex(unsafe.String(unsafe.SliceData(data), len(data)))
+							key, _ = nostr.PubKeyFromHex(unsafe.String(unsafe.SliceData(data), len(data)))
 						}
 						in.AddError(err)
 					}
@@ -158,7 +162,9 @@ func easyjsonDecode(in *jlexer.Lexer, out *WellKnownResponse) {
 						}
 						in.Delim(']')
 					}
-					out.NIP46[key] = bunkers
+					if key != nostr.ZeroPK {
+						out.NIP46[key] = bunkers
+					}
 					in.WantComma()
 				}
 				in.Delim('}')

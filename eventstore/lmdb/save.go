@@ -48,7 +48,7 @@ func (b *LMDBBackend) save(txn *lmdb.Txn, evt nostr.Event) error {
 		return err
 	}
 
-	idx := b.Serial()
+	idx := b.serial(txn)
 	// raw event store
 	if err := txn.Put(b.rawEventStore, idx, buf, 0); err != nil {
 		return err

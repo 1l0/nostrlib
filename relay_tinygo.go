@@ -1,4 +1,4 @@
-//go:build !tinygo
+//go:build tinygo
 
 package nostr
 
@@ -120,11 +120,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 // ConnectWithTLS is like Connect(), but takes a special tls.Config if you need that.
 func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error {
-	return r.ConnectWithClient(ctx, &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
-	})
+	return r.Connect(ctx)
 }
 
 // ConnectWithClient is like Connect(), but takes a special *http.Client if you need that.
