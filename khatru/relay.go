@@ -59,7 +59,8 @@ type Relay struct {
 	ctx    context.Context
 	cancel context.CancelCauseFunc
 
-	// setting this variable overwrites the hackish workaround we do to try to figure out our own base URL
+	// setting this variable overwrites the hackish workaround we do to try to figure out our own base URL.
+	// it also ensures the relay stuff is served only from that path and not from any path possible.
 	ServiceURL string
 
 	// hooks that will be called at various times
@@ -68,6 +69,7 @@ type Relay struct {
 	ReplaceEvent              func(ctx context.Context, event nostr.Event) error
 	DeleteEvent               func(ctx context.Context, id nostr.ID) error
 	OnEventSaved              func(ctx context.Context, event nostr.Event)
+	OnEventDeleted            func(ctx context.Context, deleted nostr.Event)
 	OnEphemeralEvent          func(ctx context.Context, event nostr.Event)
 	OnRequest                 func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
 	OnCount                   func(ctx context.Context, filter nostr.Filter) (reject bool, msg string)
@@ -154,7 +156,15 @@ func (rl *Relay) UseEventstore(store eventstore.Store, maxQueryLimit int) {
 	}
 
 	// only when using the eventstore we automatically set up the expiration manager
-	rl.StartExpirationManager(rl.QueryStored, rl.DeleteEvent)
+	rl.StartExpirationManager(func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
+		return rl.QueryStored(ctx, filter)
+	}, func(ctx context.Context, id nostr.ID) error {
+		return rl.DeleteEvent(ctx, id)
+	}, func(ctx context.Context, evt nostr.Event) {
+		if rl.OnEventDeleted != nil {
+			rl.OnEventDeleted(ctx, evt)
+		}
+	})
 }
 
 func (rl *Relay) getBaseURL(r *http.Request) string {
@@ -180,5 +190,6 @@ func (rl *Relay) getBaseURL(r *http.Request) string {
 			proto = "https"
 		}
 	}
-	return proto + "://" + host
+
+	return proto + "://" + host + r.URL.Path
 }

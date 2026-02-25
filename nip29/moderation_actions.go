@@ -92,20 +92,33 @@ var moderationActionFactories = map[nostr.Kind]func(nostr.Event) (Action, error)
 		}
 
 		y := true
-		if evt.Tags.Has("private") {
-			edit.PrivateValue = &y
-			ok = true
-		}
+		n := false
 		if evt.Tags.Has("closed") {
 			edit.ClosedValue = &y
+			ok = true
+		} else if evt.Tags.Has("open") {
+			edit.ClosedValue = &n
 			ok = true
 		}
 		if evt.Tags.Has("restricted") {
 			edit.RestrictedValue = &y
 			ok = true
+		} else if evt.Tags.Has("unrestricted") {
+			edit.RestrictedValue = &n
+			ok = true
 		}
 		if evt.Tags.Has("hidden") {
 			edit.HiddenValue = &y
+			ok = true
+		} else if evt.Tags.Has("visible") {
+			edit.HiddenValue = &n
+			ok = true
+		}
+		if evt.Tags.Has("private") {
+			edit.PrivateValue = &y
+			ok = true
+		} else if evt.Tags.Has("public") {
+			edit.PrivateValue = &n
 			ok = true
 		}
 
@@ -122,10 +135,9 @@ var moderationActionFactories = map[nostr.Kind]func(nostr.Event) (Action, error)
 			if err != nil {
 				return nil, fmt.Errorf("invalid event id hex")
 			}
-
 			targets = append(targets, id)
+			missing = false
 		}
-
 		if missing {
 			return nil, fmt.Errorf("missing 'e' tag")
 		}
@@ -179,6 +191,7 @@ func (a PutUser) Apply(group *Group) {
 				continue
 			}
 			roles = append(roles, group.GetRoleByName(roleName))
+			group.LastAdminsUpdate = a.When
 		}
 		group.Members[target.PubKey] = roles
 
@@ -188,6 +201,8 @@ func (a PutUser) Apply(group *Group) {
 				group.InviteCodes = group.InviteCodes[0 : len(group.InviteCodes)-1]
 			}
 		}
+
+		group.LastMembersUpdate = a.When
 	}
 }
 
@@ -199,6 +214,13 @@ type RemoveUser struct {
 func (_ RemoveUser) Name() string { return "remove-user" }
 func (a RemoveUser) Apply(group *Group) {
 	for _, tpk := range a.Targets {
+		if roles, exists := group.Members[tpk]; exists {
+			group.LastMembersUpdate = a.When
+			if len(roles) > 0 {
+				group.LastAdminsUpdate = a.When
+			}
+		}
+
 		delete(group.Members, tpk)
 	}
 }
@@ -207,10 +229,10 @@ type EditMetadata struct {
 	NameValue       *string
 	PictureValue    *string
 	AboutValue      *string
-	PrivateValue    *bool
 	RestrictedValue *bool
-	HiddenValue     *bool
 	ClosedValue     *bool
+	HiddenValue     *bool
+	PrivateValue    *bool
 	When            nostr.Timestamp
 }
 
@@ -226,17 +248,17 @@ func (a EditMetadata) Apply(group *Group) {
 	if a.AboutValue != nil {
 		group.About = *a.AboutValue
 	}
-	if a.PrivateValue != nil {
-		group.Private = *a.PrivateValue
-	}
 	if a.RestrictedValue != nil {
 		group.Restricted = *a.RestrictedValue
+	}
+	if a.ClosedValue != nil {
+		group.Closed = *a.ClosedValue
 	}
 	if a.HiddenValue != nil {
 		group.Hidden = *a.HiddenValue
 	}
-	if a.ClosedValue != nil {
-		group.Closed = *a.ClosedValue
+	if a.PrivateValue != nil {
+		group.Private = *a.PrivateValue
 	}
 }
 

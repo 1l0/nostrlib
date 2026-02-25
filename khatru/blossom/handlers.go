@@ -3,6 +3,7 @@ package blossom
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nipb0/blossom"
 	"github.com/liamg/magic"
 )
 
@@ -35,11 +37,7 @@ func (bs BlossomServer) handleUploadCheck(w http.ResponseWriter, r *http.Request
 	}
 
 	mimetype := r.Header.Get("X-Content-Type")
-	exts, _ := mime.ExtensionsByType(mimetype)
-	var ext string
-	if len(exts) > 0 {
-		ext = exts[0]
-	}
+	ext := blossom.GetExtension(mimetype)
 
 	// get the file size from the incoming header
 	size, _ := strconv.Atoi(r.Header.Get("X-Content-Length"))
@@ -70,13 +68,13 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// get the file size from the incoming header
 	size, _ := strconv.Atoi(r.Header.Get("Content-Length"))
-	if size == 0 {
+	if size <= 0 {
 		blossomError(w, "missing \"Content-Length\" header", 400)
 		return
 	}
 
 	// read first bytes of upload so we can find out the filetype
-	b := make([]byte, min(50, size), size)
+	b := make([]byte, min(50, size), size+1 /* the extra 1 is for checking the validity of the Content-Length */)
 	if n, err := r.Body.Read(b); err != nil && n != size {
 		blossomError(w, "failed to read initial bytes of upload body: "+err.Error(), 400)
 		return
@@ -87,11 +85,11 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// if we can't find, use the filetype given by the upload header
 		mimetype := r.Header.Get("Content-Type")
-		ext = getExtension(mimetype)
+		ext = blossom.GetExtension(mimetype)
 	}
 
 	// special case of android apk -- if we see a .zip but they say it's .apk we trust them
-	if ext == ".zip" && getExtension(r.Header.Get("Content-Type")) == ".apk" {
+	if ext == ".zip" && blossom.GetExtension(r.Header.Get("Content-Type")) == ".apk" {
 		ext = ".apk"
 	}
 
@@ -105,25 +103,28 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// if it passes then we have to read the entire thing into memory so we can compute the sha256
-	for {
-		var n int
-		n, err = r.Body.Read(b[len(b):cap(b)])
-		b = b[:len(b)+n]
-		if err != nil {
+	// we will only read as much as specified in the Content-Length header
+	if size > len(b) {
+		alreadyRead := len(b)
+		for {
+			n, err := r.Body.Read(b[alreadyRead : size+1])
+			alreadyRead += n
 			if err == io.EOF {
-				err = nil
+				break
+			} else if err != nil && err != io.EOF {
+				blossomError(w, "failed to read upload body: "+err.Error(), 400)
+				return
 			}
-			break
+			if alreadyRead > size {
+				blossomError(w, "file is bigger than was specified in Content-Length", 400)
+				return
+			}
 		}
-		if len(b) == cap(b) {
-			// add more capacity (let append pick how much)
-			// if Content-Length was correct we shouldn't reach this
-			b = append(b, 0)[:len(b)]
+		if alreadyRead != size {
+			blossomError(w, fmt.Sprintf("got a %d bytes but Content-Length said %d", alreadyRead, size), 400)
+			return
 		}
-	}
-	if err != nil {
-		blossomError(w, "failed to read upload body: "+err.Error(), 400)
-		return
+		b = b[0:size]
 	}
 
 	hash := sha256.Sum256(b)
@@ -134,7 +135,7 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// keep track of the blob descriptor
-	bd := BlobDescriptor{
+	bd := blossom.BlobDescriptor{
 		URL:      bs.ServiceURL + "/" + hhash + ext,
 		SHA256:   hhash,
 		Size:     len(b),
@@ -142,7 +143,7 @@ func (bs BlossomServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 		Uploaded: nostr.Now(),
 	}
 	if err := bs.Store.Keep(r.Context(), bd, auth.PubKey); err != nil {
-		blossomError(w, "failed to save event: "+err.Error(), 400)
+		blossomError(w, "failed to save blob descriptor: "+err.Error(), 400)
 		return
 	}
 
@@ -197,7 +198,7 @@ func (bs BlossomServer) handleGetBlob(w http.ResponseWriter, r *http.Request) {
 			ext = spl[1]
 		}
 	} else if bd != nil {
-		ext = getExtension(bd.Type)
+		ext = blossom.GetExtension(bd.Type)
 	}
 
 	if nil != bs.RejectGet {
@@ -345,7 +346,7 @@ func (bs BlossomServer) handleDelete(w http.ResponseWriter, r *http.Request) {
 			ext = spl[1]
 		}
 	} else if bd != nil {
-		ext = getExtension(bd.Type)
+		ext = blossom.GetExtension(bd.Type)
 	}
 
 	// should we accept this delete?
@@ -454,7 +455,7 @@ func (bs BlossomServer) handleMirror(w http.ResponseWriter, r *http.Request) {
 	var ext string
 	contentType := resp.Header.Get("Content-Type")
 	if contentType != "" {
-		ext = getExtension(contentType)
+		ext = blossom.GetExtension(contentType)
 	} else if ft, _ := magic.Lookup(body); ft != nil {
 		ext = "." + ft.Extension
 	} else if idx := strings.LastIndex(req.URL, "."); idx != -1 {
@@ -471,7 +472,7 @@ func (bs BlossomServer) handleMirror(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// keep track of the blob descriptor
-	bd := BlobDescriptor{
+	bd := blossom.BlobDescriptor{
 		URL:      bs.ServiceURL + "/" + hhash + ext,
 		SHA256:   hhash,
 		Size:     len(body),

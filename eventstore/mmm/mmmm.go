@@ -2,6 +2,7 @@ package mmm
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,9 +21,12 @@ type mmap []byte
 
 func (_ mmap) String() string { return "<memory-mapped file>" }
 
+var ReadOnly = errors.New("mmm in read-only mode")
+
 type MultiMmapManager struct {
-	Dir    string
-	Logger *zerolog.Logger
+	Dir      string
+	Logger   *zerolog.Logger
+	ReadOnly bool
 
 	layers IndexingLayers
 
@@ -37,7 +41,8 @@ type MultiMmapManager struct {
 	knownLayers lmdb.DBI
 	indexId     lmdb.DBI
 
-	freeRanges positions
+	freeRangesAll   positions  // sorted by position
+	freeRangesLarge []position // unsorted
 }
 
 func (b *MultiMmapManager) String() string {
@@ -62,13 +67,15 @@ func (b *MultiMmapManager) Init() error {
 		return fmt.Errorf("failed to create directory %s: %w", dbpath, err)
 	}
 
-	// create lockfile to prevent multiple instances
-	lockfilePath := filepath.Join(b.Dir, "mmmm.lock")
-	if _, err := os.OpenFile(lockfilePath, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0644); err != nil {
-		if os.IsExist(err) {
-			return fmt.Errorf("database at %s is already in use by another instance", b.Dir)
+	if !b.ReadOnly {
+		// create lockfile to prevent multiple instances
+		lockfilePath := filepath.Join(b.Dir, "mmmm.lock")
+		if _, err := os.OpenFile(lockfilePath, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0644); err != nil {
+			if os.IsExist(err) {
+				return fmt.Errorf("database at %s is already in use by another instance", b.Dir)
+			}
+			return fmt.Errorf("failed to create lockfile %s: %w", lockfilePath, err)
 		}
-		return fmt.Errorf("failed to create lockfile %s: %w", lockfilePath, err)
 	}
 
 	// open a huge mmapped file
@@ -131,19 +138,20 @@ func (b *MultiMmapManager) Init() error {
 			b.indexId = dbi
 		}
 
-		// scan index table to calculate free ranges from used positions
-		b.freeRanges, err = b.gatherFreeRanges(txn)
-		if err != nil {
-			return err
-		}
-
-		logOp := b.Logger.Debug()
-		for _, pos := range b.freeRanges {
-			if pos.size > 20 {
-				logOp = logOp.Uint32(fmt.Sprintf("%d", pos.start), pos.size)
+		if !b.ReadOnly {
+			// scan index table to calculate free ranges from used positions
+			if err := b.gatherFreeRanges(txn); err != nil {
+				return err
 			}
+
+			logOp := b.Logger.Debug()
+			for _, pos := range b.freeRangesLarge {
+				if pos.size > 20 {
+					logOp = logOp.Uint32(fmt.Sprintf("%d", pos.start), pos.size)
+				}
+			}
+			logOp.Msg("calculated free ranges from index scan")
 		}
-		logOp.Msg("calculated free ranges from index scan")
 
 		return nil
 	}); err != nil {
@@ -162,34 +170,52 @@ func (b *MultiMmapManager) EnsureLayer(name string) (*IndexingLayer, error) {
 		name: name,
 	}
 
-	err := b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
-		txn.RawRead = true
+	var err error
+	if b.ReadOnly {
+		err = b.lmdbEnv.View(func(txn *lmdb.Txn) error {
+			txn.RawRead = true
 
-		nameb := []byte(name)
-		if idv, err := txn.Get(b.knownLayers, nameb); lmdb.IsNotFound(err) {
-			if id, err := b.getNextAvailableLayerId(txn); err != nil {
-				return fmt.Errorf("failed to reserve a layer id for %s: %w", name, err)
+			nameb := []byte(name)
+			if idv, err := txn.Get(b.knownLayers, nameb); err == nil {
+				if err := il.Init(); err != nil {
+					return fmt.Errorf("failed to init read-only layer %s: %w", name, err)
+				}
+				il.id = binary.BigEndian.Uint16(idv)
+				return nil
 			} else {
-				il.id = id
+				return err
 			}
+		})
+	} else {
+		err = b.lmdbEnv.Update(func(txn *lmdb.Txn) error {
+			txn.RawRead = true
 
-			if err := il.Init(); err != nil {
-				return fmt.Errorf("failed to init new layer %s: %w", name, err)
+			nameb := []byte(name)
+			if idv, err := txn.Get(b.knownLayers, nameb); lmdb.IsNotFound(err) {
+				if id, err := b.getNextAvailableLayerId(txn); err != nil {
+					return fmt.Errorf("failed to reserve a layer id for %s: %w", name, err)
+				} else {
+					il.id = id
+				}
+
+				if err := il.Init(); err != nil {
+					return fmt.Errorf("failed to init new layer %s: %w", name, err)
+				}
+
+				return txn.Put(b.knownLayers, []byte(name), binary.BigEndian.AppendUint16(nil, il.id), 0)
+			} else if err == nil {
+				il.id = binary.BigEndian.Uint16(idv)
+
+				if err := il.Init(); err != nil {
+					return fmt.Errorf("failed to init old layer %s: %w", name, err)
+				}
+
+				return nil
+			} else {
+				return err
 			}
-
-			return txn.Put(b.knownLayers, []byte(name), binary.BigEndian.AppendUint16(nil, il.id), 0)
-		} else if err == nil {
-			il.id = binary.BigEndian.Uint16(idv)
-
-			if err := il.Init(); err != nil {
-				return fmt.Errorf("failed to init old layer %s: %w", name, err)
-			}
-
-			return nil
-		} else {
-			return err
-		}
-	})
+		})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -199,6 +225,10 @@ func (b *MultiMmapManager) EnsureLayer(name string) (*IndexingLayer, error) {
 }
 
 func (b *MultiMmapManager) DropLayer(name string) error {
+	if b.ReadOnly {
+		return ReadOnly
+	}
+
 	b.writeMutex.Lock()
 	defer b.writeMutex.Unlock()
 

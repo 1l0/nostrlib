@@ -11,6 +11,10 @@ import (
 )
 
 func (il *IndexingLayer) DeleteEvent(id nostr.ID) error {
+	if il.mmmm.ReadOnly {
+		return ReadOnly
+	}
+
 	il.mmmm.writeMutex.Lock()
 	defer il.mmmm.writeMutex.Unlock()
 
@@ -77,8 +81,6 @@ func (il *IndexingLayer) delete(
 	iltxn *lmdb.Txn,
 	id nostr.ID,
 ) (pos position, shouldPurge bool, err error) {
-	il.mmmm.Logger.Debug().Str("layer", il.name).Uint16("il", il.id).Msg("deleting")
-
 	// first in the mmmm txn we check if we have the event still
 	val, err := mmmtxn.Get(il.mmmm.indexId, id[0:8])
 	if err != nil {

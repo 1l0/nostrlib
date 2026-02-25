@@ -40,9 +40,10 @@ type Relay struct {
 	connectionContext       context.Context // will be canceled when the connection closes
 	connectionContextCancel context.CancelCauseFunc
 
-	challenge                     string       // NIP-42 challenge, we only keep the last
-	noticeHandler                 func(string) // NIP-01 NOTICEs
-	customHandler                 func(string) // nonstandard unparseable messages
+	challenge                     string // NIP-42 challenge, we only keep the last
+	authHandler                   func(context.Context, *Relay, *Event) error
+	noticeHandler                 func(*Relay, string) // NIP-01 NOTICEs
+	customHandler                 func(string)         // nonstandard unparseable messages
 	okCallbacks                   map[ID]okcallback
 	okCallbacksMutex              sync.Mutex
 	subscriptionChannelCloseQueue chan *Subscription
@@ -65,6 +66,7 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 		requestHeader:                 opts.RequestHeader,
 		customHandler:                 opts.CustomHandler,
 		noticeHandler:                 opts.NoticeHandler,
+		authHandler:                   opts.AuthHandler,
 	}
 
 	return r
@@ -83,9 +85,12 @@ func RelayConnect(ctx context.Context, url string, opts RelayOptions) (*Relay, e
 }
 
 type RelayOptions struct {
+	// AuthHandler is fired when an AUTH message is received. It is given the AUTH event, unsigned, and expects you to sign it.
+	AuthHandler func(context.Context, *Relay, *Event) error
+
 	// NoticeHandler just takes notices and is expected to do something with them.
 	// When not given defaults to logging the notices.
-	NoticeHandler func(notice string)
+	NoticeHandler func(relay *Relay, notice string)
 
 	// CustomHandler, if given, must be a function that handles any relay message
 	// that couldn't be parsed as a standard envelope.
@@ -176,7 +181,7 @@ func (r *Relay) handleMessage(message string) {
 	case *NoticeEnvelope:
 		// see WithNoticeHandler
 		if r.noticeHandler != nil {
-			r.noticeHandler(string(*env))
+			r.noticeHandler(r, string(*env))
 		} else {
 			log.Printf("NOTICE from %s: '%s'\n", r.URL, string(*env))
 		}
@@ -185,6 +190,13 @@ func (r *Relay) handleMessage(message string) {
 			return
 		}
 		r.challenge = *env.Challenge
+		if r.authHandler != nil {
+			go func() {
+				r.Auth(r.Context(), func(ctx context.Context, evt *Event) error {
+					return r.authHandler(ctx, r, evt)
+				})
+			}()
+		}
 	case *EventEnvelope:
 		// we already have the subscription from the pre-check above, so we can just reuse it
 		if sub == nil {
