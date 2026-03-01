@@ -38,6 +38,7 @@ require (
 )
 
 require (
+	fiatjaf.com/lib v0.3.5
 	github.com/dgraph-io/ristretto/v2 v2.3.0
 	github.com/fasthttp/websocket v1.5.12
 	github.com/go-git/go-git/v5 v5.16.3

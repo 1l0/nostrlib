@@ -163,6 +163,12 @@ func (pool *Pool) EnsureRelay(url string) (*Relay, error) {
 	}
 
 	pool.Relays.Store(nm, relay)
+	go func(r *Relay, relayURL string) {
+		<-r.Context().Done()
+		if current, ok := pool.Relays.Load(relayURL); ok && current == r {
+			pool.Relays.Delete(relayURL)
+		}
+	}(relay, nm)
 	return relay, nil
 }
 
@@ -454,15 +460,25 @@ func (pool *Pool) subMany(
 		}
 	}
 
-	pending := NewCounter()
-	pending.Add(int64(len(urls)))
+	pendingWg := sync.WaitGroup{}
+	pendingWg.Add(len(urls))
+
+	go func() {
+		pendingWg.Wait()
+		close(events)
+		cancel(fmt.Errorf("aborted: %w", context.Cause(ctx)))
+		if closedChan != nil {
+			close(closedChan)
+		}
+	}()
+
 	for i, url := range urls {
 		url = NormalizeURL(url)
 		urls[i] = url
 		if idx := slices.Index(urls, url); idx != i {
 			// skip duplicate relays in the list
 			eoseWg.Done()
-			pending.Dec()
+			pendingWg.Done()
 			continue
 		}
 
@@ -470,14 +486,10 @@ func (pool *Pool) subMany(
 
 		go func(nm string) {
 			defer func() {
-				pending.Dec()
-				if pending.Value() == 0 {
-					close(events)
-					cancel(fmt.Errorf("aborted: %w", context.Cause(ctx)))
-				}
 				if eosed.CompareAndSwap(false, true) {
 					eoseWg.Done()
 				}
+				pendingWg.Done()
 			}()
 
 			hasAuthed := false
@@ -564,10 +576,13 @@ func (pool *Pool) subMany(
 							if err == nil {
 								hasAuthed = true // so we don't keep doing AUTH again and again
 								if closedChan != nil {
-									closedChan <- RelayClosed{
+									select {
+									case closedChan <- RelayClosed{
 										Reason:      reason,
 										Relay:       relay,
 										HandledAuth: true,
+									}:
+									case <-ctx.Done():
 									}
 								}
 								goto subscribe
@@ -575,9 +590,12 @@ func (pool *Pool) subMany(
 						}
 						debugLogf("CLOSED from %s: '%s'\n", nm, reason)
 						if closedChan != nil {
-							closedChan <- RelayClosed{
+							select {
+							case closedChan <- RelayClosed{
 								Reason: reason,
 								Relay:  relay,
+							}:
+							case <-ctx.Done():
 							}
 						}
 
@@ -618,6 +636,9 @@ func (pool *Pool) subManyEose(
 		wg.Wait()
 		cancel(errors.New("all subscriptions ended"))
 		close(events)
+		if closedChan != nil {
+			close(closedChan)
+		}
 	}()
 
 	for _, url := range urls {
@@ -662,10 +683,13 @@ func (pool *Pool) subManyEose(
 						if err == nil {
 							hasAuthed = true // so we don't keep doing AUTH again and again
 							if closedChan != nil {
-								closedChan <- RelayClosed{
+								select {
+								case closedChan <- RelayClosed{
 									Relay:       relay,
 									Reason:      reason,
 									HandledAuth: true,
+								}:
+								case <-ctx.Done():
 								}
 							}
 							goto subscribe
@@ -673,9 +697,12 @@ func (pool *Pool) subManyEose(
 					}
 					debugLogf("[pool] CLOSED from %s: '%s'\n", nm, reason)
 					if closedChan != nil {
-						closedChan <- RelayClosed{
+						select {
+						case closedChan <- RelayClosed{
 							Relay:  relay,
 							Reason: reason,
+						}:
+						case <-ctx.Done():
 						}
 					}
 					return
@@ -780,6 +807,7 @@ func (pool *Pool) batchedQueryMany(
 	wg := sync.WaitGroup{}
 	wg.Add(len(dfs))
 	seenAlready := NewMapOf[ID, struct{}]()
+	forwardWg := sync.WaitGroup{}
 
 	opts.CheckDuplicate = func(id ID, relay string) bool {
 		_, exists := seenAlready.LoadOrStore(id, struct{}{})
@@ -791,10 +819,28 @@ func (pool *Pool) batchedQueryMany(
 
 	for _, df := range dfs {
 		go func(df DirectedFilter) {
+			var innerClosed chan RelayClosed
+			if closedChan != nil {
+				innerClosed = make(chan RelayClosed)
+				forwardWg.Add(1)
+				go func() {
+					defer forwardWg.Done()
+					for rc := range innerClosed {
+						select {
+						case closedChan <- rc:
+						case <-ctx.Done():
+							for range innerClosed {
+							}
+							return
+						}
+					}
+				}()
+			}
+
 			for ie := range pool.subManyEose(ctx,
 				[]string{df.Relay},
 				df.Filter,
-				closedChan,
+				innerClosed,
 				opts,
 			) {
 				select {
@@ -811,6 +857,10 @@ func (pool *Pool) batchedQueryMany(
 	go func() {
 		wg.Wait()
 		close(res)
+		if closedChan != nil {
+			forwardWg.Wait()
+			close(closedChan)
+		}
 	}()
 
 	return res
@@ -846,6 +896,7 @@ func (pool *Pool) batchedSubscribeMany(
 	wg := sync.WaitGroup{}
 	wg.Add(len(dfs))
 	seenAlready := NewMapOf[ID, struct{}]()
+	forwardWg := sync.WaitGroup{}
 
 	opts.CheckDuplicate = func(id ID, relay string) bool {
 		_, exists := seenAlready.LoadOrStore(id, struct{}{})
@@ -857,11 +908,29 @@ func (pool *Pool) batchedSubscribeMany(
 
 	for _, df := range dfs {
 		go func(df DirectedFilter) {
+			var innerClosed chan RelayClosed
+			if closedChan != nil {
+				innerClosed = make(chan RelayClosed)
+				forwardWg.Add(1)
+				go func() {
+					defer forwardWg.Done()
+					for rc := range innerClosed {
+						select {
+						case closedChan <- rc:
+						case <-ctx.Done():
+							for range innerClosed {
+							}
+							return
+						}
+					}
+				}()
+			}
+
 			for ie := range pool.subMany(ctx,
 				[]string{df.Relay},
 				df.Filter,
 				nil,
-				closedChan,
+				innerClosed,
 				opts,
 			) {
 				select {
@@ -878,6 +947,10 @@ func (pool *Pool) batchedSubscribeMany(
 	go func() {
 		wg.Wait()
 		close(res)
+		if closedChan != nil {
+			forwardWg.Wait()
+			close(closedChan)
+		}
 	}()
 
 	return res
