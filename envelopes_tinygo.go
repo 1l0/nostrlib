@@ -5,6 +5,7 @@ package nostr
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/tidwall/gjson"
@@ -103,13 +104,19 @@ func (v *EventEnvelope) FromJSON(data string) error {
 }
 
 func (v EventEnvelope) MarshalJSON() ([]byte, error) {
-	// Manual marshaling to match the array structure ["EVENT", ...]
-	// We can use a temporary struct or build it manually.
-	// Building manually is safer to avoid reflection overhead if possible, but json.Marshal is fine.
+	var b []byte
+	b = append(b, `["EVENT",`...)
 	if v.SubscriptionID != nil {
-		return json.Marshal([]interface{}{"EVENT", *v.SubscriptionID, v.Event})
+		b = escapeString(b, *v.SubscriptionID)
+		b = append(b, ',')
 	}
-	return json.Marshal([]interface{}{"EVENT", v.Event})
+	eb, err := v.Event.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	b = append(b, eb...)
+	b = append(b, ']')
+	return b, nil
 }
 
 // ReqEnvelope represents a REQ message.
@@ -143,13 +150,19 @@ func (v *ReqEnvelope) FromJSON(data string) error {
 }
 
 func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
-	data := make([]interface{}, 2+len(v.Filters))
-	data[0] = "REQ"
-	data[1] = v.SubscriptionID
-	for i, f := range v.Filters {
-		data[2+i] = f
+	var b []byte
+	b = append(b, `["REQ",`...)
+	b = escapeString(b, v.SubscriptionID)
+	for _, f := range v.Filters {
+		b = append(b, ',')
+		fb, err := f.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		b = append(b, fb...)
 	}
-	return json.Marshal(data)
+	b = append(b, ']')
+	return b, nil
 }
 
 // CountEnvelope represents a COUNT message.
@@ -200,19 +213,28 @@ func (v *CountEnvelope) FromJSON(data string) error {
 }
 
 func (v CountEnvelope) MarshalJSON() ([]byte, error) {
+	var b []byte
+	b = append(b, `["COUNT",`...)
+	b = escapeString(b, v.SubscriptionID)
+	b = append(b, ',')
 	if v.Count != nil {
-		res := struct {
-			Count *uint32 `json:"count"`
-			HLL   string  `json:"hll,omitempty"`
-		}{
-			Count: v.Count,
-		}
+		b = append(b, `{"count":`...)
+		b = append(b, strconv.FormatUint(uint64(*v.Count), 10)...)
 		if v.HyperLogLog != nil {
-			res.HLL = HexEncodeToString(v.HyperLogLog)
+			b = append(b, `,"hll":"`...)
+			b = append(b, HexEncodeToString(v.HyperLogLog)...)
+			b = append(b, '"')
 		}
-		return json.Marshal([]interface{}{"COUNT", v.SubscriptionID, res})
+		b = append(b, '}')
+	} else {
+		fb, err := v.Filter.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		b = append(b, fb...)
 	}
-	return json.Marshal([]interface{}{"COUNT", v.SubscriptionID, v.Filter})
+	b = append(b, ']')
+	return b, nil
 }
 
 // NoticeEnvelope represents a NOTICE message.
@@ -235,7 +257,11 @@ func (v *NoticeEnvelope) FromJSON(data string) error {
 }
 
 func (v NoticeEnvelope) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{"NOTICE", string(v)})
+	var b []byte
+	b = append(b, `["NOTICE",`...)
+	b = escapeString(b, string(v))
+	b = append(b, ']')
+	return b, nil
 }
 
 // EOSEEnvelope represents an EOSE (End of Stored Events) message.
@@ -258,7 +284,11 @@ func (v *EOSEEnvelope) FromJSON(data string) error {
 }
 
 func (v EOSEEnvelope) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{"EOSE", string(v)})
+	var b []byte
+	b = append(b, `["EOSE",`...)
+	b = escapeString(b, string(v))
+	b = append(b, ']')
+	return b, nil
 }
 
 // CloseEnvelope represents a CLOSE message.
@@ -281,7 +311,11 @@ func (v *CloseEnvelope) FromJSON(data string) error {
 }
 
 func (v CloseEnvelope) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{"CLOSE", string(v)})
+	var b []byte
+	b = append(b, `["CLOSE",`...)
+	b = escapeString(b, string(v))
+	b = append(b, ']')
+	return b, nil
 }
 
 // ClosedEnvelope represents a CLOSED message.
@@ -310,7 +344,13 @@ func (v *ClosedEnvelope) FromJSON(data string) error {
 }
 
 func (v ClosedEnvelope) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{"CLOSED", v.SubscriptionID, v.Reason})
+	var b []byte
+	b = append(b, `["CLOSED",`...)
+	b = escapeString(b, v.SubscriptionID)
+	b = append(b, ',')
+	b = escapeString(b, v.Reason)
+	b = append(b, ']')
+	return b, nil
 }
 
 // OKEnvelope represents an OK message.
@@ -344,7 +384,19 @@ func (v *OKEnvelope) FromJSON(data string) error {
 }
 
 func (v OKEnvelope) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{"OK", HexEncodeToString(v.EventID[:]), v.OK, v.Reason})
+	var b []byte
+	b = append(b, `["OK","`...)
+	b = append(b, HexEncodeToString(v.EventID[:])...)
+	b = append(b, `",`...)
+	if v.OK {
+		b = append(b, "true"...)
+	} else {
+		b = append(b, "false"...)
+	}
+	b = append(b, ',')
+	b = escapeString(b, v.Reason)
+	b = append(b, ']')
+	return b, nil
 }
 
 // AuthEnvelope represents an AUTH message.
@@ -375,8 +427,17 @@ func (v *AuthEnvelope) FromJSON(data string) error {
 }
 
 func (v AuthEnvelope) MarshalJSON() ([]byte, error) {
+	var b []byte
+	b = append(b, `["AUTH",`...)
 	if v.Challenge != nil {
-		return json.Marshal([]interface{}{"AUTH", *v.Challenge})
+		b = escapeString(b, *v.Challenge)
+	} else {
+		eb, err := v.Event.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		b = append(b, eb...)
 	}
-	return json.Marshal([]interface{}{"AUTH", v.Event})
+	b = append(b, ']')
+	return b, nil
 }

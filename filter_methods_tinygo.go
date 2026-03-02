@@ -6,10 +6,12 @@ import (
 	"encoding/hex"
 	stdjson "encoding/json"
 	"strconv"
+
+	"github.com/tidwall/gjson"
 )
 
 func (ef Filter) String() string {
-	j, _ := json.Marshal(ef)
+	j, _ := stdjson.Marshal(ef)
 	return string(j)
 }
 
@@ -101,8 +103,7 @@ func (ef Filter) MarshalJSON() ([]byte, error) {
 		}
 		first = false
 		b = append(b, `"search":`...)
-		sb, _ := json.Marshal(ef.Search)
-		b = append(b, sb...)
+		b = escapeString(b, ef.Search)
 	}
 
 	for key, values := range ef.Tags {
@@ -112,9 +113,14 @@ func (ef Filter) MarshalJSON() ([]byte, error) {
 		first = false
 		b = append(b, `"#`...)
 		b = append(b, key...)
-		b = append(b, `":`...)
-		vb, _ := json.Marshal(values)
-		b = append(b, vb...)
+		b = append(b, `":[`...)
+		for i, v := range values {
+			if i > 0 {
+				b = append(b, ',')
+			}
+			b = escapeString(b, v)
+		}
+		b = append(b, ']')
 	}
 
 	b = append(b, '}')
@@ -122,74 +128,64 @@ func (ef Filter) MarshalJSON() ([]byte, error) {
 }
 
 func (ef *Filter) UnmarshalJSON(data []byte) error {
-	var raw map[string]stdjson.RawMessage
-	if err := stdjson.Unmarshal(data, &raw); err != nil {
-		return err
-	}
+	r := gjson.ParseBytes(data)
 
-	for key, val := range raw {
-		switch key {
+	r.ForEach(func(key, val gjson.Result) bool {
+		switch key.String() {
 		case "ids":
-			var ids []string
-			if err := stdjson.Unmarshal(val, &ids); err != nil {
-				return err
-			}
-			for _, s := range ids {
+			idsResult := val.Array()
+			for _, s := range idsResult {
 				var id ID
-				if len(s) == 64 {
-					b, _ := hex.DecodeString(s)
+				hexStr := s.String()
+				if len(hexStr) == 64 {
+					b, _ := hex.DecodeString(hexStr)
 					copy(id[:], b)
 				}
 				ef.IDs = append(ef.IDs, id)
 			}
 		case "kinds":
-			if err := stdjson.Unmarshal(val, &ef.Kinds); err != nil {
-				return err
+			kindsResult := val.Array()
+			for _, k := range kindsResult {
+				ef.Kinds = append(ef.Kinds, Kind(k.Int()))
 			}
 		case "authors":
-			var authors []string
-			if err := stdjson.Unmarshal(val, &authors); err != nil {
-				return err
-			}
-			for _, s := range authors {
+			authorsResult := val.Array()
+			for _, s := range authorsResult {
 				var pk PubKey
-				if len(s) == 64 {
-					b, _ := hex.DecodeString(s)
+				hexStr := s.String()
+				if len(hexStr) == 64 {
+					b, _ := hex.DecodeString(hexStr)
 					copy(pk[:], b)
 				}
 				ef.Authors = append(ef.Authors, pk)
 			}
 		case "since":
-			if err := stdjson.Unmarshal(val, &ef.Since); err != nil {
-				return err
-			}
+			ef.Since = Timestamp(val.Int())
 		case "until":
-			if err := stdjson.Unmarshal(val, &ef.Until); err != nil {
-				return err
-			}
+			ef.Until = Timestamp(val.Int())
 		case "limit":
-			if err := stdjson.Unmarshal(val, &ef.Limit); err != nil {
-				return err
-			}
+			ef.Limit = int(val.Int())
 			if ef.Limit == 0 {
 				ef.LimitZero = true
 			}
 		case "search":
-			if err := stdjson.Unmarshal(val, &ef.Search); err != nil {
-				return err
-			}
+			ef.Search = val.String()
 		default:
-			if len(key) > 1 && key[0] == '#' {
+			k := key.String()
+			if len(k) > 1 && k[0] == '#' {
 				if ef.Tags == nil {
 					ef.Tags = make(TagMap)
 				}
-				var values []string
-				if err := stdjson.Unmarshal(val, &values); err != nil {
-					return err
+				valuesResult := val.Array()
+				values := make([]string, len(valuesResult))
+				for i, v := range valuesResult {
+					values[i] = v.String()
 				}
-				ef.Tags[key[1:]] = values
+				ef.Tags[k[1:]] = values
 			}
 		}
-	}
+		return true
+	})
+
 	return nil
 }

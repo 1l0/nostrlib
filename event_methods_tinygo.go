@@ -5,6 +5,8 @@ package nostr
 import (
 	"encoding/hex"
 	"strconv"
+
+	"github.com/tidwall/gjson"
 )
 
 func (evt Event) String() string {
@@ -13,57 +15,72 @@ func (evt Event) String() string {
 }
 
 func (evt Event) MarshalJSON() ([]byte, error) {
-	type EventJSON struct {
-		Kind      Kind      `json:"kind"`
-		ID        ID        `json:"id"`
-		PubKey    PubKey    `json:"pubkey"`
-		CreatedAt Timestamp `json:"created_at"`
-		Tags      Tags      `json:"tags"`
-		Content   string    `json:"content"`
-		Sig       string    `json:"sig"`
+	var b []byte
+	b = append(b, `{"kind":`...)
+	b = append(b, strconv.Itoa(int(evt.Kind))...)
+	b = append(b, `,"id":"`...)
+	b = append(b, evt.ID.Hex()...)
+	b = append(b, `","pubkey":"`...)
+	b = append(b, evt.PubKey.Hex()...)
+	b = append(b, `","created_at":`...)
+	b = append(b, strconv.FormatInt(int64(evt.CreatedAt), 10)...)
+	b = append(b, `,"tags":[`...)
+	for i, tag := range evt.Tags {
+		if i > 0 {
+			b = append(b, ',')
+		}
+		b = append(b, '[')
+		for j, s := range tag {
+			if j > 0 {
+				b = append(b, ',')
+			}
+			b = escapeString(b, s)
+		}
+		b = append(b, ']')
 	}
+	b = append(b, `],"content":`...)
+	b = escapeString(b, evt.Content)
+	b = append(b, `,"sig":"`...)
+	b = append(b, hex.EncodeToString(evt.Sig[:])...)
+	b = append(b, `"}`...)
 
-	ej := EventJSON{
-		Kind:      evt.Kind,
-		ID:        evt.ID,
-		PubKey:    evt.PubKey,
-		CreatedAt: evt.CreatedAt,
-		Tags:      evt.Tags,
-		Content:   evt.Content,
-		Sig:       hex.EncodeToString(evt.Sig[:]),
-	}
-
-	return json.Marshal(ej)
+	return b, nil
 }
 
 func (evt *Event) UnmarshalJSON(data []byte) error {
-	type EventJSON struct {
-		Kind      Kind      `json:"kind"`
-		ID        ID        `json:"id"`
-		PubKey    PubKey    `json:"pubkey"`
-		CreatedAt Timestamp `json:"created_at"`
-		Tags      Tags      `json:"tags"`
-		Content   string    `json:"content"`
-		Sig       string    `json:"sig"`
+	r := gjson.ParseBytes(data)
+
+	evt.Kind = Kind(r.Get("kind").Int())
+
+	idHex := r.Get("id").String()
+	if len(idHex) == 64 {
+		b, _ := hex.DecodeString(idHex)
+		copy(evt.ID[:], b)
 	}
 
-	var ej EventJSON
-	if err := json.Unmarshal(data, &ej); err != nil {
-		return err
+	pubkeyHex := r.Get("pubkey").String()
+	if len(pubkeyHex) == 64 {
+		b, _ := hex.DecodeString(pubkeyHex)
+		copy(evt.PubKey[:], b)
 	}
 
-	evt.Kind = ej.Kind
-	evt.ID = ej.ID
-	evt.PubKey = ej.PubKey
-	evt.CreatedAt = ej.CreatedAt
-	evt.Tags = ej.Tags
-	evt.Content = ej.Content
+	evt.CreatedAt = Timestamp(r.Get("created_at").Int())
 
-	if len(ej.Sig) == 128 {
-		b, err := hex.DecodeString(ej.Sig)
-		if err != nil {
-			return err
+	tagsResult := r.Get("tags").Array()
+	evt.Tags = make(Tags, len(tagsResult))
+	for i, tagResult := range tagsResult {
+		tagArr := tagResult.Array()
+		evt.Tags[i] = make(Tag, len(tagArr))
+		for j, tagItem := range tagArr {
+			evt.Tags[i][j] = tagItem.String()
 		}
+	}
+
+	evt.Content = r.Get("content").String()
+
+	sigHex := r.Get("sig").String()
+	if len(sigHex) == 128 {
+		b, _ := hex.DecodeString(sigHex)
 		copy(evt.Sig[:], b)
 	}
 
