@@ -100,17 +100,38 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 
 	go func() {
 		<-ctx.Done()
-		cause := context.Cause(ctx)
-		code := ws.StatusNormalClosure
-		reason := ""
-		var cc closeCause
-		if errors.As(cause, &cc) {
-			code = cc.code
-			reason = cc.reason
-		} else if cause != nil {
-			reason = cause.Error()
+
+		if wasClosed := r.closed.Swap(true); wasClosed {
+			return
 		}
-		r.closeConnection(code, reason)
+
+		r.closeMutex.Invalidate()
+
+		if r.conn != nil {
+			cause := context.Cause(ctx)
+			code := ws.StatusNormalClosure
+			reason := ""
+			var cc closeCause
+			if errors.As(cause, &cc) {
+				code = cc.code
+				reason = cc.reason
+			} else if cause != nil {
+				reason = cause.Error()
+			}
+
+			_ = r.conn.Close(code, reason)
+		}
+		if r.closeMutex != nil {
+			r.closeMutex.Lock()
+			if r.closedNotify != nil {
+				close(r.closedNotify)
+			}
+			if r.writeQueue != nil {
+				close(r.writeQueue)
+			}
+			r.conn = nil
+			r.closeMutex.Unlock()
+		}
 	}()
 
 	return r
@@ -154,7 +175,18 @@ func (r *Relay) String() string {
 func (r *Relay) Context() context.Context { return r.connectionContext }
 
 // IsConnected returns true if the connection to this relay seems to be active.
-func (r *Relay) IsConnected() bool { return !r.closed.Load() }
+func (r *Relay) IsConnected() bool {
+	if r.closed.Load() {
+		return false
+	}
+	if r.conn == nil {
+		return false
+	}
+	if r.connectionContext == nil {
+		return false
+	}
+	return r.connectionContext.Err() == nil
+}
 
 // Connect tries to establish a websocket connection to r.URL.
 // If the context expires before the connection is complete, an error is returned.
@@ -198,9 +230,6 @@ func (r *Relay) ConnectWithClient(ctx context.Context, client *http.Client) erro
 
 func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) error {
 	debugLogf("{%s} connecting!\n", r.URL)
-	if r.connectionContext.Err() != nil {
-		return fmt.Errorf("relay context canceled")
-	}
 
 	dialCtx := ctx
 	if _, ok := dialCtx.Deadline(); !ok {
@@ -233,10 +262,7 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 
 	r.conn = c
 	r.writeQueue = make(chan writeRequest)
-	if r.closed == nil {
-		r.closed = &atomic.Bool{}
-	}
-	r.closed.Store(false)
+	r.closed = &atomic.Bool{}
 	r.closedNotify = make(chan struct{})
 
 	connCtx := r.connectionContext
@@ -321,30 +347,6 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 }
 
 func (r *Relay) closeConnection(code ws.StatusCode, reason string) {
-	if r.closed == nil {
-		r.closed = &atomic.Bool{}
-	}
-	wasClosed := r.closed.Swap(true)
-	if wasClosed {
-		return
-	}
-	if r.closeMutex != nil {
-		r.closeMutex.Invalidate()
-	}
-	if r.conn != nil {
-		_ = r.conn.Close(code, reason)
-	}
-	if r.closeMutex != nil {
-		r.closeMutex.Lock()
-		if r.closedNotify != nil {
-			close(r.closedNotify)
-		}
-		if r.writeQueue != nil {
-			close(r.writeQueue)
-		}
-		r.conn = nil
-		r.closeMutex.Unlock()
-	}
 }
 
 func (r *Relay) handleMessage(message string) {
@@ -586,15 +588,14 @@ func (r *Relay) publish(ctx context.Context, id ID, env Envelope) error {
 // Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.
 // Failure to do that will result in a huge number of halted goroutines being created.
 func (r *Relay) Subscribe(ctx context.Context, filter Filter, opts SubscriptionOptions) (*Subscription, error) {
-	sub := r.PrepareSubscription(ctx, filter, opts)
-
-	if r.conn == nil {
-		sub.unsub(ErrNotConnected)
-		return nil, fmt.Errorf("not connected to %s", r.URL)
+	if !r.IsConnected() {
+		return nil, ErrDisconnected
 	}
 
+	sub := r.PrepareSubscription(ctx, filter, opts)
+
 	if err := sub.Fire(); err != nil {
-		sub.unsub(ErrFireFailed)
+		sub.cancel(ErrFireFailed)
 		return nil, fmt.Errorf("couldn't subscribe to %v at %s: %w", filter, r.URL, err)
 	}
 
@@ -659,7 +660,26 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filter Filter, opts Sub
 	}
 
 	// start handling events, eose, unsub etc:
-	go sub.start()
+	go func() {
+		<-sub.Context.Done()
+
+		// mark subscription as closed and send a CLOSE to the relay (naive sync.Once implementation)
+		if sub.live.CompareAndSwap(true, false) {
+			closeMsg := CloseEnvelope(sub.id)
+			closeb, _ := (&closeMsg).MarshalJSON()
+			if err := sub.Relay.WriteWithError(closeb); err != nil {
+				_ = sub.Relay.close(err)
+			}
+		}
+
+		// remove subscription from our map
+		sub.Relay.Subscriptions.Delete(sub.counter)
+
+		// do this so we don't have the possibility of closing the Events channel and then trying to send to it
+		sub.mu.Lock()
+		close(sub.Events)
+		sub.mu.Unlock()
+	}()
 
 	return sub
 }
@@ -715,7 +735,7 @@ func (r *Relay) countInternal(ctx context.Context, filter Filter, opts Subscript
 		return CountEnvelope{}, err
 	}
 
-	defer sub.unsub(errors.New("countInternal() ended"))
+	defer sub.cancel(errors.New("countInternal() ended"))
 
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
