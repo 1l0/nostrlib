@@ -18,21 +18,37 @@ import (
 	"sync/atomic"
 	"time"
 
+	"fiatjaf.com/lib/channelmutex"
 	ws "github.com/coder/websocket"
 )
 
-var ErrDisconnected = errors.New("<disconnected>")
+var subscriptionIDCounter atomic.Int64
+
+var (
+	ErrDisconnected = errors.New("<disconnected>")
+	ErrPingFailed   = errors.New("<ping failed>")
+)
 
 type writeRequest struct {
 	msg    []byte
 	answer chan error
 }
 
-var subscriptionIDCounter atomic.Int64
+type closeCause struct {
+	code   ws.StatusCode
+	reason string
+}
+
+func (c closeCause) Error() string {
+	if c.reason == "" {
+		return "relay closed"
+	}
+	return c.reason
+}
 
 // Relay represents a connection to a Nostr relay.
 type Relay struct {
-	closeMutex sync.Mutex
+	closeMutex *channelmutex.Mutex
 
 	URL           string
 	requestHeader http.Header // e.g. for origin header
@@ -49,9 +65,10 @@ type Relay struct {
 	connectionContext       context.Context // will be canceled when the connection closes
 	connectionContextCancel context.CancelCauseFunc
 
-	challenge                     string       // NIP-42 challenge, we only keep the last
-	noticeHandler                 func(string) // NIP-01 NOTICEs
-	customHandler                 func(string) // nonstandard unparseable messages
+	challenge                     string // NIP-42 challenge, we only keep the last
+	authHandler                   func(context.Context, *Relay, *Event) error
+	noticeHandler                 func(*Relay, string) // NIP-01 NOTICEs
+	customHandler                 func(string)         // nonstandard unparseable messages
 	okCallbacks                   map[ID]okcallback
 	okCallbacksMutex              sync.Mutex
 	subscriptionChannelCloseQueue chan *Subscription
@@ -74,7 +91,47 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 		requestHeader:                 opts.RequestHeader,
 		customHandler:                 opts.CustomHandler,
 		noticeHandler:                 opts.NoticeHandler,
+		authHandler:                   opts.AuthHandler,
+		closeMutex:                    channelmutex.New(),
+		closed:                        &atomic.Bool{},
+		closedNotify:                  make(chan struct{}),
 	}
+
+	go func() {
+		<-ctx.Done()
+
+		if wasClosed := r.closed.Swap(true); wasClosed {
+			return
+		}
+
+		r.closeMutex.Invalidate()
+
+		if r.conn != nil {
+			cause := context.Cause(ctx)
+			code := ws.StatusNormalClosure
+			reason := ""
+			var cc closeCause
+			if errors.As(cause, &cc) {
+				code = cc.code
+				reason = cc.reason
+			} else if cause != nil {
+				reason = cause.Error()
+			}
+
+			_ = r.conn.Close(code, reason)
+		}
+		if r.closeMutex != nil {
+			r.closeMutex.Lock()
+			if r.closedNotify != nil {
+				close(r.closedNotify)
+			}
+			if r.writeQueue != nil {
+				close(r.writeQueue)
+			}
+			r.conn = nil
+			r.closeMutex.Unlock()
+		}
+	}()
 
 	return r
 }
@@ -92,9 +149,12 @@ func RelayConnect(ctx context.Context, url string, opts RelayOptions) (*Relay, e
 }
 
 type RelayOptions struct {
+	// AuthHandler is fired when an AUTH message is received. It is given the AUTH event, unsigned, and expects you to sign it.
+	AuthHandler func(context.Context, *Relay, *Event) error
+
 	// NoticeHandler just takes notices and is expected to do something with them.
 	// When not given defaults to logging the notices.
-	NoticeHandler func(notice string)
+	NoticeHandler func(relay *Relay, notice string)
 
 	// CustomHandler, if given, must be a function that handles any relay message
 	// that couldn't be parsed as a standard envelope.
@@ -114,7 +174,18 @@ func (r *Relay) String() string {
 func (r *Relay) Context() context.Context { return r.connectionContext }
 
 // IsConnected returns true if the connection to this relay seems to be active.
-func (r *Relay) IsConnected() bool { return !r.closed.Load() }
+func (r *Relay) IsConnected() bool {
+	if r.closed.Load() {
+		return false
+	}
+	if r.conn == nil {
+		return false
+	}
+	if r.connectionContext == nil {
+		return false
+	}
+	return r.connectionContext.Err() == nil
+}
 
 // Connect tries to establish a websocket connection to r.URL.
 // If the context expires before the connection is complete, an error is returned.
@@ -129,13 +200,20 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 // ConnectWithTLS is like Connect(), but takes a special tls.Config if you need that.
 func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error {
-	return r.Connect(ctx)
+	return r.ConnectWithClient(ctx, &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+	})
 }
 
 // ConnectWithClient is like Connect(), but takes a special *http.Client if you need that.
 func (r *Relay) ConnectWithClient(ctx context.Context, client *http.Client) error {
 	if r.connectionContext == nil || r.Subscriptions == nil {
 		return fmt.Errorf("relay must be initialized with a call to NewRelay()")
+	}
+	if r.connectionContext.Err() != nil {
+		return fmt.Errorf("relay context canceled")
 	}
 
 	if r.URL == "" {
@@ -158,18 +236,25 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 		dialCtx, _ = context.WithTimeoutCause(ctx, 7*time.Second, errors.New("connection took too long"))
 	}
 
-	dialOpts := &ws.DialOptions{}
+	// dialOpts := &ws.DialOptions{
+	// 	HTTPHeader: http.Header{
+	// 		textproto.CanonicalMIMEHeaderKey("User-Agent"): {"fiatjaf.com/nostr"},
+	// 	},
+	// 	CompressionMode: ws.CompressionContextTakeover,
+	// 	HTTPClient:      httpClient,
+	// }
+	// for k, v := range r.requestHeader {
+	// 	dialOpts.HTTPHeader[k] = v
+	// }
 
-	c, _, err := ws.Dial(dialCtx, r.URL, dialOpts)
+	c, _, err := ws.Dial(dialCtx, r.URL, nil)
 	if err != nil {
 		return err
 	}
 	c.SetReadLimit(2 << 24) // 33MB
 
-	// this will tell if the connection is closed
-
-	// ping every 29 seconds
-	ticker := time.NewTicker(29 * time.Second)
+	// ping every 19 seconds
+	ticker := time.NewTicker(19 * time.Second)
 
 	// main websocket loop
 	readQueue := make(chan string)
@@ -179,21 +264,20 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 	r.closed = &atomic.Bool{}
 	r.closedNotify = make(chan struct{})
 
+	connCtx := r.connectionContext
 	go func() {
 		pingAttempt := 0
 
 		for {
 			select {
-			case <-ctx.Done():
-				r.closeConnection(ws.StatusNormalClosure, "")
-				debugLogf("{%s} closing!, context done: '%s'\n", r.URL, context.Cause(ctx))
+			case <-connCtx.Done():
 				return
 			case <-r.closedNotify:
 				return
 			case <-ticker.C:
 				debugLogf("{%s} pinging\n", r.URL)
-				ctx, cancel := context.WithTimeoutCause(ctx, time.Millisecond*800, errors.New("ping took too long"))
-				err := c.Ping(ctx)
+				pingCtx, cancel := context.WithTimeoutCause(connCtx, time.Millisecond*800, errors.New("ping took too long"))
+				err := c.Ping(pingCtx)
 				cancel()
 
 				if err != nil {
@@ -202,10 +286,7 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 
 					if pingAttempt >= 3 {
 						debugLogf("{%s} error writing ping after multiple attempts; closing websocket", r.URL)
-						err = r.Close() // this should trigger a context cancelation
-						if err != nil {
-							debugLogf("{%s} failed to close relay: %v", r.URL, err)
-						}
+						_ = r.close(ErrPingFailed)
 					}
 
 					continue
@@ -216,12 +297,12 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 				pingAttempt = 0
 			case wr := <-r.writeQueue:
 				debugLogf("{%s} sending '%v'\n", r.URL, string(wr.msg))
-				ctx, cancel := context.WithTimeoutCause(ctx, time.Second*10, errors.New("write took too long"))
-				err := c.Write(ctx, ws.MessageText, wr.msg)
+				writeCtx, cancel := context.WithTimeoutCause(connCtx, time.Second*10, errors.New("write took too long"))
+				err := c.Write(writeCtx, ws.MessageText, wr.msg)
 				cancel()
 				if err != nil {
 					debugLogf("{%s} closing!, write failed: '%s'\n", r.URL, err)
-					r.closeConnection(ws.StatusAbnormalClosure, "write failed")
+					_ = r.close(closeCause{code: ws.StatusAbnormalClosure, reason: "write failed"})
 					if wr.answer != nil {
 						wr.answer <- err
 					}
@@ -244,19 +325,20 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 		for {
 			buf.Reset()
 
-			_, reader, err := c.Reader(ctx)
+			_, reader, err := c.Reader(connCtx)
 			if err != nil {
 				debugLogf("{%s} closing!, reader failure: '%s'\n", r.URL, err)
-				r.closeConnection(ws.StatusAbnormalClosure, "failed to get reader")
+				_ = r.close(closeCause{code: ws.StatusAbnormalClosure, reason: "failed to get reader"})
 				return
 			}
 			if _, err := io.Copy(buf, reader); err != nil {
 				debugLogf("{%s} closing!, read failure: '%s'\n", r.URL, err)
-				r.closeConnection(ws.StatusAbnormalClosure, "failed to read")
+				_ = r.close(closeCause{code: ws.StatusAbnormalClosure, reason: "failed to read"})
 				return
 			}
 
-			readQueue <- string(buf.Bytes())
+			msg := string(buf.Bytes())
+			readQueue <- msg
 		}
 	}()
 
@@ -264,16 +346,6 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 }
 
 func (r *Relay) closeConnection(code ws.StatusCode, reason string) {
-	wasClosed := r.closed.Swap(true)
-	if !wasClosed {
-		r.conn.Close(code, reason)
-		r.connectionContextCancel(fmt.Errorf("doClose(): %s", reason))
-		r.closeMutex.Lock()
-		close(r.closedNotify)
-		close(r.writeQueue)
-		r.conn = nil
-		r.closeMutex.Unlock()
-	}
 }
 
 func (r *Relay) handleMessage(message string) {
@@ -308,7 +380,7 @@ func (r *Relay) handleMessage(message string) {
 	case *NoticeEnvelope:
 		// see WithNoticeHandler
 		if r.noticeHandler != nil {
-			r.noticeHandler(string(*env))
+			r.noticeHandler(r, string(*env))
 		} else {
 			log.Printf("NOTICE from %s: '%s'\n", r.URL, string(*env))
 		}
@@ -317,6 +389,13 @@ func (r *Relay) handleMessage(message string) {
 			return
 		}
 		r.challenge = *env.Challenge
+		if r.authHandler != nil {
+			go func() {
+				r.Auth(r.Context(), func(ctx context.Context, evt *Event) error {
+					return r.authHandler(ctx, r, evt)
+				})
+			}()
+		}
 	case *EventEnvelope:
 		// we already have the subscription from the pre-check above, so we can just reuse it
 		if sub == nil {
@@ -365,13 +444,15 @@ func (r *Relay) handleMessage(message string) {
 
 // Write queues an arbitrary message to be sent to the relay.
 func (r *Relay) Write(msg []byte) {
-	r.closeMutex.Lock()
-	defer r.closeMutex.Unlock()
 	select {
+	case <-r.closeMutex.C(): // this locks the mutex
 	case <-r.closedNotify:
 		return
-	default:
+	case <-r.connectionContext.Done():
+		return
 	}
+
+	defer r.closeMutex.Unlock()
 
 	select {
 	case <-r.connectionContext.Done():
@@ -382,13 +463,21 @@ func (r *Relay) Write(msg []byte) {
 // WriteWithError is like Write, but returns an error if the write fails (and the connection gets closed).
 func (r *Relay) WriteWithError(msg []byte) error {
 	ch := make(chan error)
-	r.closeMutex.Lock()
-	defer r.closeMutex.Unlock()
+
 	select {
+	case <-r.closeMutex.C(): // this locks the channel/mutex
 	case <-r.closedNotify:
 		return fmt.Errorf("failed to write to %s: <closed>", r.URL)
-	default:
+	case <-r.connectionContext.Done():
+		return fmt.Errorf("failed to write to %s: <closed>", r.URL)
 	}
+
+	defer r.closeMutex.Unlock()
+
+	if r.writeQueue == nil {
+		return nil
+	}
+
 	select {
 	case <-r.connectionContext.Done():
 		return fmt.Errorf("failed to write to %s: %w", r.URL, context.Cause(r.connectionContext))
@@ -502,21 +591,23 @@ func (r *Relay) publish(ctx context.Context, id ID, env Envelope) error {
 // Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.
 // Failure to do that will result in a huge number of halted goroutines being created.
 func (r *Relay) Subscribe(ctx context.Context, filter Filter, opts SubscriptionOptions) (*Subscription, error) {
-	sub := r.PrepareSubscription(ctx, filter, opts)
-
-	if r.conn == nil {
-		return nil, fmt.Errorf("not connected to %s", r.URL)
+	if !r.IsConnected() {
+		return nil, ErrDisconnected
 	}
 
+	sub := r.PrepareSubscription(ctx, filter, opts)
+
 	if err := sub.Fire(); err != nil {
+		sub.cancel(ErrFireFailed)
 		return nil, fmt.Errorf("couldn't subscribe to %v at %s: %w", filter, r.URL, err)
 	}
 
 	go func() {
 		select {
 		case <-r.closedNotify:
-			sub.unsub(ErrDisconnected)
+			sub.cancel(ErrDisconnected)
 		case <-ctx.Done():
+			sub.cancel(nil)
 		}
 	}()
 
@@ -541,6 +632,7 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filter Filter, opts Sub
 		ClosedReason:      make(chan string, 1),
 		Filter:            filter,
 		match:             filter.Matches,
+		eoseTimedOut:      make(chan struct{}),
 	}
 
 	sub.checkDuplicate = opts.CheckDuplicate
@@ -565,12 +657,32 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filter Filter, opts Sub
 
 		go func() {
 			time.Sleep(opts.MaxWaitForEOSE)
+			close(sub.eoseTimedOut)
 			sub.dispatchEose()
 		}()
 	}
 
 	// start handling events, eose, unsub etc:
-	go sub.start()
+	go func() {
+		<-sub.Context.Done()
+
+		// mark subscription as closed and send a CLOSE to the relay (naive sync.Once implementation)
+		if sub.live.CompareAndSwap(true, false) {
+			closeMsg := CloseEnvelope(sub.id)
+			closeb, _ := (&closeMsg).MarshalJSON()
+			if err := sub.Relay.WriteWithError(closeb); err != nil {
+				_ = sub.Relay.close(err)
+			}
+		}
+
+		// remove subscription from our map
+		sub.Relay.Subscriptions.Delete(sub.counter)
+
+		// do this so we don't have the possibility of closing the Events channel and then trying to send to it
+		sub.mu.Lock()
+		close(sub.Events)
+		sub.mu.Unlock()
+	}()
 
 	return sub
 }
@@ -626,7 +738,7 @@ func (r *Relay) countInternal(ctx context.Context, filter Filter, opts Subscript
 		return CountEnvelope{}, err
 	}
 
-	defer sub.unsub(errors.New("countInternal() ended"))
+	defer sub.cancel(errors.New("countInternal() ended"))
 
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
@@ -651,19 +763,7 @@ func (r *Relay) Close() error {
 }
 
 func (r *Relay) close(reason error) error {
-	r.closeMutex.Lock()
-	defer r.closeMutex.Unlock()
-
-	if r.connectionContextCancel == nil {
-		return fmt.Errorf("relay already closed")
-	}
-
-	if r.conn == nil {
-		return fmt.Errorf("relay not connected")
-	}
-
 	r.connectionContextCancel(reason)
-
 	return nil
 }
 
