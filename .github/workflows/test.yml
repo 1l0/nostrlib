@@ -162,4 +162,4 @@ jobs:
             "./nip92"
             "./nip94"
           )
-          GOOS=js GOARCH=wasm tinygo test -short "${WASM_PKGS[@]}"
+          GOOS=wasip1 GOARCH=wasm tinygo test -short "${WASM_PKGS[@]}"
