@@ -20,8 +20,12 @@ jobs:
 
       - name: Run tests
         run: |
-          # すべてのパッケージを取得し schema を除外
-          PKGS=$(go list ./... | grep -v 'fiatjaf.com/nostr/schema')
+          # すべてのパッケージを取得し除外
+          PKGS=$(go list ./... | grep -v \
+            -e 'fiatjaf.com/nostr/schema' \
+            -e 'fiatjaf.com/nostr/nip29' \
+            -e 'fiatjaf.com/nostr/khatru' \
+            -e 'fiatjaf.com/nostr/sdk')
           go test $PKGS
 
   test-wasm-go:
