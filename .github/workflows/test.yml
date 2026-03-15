@@ -1,0 +1,161 @@
+name: Test
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    name: Go Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: |
+          # すべてのパッケージを取得し schema を除外
+          PKGS=$(go list ./... | grep -v 'fiatjaf.com/nostr/schema')
+          go test $PKGS
+
+  test-wasm-go:
+    name: Go WASM Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Set up wasmtime (Go wasm runner)
+        run: |
+          curl -fsSL https://wasmtime.dev/install.sh | bash
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+
+      - name: Download go_js_wasm_exec
+        run: |
+          GOROOT=$(go env GOROOT)
+          cp "$GOROOT/misc/wasm/go_wasip1_wasm_exec" /usr/local/bin/go_wasip1_wasm_exec || true
+          # Use the standard wasm_exec runner
+          echo "GOARCH=wasm" >> $GITHUB_ENV
+          echo "GOOS=js" >> $GITHUB_ENV
+
+      - name: Install Node.js (for GOOS=js wasm tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run GOOS=js WASM tests
+        run: |
+          WASM_PKGS=(
+            "."
+            "./nip04"
+            "./nip05"
+            "./nip06"
+            "./nip10"
+            "./nip11"
+            "./nip13"
+            "./nip14"
+            "./nip17"
+            "./nip19"
+            "./nip22"
+            "./nip23"
+            "./nip27"
+            "./nip31"
+            "./nip34"
+            "./nip40"
+            "./nip42"
+            "./nip44"
+            "./nip46"
+            "./nip49"
+            "./nip52"
+            "./nip53"
+            "./nip54"
+            "./nip57"
+            "./nip59"
+            "./nip60"
+            "./nip60/client"
+            "./nip61"
+            "./nip65"
+            "./nip70"
+            "./nip73"
+            "./nip77"
+            "./nip77/negentropy"
+            "./nip86"
+            "./nip92"
+            "./nip94"
+          )
+          GOROOT=$(go env GOROOT)
+          export PATH="$GOROOT/misc/wasm:$PATH"
+          GOOS=js GOARCH=wasm go test -short "${WASM_PKGS[@]}"
+
+  test-wasm-tinygo:
+    name: TinyGo WASM Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install TinyGo
+        run: |
+          wget -q https://github.com/tinygo-org/tinygo/releases/download/v0.37.0/tinygo_0.37.0_amd64.deb
+          sudo dpkg -i tinygo_0.37.0_amd64.deb
+
+      - name: Install Node.js (for TinyGo wasm tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run TinyGo WASM tests
+        run: |
+          WASM_PKGS=(
+            "."
+            "./nip04"
+            "./nip05"
+            "./nip06"
+            "./nip10"
+            "./nip11"
+            "./nip13"
+            "./nip14"
+            "./nip17"
+            "./nip19"
+            "./nip22"
+            "./nip23"
+            "./nip27"
+            "./nip31"
+            "./nip34"
+            "./nip40"
+            "./nip42"
+            "./nip44"
+            "./nip46"
+            "./nip49"
+            "./nip52"
+            "./nip53"
+            "./nip54"
+            "./nip57"
+            "./nip59"
+            "./nip60"
+            "./nip60/client"
+            "./nip61"
+            "./nip65"
+            "./nip70"
+            "./nip73"
+            "./nip77"
+            "./nip77/negentropy"
+            "./nip86"
+            "./nip92"
+            "./nip94"
+          )
+          GOOS=js GOARCH=wasm tinygo test -short "${WASM_PKGS[@]}"
