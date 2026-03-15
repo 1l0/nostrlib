@@ -130,6 +130,25 @@ func (pk *PubKey) UnmarshalJSON(buf []byte) error {
 	return nil
 }
 
+func (pk PubKey) MarshalText() ([]byte, error) {
+	res := make([]byte, 64)
+	xhex.Encode(res, pk[:])
+	return res, nil
+}
+
+func (pk *PubKey) UnmarshalText(buf []byte) error {
+	if len(buf) != 64 {
+		return fmt.Errorf("must be a hex string of 64 characters")
+	}
+	if err := xhex.Decode(pk[:], buf); err != nil {
+		return err
+	}
+	if _, err := schnorr.ParsePubKey(pk[:]); err != nil {
+		return fmt.Errorf("pubkey is not valid %w", err)
+	}
+	return nil
+}
+
 func PubKeyFromHex(pkh string) (PubKey, error) {
 	pk := PubKey{}
 	if len(pkh) != 64 {
