@@ -18,7 +18,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"fiatjaf.com/lib/channelmutex"
 	ws "github.com/coder/websocket"
 )
 
@@ -48,16 +47,13 @@ func (c closeCause) Error() string {
 
 // Relay represents a connection to a Nostr relay.
 type Relay struct {
-	closeMutex *channelmutex.Mutex
-
 	URL           string
 	requestHeader http.Header // e.g. for origin header
 
 	// websocket connection
-	conn         *ws.Conn
-	writeQueue   chan writeRequest
-	closed       *atomic.Bool
-	closedNotify chan struct{}
+	conn       *ws.Conn
+	writeQueue chan writeRequest
+	closed     *atomic.Bool
 
 	Subscriptions *MapOf[int64, *Subscription]
 
@@ -92,9 +88,7 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 		customHandler:                 opts.CustomHandler,
 		noticeHandler:                 opts.NoticeHandler,
 		authHandler:                   opts.AuthHandler,
-		closeMutex:                    channelmutex.New(),
 		closed:                        &atomic.Bool{},
-		closedNotify:                  make(chan struct{}),
 	}
 
 	go func() {
@@ -103,8 +97,6 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 		if wasClosed := r.closed.Swap(true); wasClosed {
 			return
 		}
-
-		r.closeMutex.Invalidate()
 
 		if r.conn != nil {
 			cause := context.Cause(ctx)
@@ -119,17 +111,6 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 			}
 
 			_ = r.conn.Close(code, reason)
-		}
-		if r.closeMutex != nil {
-			r.closeMutex.Lock()
-			if r.closedNotify != nil {
-				close(r.closedNotify)
-			}
-			if r.writeQueue != nil {
-				close(r.writeQueue)
-			}
-			r.conn = nil
-			r.closeMutex.Unlock()
 		}
 	}()
 
@@ -255,12 +236,11 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 	ticker := time.NewTicker(19 * time.Second)
 
 	// main websocket loop
-	readQueue := make(chan string)
+	readQueue := make(chan string, 64 /* add some buffer to account for processing/IO mismatches */)
 
 	r.conn = c
-	r.writeQueue = make(chan writeRequest)
+	r.writeQueue = make(chan writeRequest, 64 /* idem */)
 	r.closed = &atomic.Bool{}
-	r.closedNotify = make(chan struct{})
 
 	connCtx := r.connectionContext
 	go func() {
@@ -269,8 +249,6 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 		for {
 			select {
 			case <-connCtx.Done():
-				return
-			case <-r.closedNotify:
 				return
 			case <-ticker.C:
 				debugLogf("{%s} pinging\n", r.URL)
@@ -336,7 +314,11 @@ func (r *Relay) newConnection(ctx context.Context, httpClient *http.Client) erro
 			}
 
 			msg := string(buf.Bytes())
-			readQueue <- msg
+			select {
+			case readQueue <- msg:
+			case <-connCtx.Done():
+				return
+			}
 		}
 	}()
 
@@ -443,16 +425,6 @@ func (r *Relay) handleMessage(message string) {
 // Write queues an arbitrary message to be sent to the relay.
 func (r *Relay) Write(msg []byte) {
 	select {
-	case <-r.closeMutex.C(): // this locks the mutex
-	case <-r.closedNotify:
-		return
-	case <-r.connectionContext.Done():
-		return
-	}
-
-	defer r.closeMutex.Unlock()
-
-	select {
 	case <-r.connectionContext.Done():
 	case r.writeQueue <- writeRequest{msg: msg, answer: nil}:
 	}
@@ -461,16 +433,6 @@ func (r *Relay) Write(msg []byte) {
 // WriteWithError is like Write, but returns an error if the write fails (and the connection gets closed).
 func (r *Relay) WriteWithError(msg []byte) error {
 	ch := make(chan error)
-
-	select {
-	case <-r.closeMutex.C(): // this locks the channel/mutex
-	case <-r.closedNotify:
-		return fmt.Errorf("failed to write to %s: <closed>", r.URL)
-	case <-r.connectionContext.Done():
-		return fmt.Errorf("failed to write to %s: <closed>", r.URL)
-	}
-
-	defer r.closeMutex.Unlock()
 
 	if r.writeQueue == nil {
 		return nil
@@ -601,12 +563,8 @@ func (r *Relay) Subscribe(ctx context.Context, filter Filter, opts SubscriptionO
 	}
 
 	go func() {
-		select {
-		case <-r.closedNotify:
-			sub.cancel(ErrDisconnected)
-		case <-ctx.Done():
-			sub.cancel(nil)
-		}
+		<-ctx.Done()
+		sub.cancel(nil)
 	}()
 
 	return sub, nil

@@ -39,23 +39,13 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Set up wasmtime (Go wasm runner)
-        run: |
-          curl -fsSL https://wasmtime.dev/install.sh | bash
-          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@latest
 
-      - name: Download go_js_wasm_exec
+      - name: Install wasmbrowsertest
         run: |
-          GOROOT=$(go env GOROOT)
-          cp "$GOROOT/misc/wasm/go_wasip1_wasm_exec" /usr/local/bin/go_wasip1_wasm_exec || true
-          # Use the standard wasm_exec runner
-          echo "GOARCH=wasm" >> $GITHUB_ENV
-          echo "GOOS=js" >> $GITHUB_ENV
-
-      - name: Install Node.js (for GOOS=js wasm tests)
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+          go install github.com/agnivade/wasmbrowsertest@latest
+          mv $(go env GOPATH)/bin/wasmbrowsertest $(go env GOPATH)/bin/go_js_wasm_exec
 
       - name: Run GOOS=js WASM tests
         run: |
@@ -97,8 +87,6 @@ jobs:
             "./nip92"
             "./nip94"
           )
-          GOROOT=$(go env GOROOT)
-          export PATH="$GOROOT/misc/wasm:$PATH"
           GOOS=js GOARCH=wasm go test -short "${WASM_PKGS[@]}"
 
   test-wasm-tinygo:
@@ -117,10 +105,13 @@ jobs:
           wget -q https://github.com/tinygo-org/tinygo/releases/download/v0.37.0/tinygo_0.37.0_amd64.deb
           sudo dpkg -i tinygo_0.37.0_amd64.deb
 
-      - name: Install Node.js (for TinyGo wasm tests)
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@latest
+
+      - name: Install wasmbrowsertest
+        run: |
+          go install github.com/agnivade/wasmbrowsertest@latest
+          mv $(go env GOPATH)/bin/wasmbrowsertest $(go env GOPATH)/bin/go_js_wasm_exec
 
       - name: Run TinyGo WASM tests
         run: |
@@ -162,4 +153,4 @@ jobs:
             "./nip92"
             "./nip94"
           )
-          GOOS=wasip1 GOARCH=wasm tinygo test -short "${WASM_PKGS[@]}"
+          GOOS=js GOARCH=wasm tinygo test -short "${WASM_PKGS[@]}"
