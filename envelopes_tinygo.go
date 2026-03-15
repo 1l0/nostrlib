@@ -93,11 +93,11 @@ func (v *EventEnvelope) FromJSON(data string) error {
 	arr := r.Array()
 	switch len(arr) {
 	case 2:
-		return json.Unmarshal([]byte(arr[1].Raw), &v.Event)
+		return v.Event.UnmarshalJSON([]byte(arr[1].Raw))
 	case 3:
 		subid := arr[1].String()
 		v.SubscriptionID = &subid
-		return json.Unmarshal([]byte(arr[2].Raw), &v.Event)
+		return v.Event.UnmarshalJSON([]byte(arr[2].Raw))
 	default:
 		return fmt.Errorf("failed to decode EVENT envelope")
 	}
@@ -127,7 +127,7 @@ type ReqEnvelope struct {
 
 func (_ ReqEnvelope) Label() string { return "REQ" }
 func (c ReqEnvelope) String() string {
-	v, _ := json.Marshal(c)
+	v, _ := c.MarshalJSON()
 	return string(v)
 }
 
@@ -141,7 +141,7 @@ func (v *ReqEnvelope) FromJSON(data string) error {
 
 	v.Filters = make([]Filter, len(arr)-2)
 	for i, filterj := range arr[2:] {
-		if err := json.Unmarshal([]byte(filterj.Raw), &v.Filters[i]); err != nil {
+		if err := v.Filters[i].UnmarshalJSON([]byte(filterj.Raw)); err != nil {
 			return fmt.Errorf("on filter: %w", err)
 		}
 	}
@@ -175,7 +175,7 @@ type CountEnvelope struct {
 
 func (_ CountEnvelope) Label() string { return "COUNT" }
 func (c CountEnvelope) String() string {
-	v, _ := json.Marshal(c)
+	v, _ := c.MarshalJSON()
 	return string(v)
 }
 
@@ -187,15 +187,13 @@ func (v *CountEnvelope) FromJSON(data string) error {
 	}
 	v.SubscriptionID = arr[1].String()
 
-	var countResult struct {
-		Count *uint32 `json:"count"`
-		HLL   string  `json:"hll"`
-	}
-	// Try to unmarshal as count result first
-	if err := json.Unmarshal([]byte(arr[2].Raw), &countResult); err == nil && countResult.Count != nil {
-		v.Count = countResult.Count
-		if len(countResult.HLL) > 0 {
-			hll, err := HexDecodeString(countResult.HLL)
+	// Try to parse as count result first (avoid encoding/json to prevent TinyGo reflect panic)
+	obj := gjson.Parse(arr[2].Raw)
+	if countVal := obj.Get("count"); countVal.Exists() {
+		c := uint32(countVal.Uint())
+		v.Count = &c
+		if hllHex := obj.Get("hll").String(); len(hllHex) > 0 {
+			hll, err := HexDecodeString(hllHex)
 			if err != nil {
 				return fmt.Errorf("invalid \"hll\" value in COUNT message: %w", err)
 			}
@@ -205,7 +203,7 @@ func (v *CountEnvelope) FromJSON(data string) error {
 	}
 
 	// Otherwise it's a filter
-	if err := json.Unmarshal([]byte(arr[2].Raw), &v.Filter); err != nil {
+	if err := v.Filter.UnmarshalJSON([]byte(arr[2].Raw)); err != nil {
 		return fmt.Errorf("on filter: %w", err)
 	}
 
@@ -242,7 +240,7 @@ type NoticeEnvelope string
 
 func (_ NoticeEnvelope) Label() string { return "NOTICE" }
 func (n NoticeEnvelope) String() string {
-	v, _ := json.Marshal(n)
+	v, _ := n.MarshalJSON()
 	return string(v)
 }
 
@@ -269,7 +267,7 @@ type EOSEEnvelope string
 
 func (_ EOSEEnvelope) Label() string { return "EOSE" }
 func (e EOSEEnvelope) String() string {
-	v, _ := json.Marshal(e)
+	v, _ := e.MarshalJSON()
 	return string(v)
 }
 
@@ -296,7 +294,7 @@ type CloseEnvelope string
 
 func (_ CloseEnvelope) Label() string { return "CLOSE" }
 func (c CloseEnvelope) String() string {
-	v, _ := json.Marshal(c)
+	v, _ := c.MarshalJSON()
 	return string(v)
 }
 
@@ -326,7 +324,7 @@ type ClosedEnvelope struct {
 
 func (_ ClosedEnvelope) Label() string { return "CLOSED" }
 func (c ClosedEnvelope) String() string {
-	v, _ := json.Marshal(c)
+	v, _ := c.MarshalJSON()
 	return string(v)
 }
 
@@ -362,7 +360,7 @@ type OKEnvelope struct {
 
 func (_ OKEnvelope) Label() string { return "OK" }
 func (o OKEnvelope) String() string {
-	v, _ := json.Marshal(o)
+	v, _ := o.MarshalJSON()
 	return string(v)
 }
 
@@ -407,7 +405,7 @@ type AuthEnvelope struct {
 
 func (_ AuthEnvelope) Label() string { return "AUTH" }
 func (a AuthEnvelope) String() string {
-	v, _ := json.Marshal(a)
+	v, _ := a.MarshalJSON()
 	return string(v)
 }
 
@@ -418,7 +416,7 @@ func (v *AuthEnvelope) FromJSON(data string) error {
 		return fmt.Errorf("failed to decode Auth envelope: missing fields")
 	}
 	if arr[1].IsObject() {
-		return json.Unmarshal([]byte(arr[1].Raw), &v.Event)
+		return v.Event.UnmarshalJSON([]byte(arr[1].Raw))
 	} else {
 		challenge := arr[1].String()
 		v.Challenge = &challenge
