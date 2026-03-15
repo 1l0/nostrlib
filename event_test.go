@@ -20,7 +20,7 @@ func TestEventParsingAndVerifying(t *testing.T) {
 
 	for _, raw := range rawEvents {
 		var ev Event
-		err := json.Unmarshal([]byte(raw), &ev)
+		err := ev.UnmarshalJSON([]byte(raw))
 		assert.NoError(t, err)
 
 		assert.Equal(t, ev.ID, ev.GetID())
@@ -28,7 +28,7 @@ func TestEventParsingAndVerifying(t *testing.T) {
 		ok := ev.VerifySignature()
 		assert.True(t, ok, "signature verification failed when it should have succeeded")
 
-		asJSON, err := json.Marshal(ev)
+		asJSON, err := ev.MarshalJSON()
 		assert.NoError(t, err)
 		assert.Equal(t, raw, string(asJSON))
 	}
@@ -51,11 +51,11 @@ func TestEventSerialization(t *testing.T) {
 	}
 
 	for _, evt := range events {
-		b, err := json.Marshal(evt)
+		b, err := evt.MarshalJSON()
 		assert.NoError(t, err)
 
 		var re Event
-		err = json.Unmarshal(b, &re)
+		err = re.UnmarshalJSON(b)
 		assert.NoError(t, err)
 
 		assert.Condition(t, func() (success bool) {

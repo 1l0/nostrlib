@@ -24,11 +24,41 @@ var (
 type stdJsonWrapper struct{}
 
 func (stdJsonWrapper) Marshal(v any) ([]byte, error) {
-	return stdjson.Marshal(v)
+	switch t := v.(type) {
+	case Event:
+		return t.MarshalJSON()
+	case *Event:
+		return t.MarshalJSON()
+	case Filter:
+		return t.MarshalJSON()
+	case *Filter:
+		return t.MarshalJSON()
+	case ID:
+		return t.MarshalJSON()
+	case *ID:
+		return t.MarshalJSON()
+	case PubKey:
+		return t.MarshalJSON()
+	case *PubKey:
+		return t.MarshalJSON()
+	default:
+		return stdjson.Marshal(v)
+	}
 }
 
 func (stdJsonWrapper) Unmarshal(data []byte, v any) error {
-	return stdjson.Unmarshal(data, v)
+	switch t := v.(type) {
+	case *Event:
+		return t.UnmarshalJSON(data)
+	case *Filter:
+		return t.UnmarshalJSON(data)
+	case *ID:
+		return t.UnmarshalJSON(data)
+	case *PubKey:
+		return t.UnmarshalJSON(data)
+	default:
+		return stdjson.Unmarshal(data, v)
+	}
 }
 
 func (stdJsonWrapper) NewEncoder(w io.Writer) *stdjson.Encoder {
