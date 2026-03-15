@@ -1,2 +1,4 @@
 go-nostr
 libsecp256k1
+.vscode/
+TODO.md
