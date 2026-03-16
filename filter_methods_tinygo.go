@@ -4,13 +4,14 @@ package nostr
 
 import (
 	"encoding/hex"
+	stdjson "encoding/json"
 	"strconv"
 
 	"github.com/tidwall/gjson"
 )
 
 func (ef Filter) String() string {
-	j, _ := ef.MarshalJSON()
+	j, _ := stdjson.Marshal(ef)
 	return string(j)
 }
 

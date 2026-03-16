@@ -10,7 +10,7 @@ import (
 )
 
 func (evt Event) String() string {
-	j, _ := evt.MarshalJSON()
+	j, _ := json.Marshal(evt)
 	return string(j)
 }
 

@@ -99,9 +99,18 @@ func NewRelay(ctx context.Context, url string, opts RelayOptions) *Relay {
 		}
 
 		if r.conn != nil {
-			// In JS/WASM, conn.Close() can panic with "invalid code" via syscall/js.
-			// The WebSocket will be cleaned up by the JS runtime when the connection drops.
-			// We intentionally skip calling conn.Close() here.
+			cause := context.Cause(ctx)
+			code := ws.StatusNormalClosure
+			reason := ""
+			var cc closeCause
+			if errors.As(cause, &cc) {
+				code = cc.code
+				reason = cc.reason
+			} else if cause != nil {
+				reason = cause.Error()
+			}
+
+			_ = r.conn.Close(code, reason)
 		}
 	}()
 
