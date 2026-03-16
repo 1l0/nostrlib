@@ -29,7 +29,7 @@ func parseEventMessage(t *testing.T, raw []stdjson.RawMessage) Event {
 	require.Equal(t, "EVENT", typ)
 
 	var event Event
-	err = event.UnmarshalJSON(raw[1])
+	err = json.Unmarshal(raw[1], &event)
 	require.NoError(t, err)
 
 	return event
@@ -53,7 +53,7 @@ func parseSubscriptionMessage(t *testing.T, raw []stdjson.RawMessage) (subid str
 	var ff []Filter
 	for _, b := range raw[2:] {
 		var f Filter
-		err := f.UnmarshalJSON(b)
+		err := json.Unmarshal(b, &f)
 		require.NoError(t, err)
 		ff = append(ff, f)
 	}

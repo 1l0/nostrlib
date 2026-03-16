@@ -62,10 +62,6 @@ type TestStruct struct {
 }
 
 func TestStructWithIDAndPubKey(t *testing.T) {
-	if isTinyGo {
-		t.Log("skipping: encoding/json struct reflection not supported in TinyGo")
-		return
-	}
 	ts := TestStruct{
 		ID:     MustIDFromHex("6348118f31cc19fe6b699fa2db5edff315429f7ebb6cc16d3627fdbc4dcae904"),
 		PubKey: MustPubKeyFromHex("123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"),
