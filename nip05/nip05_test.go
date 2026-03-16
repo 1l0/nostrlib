@@ -75,8 +75,8 @@ func TestResponse(t *testing.T) {
 
 	respj, err := json.Marshal(resp)
 	require.NoError(t, err)
+	require.Equal(t, `{"names":{"foo":"`+pk1.Hex()+`","bar":"`+pk2.Hex()+`"},"relays":{"`+pk1.Hex()+`":["wss://a.com"],"`+pk2.Hex()+`":["wss://a.com","wss://b.com"]}}`, string(respj))
 
-	// unmarshal and compare structurally (map iteration order is not guaranteed)
 	back := WellKnownResponse{}
 	err = json.Unmarshal(respj, &back)
 	require.NoError(t, err)
