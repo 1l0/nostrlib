@@ -18,11 +18,17 @@ func (evt Event) MarshalJSON() ([]byte, error) {
 	var b []byte
 	b = append(b, `{"kind":`...)
 	b = append(b, strconv.Itoa(int(evt.Kind))...)
-	b = append(b, `,"id":"`...)
-	b = append(b, evt.ID.Hex()...)
-	b = append(b, `","pubkey":"`...)
-	b = append(b, evt.PubKey.Hex()...)
-	b = append(b, `","created_at":`...)
+	if evt.ID != ZeroID {
+		b = append(b, `,"id":"`...)
+		b = append(b, evt.ID.Hex()...)
+		b = append(b, '"')
+	}
+	if evt.PubKey != ZeroPK {
+		b = append(b, `,"pubkey":"`...)
+		b = append(b, evt.PubKey.Hex()...)
+		b = append(b, '"')
+	}
+	b = append(b, `,"created_at":`...)
 	b = append(b, strconv.FormatInt(int64(evt.CreatedAt), 10)...)
 	b = append(b, `,"tags":[`...)
 	for i, tag := range evt.Tags {
@@ -40,9 +46,12 @@ func (evt Event) MarshalJSON() ([]byte, error) {
 	}
 	b = append(b, `],"content":`...)
 	b = escapeString(b, evt.Content)
-	b = append(b, `,"sig":"`...)
-	b = append(b, hex.EncodeToString(evt.Sig[:])...)
-	b = append(b, `"}`...)
+	if evt.Sig != ([64]byte{}) {
+		b = append(b, `,"sig":"`...)
+		b = append(b, hex.EncodeToString(evt.Sig[:])...)
+		b = append(b, '"')
+	}
+	b = append(b, '}')
 
 	return b, nil
 }
